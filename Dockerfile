@@ -72,3 +72,4 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# force rebuild Wed Nov  4 00:47:42 CST 2026
