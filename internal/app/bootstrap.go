@@ -36,9 +36,14 @@ func BuildRunner(cfg *config.Config, mode string) (*Runner, error) {
 		consumer := jobconsumer.New(dependencies)
 		workerService, err := jobs.NewService(&cfg.Queue, consumer)
 		if err != nil {
-			return nil, err
+			if !cfg.Queue.Enabled {
+				logger.Infow("worker_skipped", "reason", "queue disabled in config")
+			} else {
+				return nil, err
+			}
+		} else {
+			services = append(services, workerService)
 		}
-		services = append(services, workerService)
 	}
 
 	// 如果没有服务被启动（例如模式错误或配置导致都没起），应该报错或至少打日志
