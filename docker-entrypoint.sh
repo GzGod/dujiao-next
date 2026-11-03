@@ -164,6 +164,9 @@ YAML
 echo "=== Generated config.yml ==="
 cat /app/config.yml
 echo "=== Starting dujiao-next ==="
-./dujiao-next 2>&1
-echo "=== Process exited with code $? ==="
+./dujiao-next > /app/logs/app.log 2>&1
+EXIT_CODE=$?
+echo "=== Process exited with code $EXIT_CODE ==="
+echo "=== Last 50 lines of app.log ==="
+tail -50 /app/logs/app.log
 sleep 60
