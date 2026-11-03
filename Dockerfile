@@ -44,6 +44,7 @@ ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
 RUN go mod download
 
+ARG CACHEBUST=1
 COPY . .
 
 # go:embed 只能读取包目录内的文件，所以前端产物必须落到 internal/web/dist/ 下
