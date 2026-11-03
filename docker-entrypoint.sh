@@ -166,4 +166,4 @@ cat /app/config.yml
 echo "=== Starting dujiao-next ==="
 ./dujiao-next 2>&1
 echo "=== Process exited with code $? ==="
-sleep 30
+sleep 60
