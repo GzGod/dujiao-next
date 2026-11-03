@@ -39,11 +39,9 @@ server:
   host: "0.0.0.0"
   port: "${PORT:-8080}"
   mode: "${SERVER_MODE:-release}"
-  # Trust all upstream proxies — correct for Railway's edge network.
-  # Tighten to a specific CIDR if you expose the container directly.
+  # Railway's internal network; covers the edge proxy layer.
   trusted_proxies:
-    - "0.0.0.0/0"
-    - "::/0"
+    - "100.64.0.0/10"
 
 log:
   filename: app.log
