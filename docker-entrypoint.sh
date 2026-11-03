@@ -161,4 +161,4 @@ reseller:
   settlement_confirm_days: 7
 YAML
 
-exec ./dujiao-next "$@"
+exec ./dujiao-next
