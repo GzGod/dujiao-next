@@ -161,4 +161,7 @@ reseller:
   settlement_confirm_days: 7
 YAML
 
+echo "=== Generated config.yml ==="
+cat /app/config.yml
+echo "=== Starting dujiao-next ==="
 exec ./dujiao-next 2>&1
