@@ -10,6 +10,7 @@ import (
 	"github.com/dujiao-next/internal/app/jobs"
 	jobconsumer "github.com/dujiao-next/internal/app/jobs/consumer"
 	"github.com/dujiao-next/internal/config"
+	"github.com/dujiao-next/internal/logger"
 )
 
 // BuildRunner 构建服务运行器
