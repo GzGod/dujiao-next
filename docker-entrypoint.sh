@@ -164,9 +164,15 @@ YAML
 echo "=== Generated config.yml ==="
 cat /app/config.yml
 echo "=== Starting dujiao-next ==="
-./dujiao-next > /app/logs/app.log 2>&1
-EXIT_CODE=$?
-echo "=== Process exited with code $EXIT_CODE ==="
-echo "=== Last 50 lines of app.log ==="
-tail -50 /app/logs/app.log
-sleep 60
+./dujiao-next > /app/logs/app.log 2>&1 &
+APP_PID=$!
+sleep 2
+if kill -0 $APP_PID 2>/dev/null; then
+  echo "Process started OK, PID=$APP_PID"
+  wait $APP_PID
+  echo "=== Process exited with code $? ==="
+  tail -50 /app/logs/app.log
+else
+  echo "=== Process died immediately ==="
+  cat /app/logs/app.log
+fi
