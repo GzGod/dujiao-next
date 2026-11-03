@@ -1,6 +1,6 @@
 package app
 
-// railway-deploy-2026-11-04
+// railway-deploy-2026-11-04-v2 queue-disabled-fix
 
 import (
 	"errors"
