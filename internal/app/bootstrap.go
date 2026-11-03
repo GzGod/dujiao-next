@@ -39,7 +39,7 @@ func BuildRunner(cfg *config.Config, mode string) (*Runner, error) {
 		workerService, err := jobs.NewService(&cfg.Queue, consumer)
 		if err != nil {
 			if !cfg.Queue.Enabled {
-				logger.Infow("worker_skipped", "reason", "queue disabled in config")
+				logger.Infow("worker_skipped", "reason", "queue disabled in config", "build", "20261104-001")
 			} else {
 				return nil, err
 			}
