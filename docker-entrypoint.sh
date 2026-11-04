@@ -164,6 +164,14 @@ YAML
 echo "=== Generated config.yml ==="
 cat /app/config.yml
 echo "=== Starting dujiao-next ==="
+
+# 如果设置了 RESET_ADMIN_PASSWORD，先执行密码重置再启动
+if [ -n "$RESET_ADMIN_PASSWORD" ] && [ -n "$RESET_ADMIN_USERNAME" ]; then
+  echo "=== Resetting admin password for $RESET_ADMIN_USERNAME ==="
+  ./dujiao-next admin reset-password --username "$RESET_ADMIN_USERNAME" --password "$RESET_ADMIN_PASSWORD" 2>&1
+  echo "=== Password reset done ==="
+fi
+
 ./dujiao-next > /app/logs/app.log 2>&1 &
 APP_PID=$!
 sleep 2
