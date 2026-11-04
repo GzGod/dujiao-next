@@ -31,6 +31,8 @@ type ProductMappingReader interface {
 
 type SKUMappingReader interface {
 	FindUpstreamSKUID(skuID uint) (upstreamSKUID uint, found bool, err error)
+	// FindUpstreamSKUInfo 同时返回上游 SKU ID、供货价和币种（gptget 采购必须传 expected_unit_price）
+	FindUpstreamSKUInfo(skuID uint) (upstreamSKUID uint, upstreamPrice string, currency string, found bool, err error)
 }
 
 type ConnectionProvider interface {

@@ -61,8 +61,8 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 	}
 	item := localOrder.Items[0]
 
-	// 查找 SKU 映射
-	upstreamSKUID, found, err := s.skuMapRepo.FindUpstreamSKUID(item.SKUID)
+	// 查找 SKU 映射（同时获取供货价，gptget 协议采购必须传 expected_unit_price）
+	upstreamSKUID, upstreamPrice, upstreamCurrency, found, err := s.skuMapRepo.FindUpstreamSKUInfo(item.SKUID)
 	if err != nil {
 		s.markProcurementError(procOrder, fmt.Sprintf("lookup sku mapping failed: %v", err))
 		return fmt.Errorf("lookup sku mapping: %w", err)
@@ -84,6 +84,20 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 	// 传递人工表单数据（如有）
 	if len(item.ManualFormSubmissionJSON) > 0 {
 		req.ManualFormData = item.ManualFormSubmissionJSON
+	}
+
+	// 注入供货价和币种（gptget 协议采购必须传 expected_unit_price；其他协议 adapter 忽略此字段）
+	if upstreamPrice != "" {
+		if req.ManualFormData == nil {
+			req.ManualFormData = make(map[string]interface{})
+		}
+		// 只有 ManualFormData 中没有时才写入，避免覆盖手动填写的表单数据
+		if _, exists := req.ManualFormData["expected_unit_price"]; !exists {
+			req.ManualFormData["expected_unit_price"] = upstreamPrice
+		}
+		if _, exists := req.ManualFormData["currency"]; !exists {
+			req.ManualFormData["currency"] = upstreamCurrency
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

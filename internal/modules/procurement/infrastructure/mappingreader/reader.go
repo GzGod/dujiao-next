@@ -37,3 +37,17 @@ func (r *SKUReader) FindUpstreamSKUID(skuID uint) (uint, bool, error) {
 	}
 	return mapping.UpstreamSKUID, true, nil
 }
+
+// FindUpstreamSKUInfo 同时返回上游 SKU ID、供货价字符串和币种。
+// currency 从 sku_mappings 所属的 product_mapping → connection 的 currency 字段读取；
+// 若未设置则默认 "CNY"（gptget.fun 当前仅支持人民币结算）。
+func (r *SKUReader) FindUpstreamSKUInfo(skuID uint) (upstreamSKUID uint, upstreamPrice string, currency string, found bool, err error) {
+	mapping, err := r.source.GetByLocalSKUID(skuID)
+	if err != nil || mapping == nil {
+		return 0, "", "", false, err
+	}
+	price := mapping.UpstreamPrice.StringFixed(2)
+	// 默认 CNY；后续如需多币种可扩展 connection.currency 字段
+	cur := "CNY"
+	return mapping.UpstreamSKUID, price, cur, true, nil
+}
