@@ -220,17 +220,28 @@ func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts)
 		// is_active：如果未设置但 available=true 也视为有效
 		active := p.IsActive || p.Available
 
+		// 库存：gptget 是按需采购模式，stock=0 不代表缺货
+		// 只有明确缺货（stock=-2 或类似负值表示缺货）才标记缺货；
+		// stock=0 且 active=true 视为无限库存（-1）
+		effectiveStock := stockQty
+		stockStatus := "in_stock"
+		if !active {
+			stockStatus = "out_of_stock"
+		} else if stockQty < 0 && stockQty != -1 {
+			// 特殊负值表示缺货
+			stockStatus = "out_of_stock"
+			effectiveStock = 0
+		} else if stockQty == 0 {
+			// 0 视为无限库存
+			effectiveStock = -1
+		}
+
 		sku := UpstreamSKU{
-			ID:          p.SKUID,
-			SKUCode:     fmt.Sprintf("gptget-sku-%d", p.SKUID),
-			PriceAmount: price,
-			StockStatus: func() string {
-				if stockQty == 0 {
-					return "out_of_stock"
-				}
-				return "in_stock"
-			}(),
-			StockQuantity: stockQty,
+			ID:            p.SKUID,
+			SKUCode:       fmt.Sprintf("gptget-sku-%d", p.SKUID),
+			PriceAmount:   price,
+			StockStatus:   stockStatus,
+			StockQuantity: effectiveStock,
 			IsActive:      active,
 		}
 		product := UpstreamProduct{
