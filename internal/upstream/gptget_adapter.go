@@ -55,16 +55,26 @@ type gptgetPingResp struct {
 }
 
 type gptgetProduct struct {
-	SKUID         uint   `json:"sku_id"`
-	ProductName   string `json:"product_name"`
-	UnitPrice     string `json:"unit_price"`
-	Currency      string `json:"currency"`
-	Stock         int    `json:"stock"`          // -1 = unlimited
-	IsActive      bool   `json:"is_active"`
-	ProductID     uint   `json:"product_id"`
-	ProductSlug   string `json:"product_slug"`
-	CategoryID    uint   `json:"category_id"`
-	ImageURL      string `json:"image_url"`
+	SKUID         uint    `json:"sku_id"`
+	ProductName   string  `json:"product_name"`
+	// 价格字段：兼容多种可能的字段名
+	UnitPrice     string  `json:"unit_price"`
+	Price         string  `json:"price"`
+	SupplyPrice   string  `json:"supply_price"`
+	AgentPrice    string  `json:"agent_price"`
+	Currency      string  `json:"currency"`
+	// 库存字段：兼容多种可能的字段名
+	Stock         int     `json:"stock"`
+	StockQuantity int     `json:"stock_quantity"`
+	StockCount    int     `json:"stock_count"`
+	IsActive      bool    `json:"is_active"`
+	Available     bool    `json:"available"`
+	ProductID     uint    `json:"product_id"`
+	ProductSlug   string  `json:"product_slug"`
+	CategoryID    uint    `json:"category_id"`
+	ImageURL      string  `json:"image_url"`
+	Name          string  `json:"name"`
+	Title         string  `json:"title"`
 }
 
 type gptgetProductsResp struct {
@@ -149,32 +159,86 @@ func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts)
 	if err := a.doRequest(ctx, http.MethodGet, path, nil, &resp); err != nil {
 		return nil, err
 	}
+	// 调试：记录原始第一条数据的结构，用于确认字段名（只记录首页首条）
+	if page == 1 && len(resp.Data.Items) > 0 {
+		logger.Infow("gptget_products_sample",
+			"first_item_sku_id", resp.Data.Items[0].SKUID,
+			"first_item_price_unit", resp.Data.Items[0].UnitPrice,
+			"first_item_price_supply", resp.Data.Items[0].SupplyPrice,
+			"first_item_price_agent", resp.Data.Items[0].AgentPrice,
+			"first_item_price", resp.Data.Items[0].Price,
+			"first_item_stock", resp.Data.Items[0].Stock,
+			"first_item_stock_qty", resp.Data.Items[0].StockQuantity,
+			"first_item_is_active", resp.Data.Items[0].IsActive,
+			"first_item_available", resp.Data.Items[0].Available,
+			"total", resp.Data.Total,
+		)
+	}
 	if !resp.OK {
 		return nil, fmt.Errorf("gptget list products failed: %s", resp.Msg)
 	}
 
 	items := make([]UpstreamProduct, 0, len(resp.Data.Items))
 	for _, p := range resp.Data.Items {
-		// 每个 gptget SKU 映射为一个独立的 UpstreamProduct（一对一）
+		// 兼容多种价格字段名
+		price := p.UnitPrice
+		if price == "" {
+			price = p.SupplyPrice
+		}
+		if price == "" {
+			price = p.AgentPrice
+		}
+		if price == "" {
+			price = p.Price
+		}
+		cur := p.Currency
+		if cur == "" {
+			cur = "CNY"
+		}
+
+		// 兼容多种库存字段名
+		stockQty := p.Stock
+		if stockQty == 0 && p.StockQuantity != 0 {
+			stockQty = p.StockQuantity
+		}
+		if stockQty == 0 && p.StockCount != 0 {
+			stockQty = p.StockCount
+		}
+
+		// 商品名兼容
+		name := p.ProductName
+		if name == "" {
+			name = p.Name
+		}
+		if name == "" {
+			name = p.Title
+		}
+		if name == "" {
+			name = fmt.Sprintf("Product #%d", p.ProductID)
+		}
+
+		// is_active：如果未设置但 available=true 也视为有效
+		active := p.IsActive || p.Available
+
 		sku := UpstreamSKU{
 			ID:          p.SKUID,
 			SKUCode:     fmt.Sprintf("gptget-sku-%d", p.SKUID),
-			PriceAmount: p.UnitPrice,
+			PriceAmount: price,
 			StockStatus: func() string {
-				if p.Stock == 0 {
+				if stockQty == 0 {
 					return "out_of_stock"
 				}
 				return "in_stock"
 			}(),
-			StockQuantity: p.Stock,
-			IsActive:      p.IsActive,
+			StockQuantity: stockQty,
+			IsActive:      active,
 		}
 		product := UpstreamProduct{
 			ID:          p.ProductID,
 			Slug:        p.ProductSlug,
-			PriceAmount: p.UnitPrice,
-			Currency:    p.Currency,
-			IsActive:    p.IsActive,
+			PriceAmount: price,
+			Currency:    cur,
+			IsActive:    active,
 			CategoryID:  p.CategoryID,
 			SKUs:        []UpstreamSKU{sku},
 		}
