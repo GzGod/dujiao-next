@@ -63,7 +63,8 @@ type UpstreamConnection interface {
 	RetryMax() int
 	RetryIntervals() string
 	CreateOrder(ctx context.Context, request CreateOrderRequest) (*CreateOrderResult, error)
-	GetOrder(ctx context.Context, orderID uint) (*UpstreamOrder, error)
+	// GetOrder 查询上游订单；orderNo 供只认字符串单号的协议（如 gptget）使用，其它协议按 orderID 查询。
+	GetOrder(ctx context.Context, orderID uint, orderNo string) (*UpstreamOrder, error)
 	CancelOrder(ctx context.Context, orderID uint) error
 }
 

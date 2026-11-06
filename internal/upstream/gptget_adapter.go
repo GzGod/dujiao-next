@@ -13,11 +13,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
-	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/logger"
+	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
@@ -80,12 +81,12 @@ type gptgetProductsResp struct {
 }
 
 type gptgetOrderReq struct {
-	RequestID        string `json:"request_id"`
-	ExternalOrderNo  string `json:"external_order_no"`
-	SKUID            uint   `json:"sku_id"`
+	RequestID         string `json:"request_id"`
+	ExternalOrderNo   string `json:"external_order_no"`
+	SKUID             uint   `json:"sku_id"`
 	ExpectedUnitPrice string `json:"expected_unit_price"`
-	Currency         string `json:"currency"`
-	CallbackURL      string `json:"callback_url,omitempty"`
+	Currency          string `json:"currency"`
+	CallbackURL       string `json:"callback_url,omitempty"`
 }
 
 type gptgetOrderData struct {
@@ -309,24 +310,18 @@ func (a *GptgetAdapter) CreateOrder(ctx context.Context, req CreateUpstreamOrder
 	}, nil
 }
 
-// GetOrder 查询采购订单状态
-func (a *GptgetAdapter) GetOrder(ctx context.Context, orderID uint) (*UpstreamOrderDetail, error) {
-	// gptget 用字符串 order_no，但 Adapter 接口传 uint ID
-	// 通过 orders/:order_no 路径查询，order_no 存在 procurement_orders.upstream_order_no 里
-	// 这里用 ID 作为 order_no 的占位，实际在 GptgetAdapterWithOrderNo 方法里处理
-	path := fmt.Sprintf("/orders/%d", orderID)
-	return a.getOrderByPath(ctx, path)
+// GetOrder gptget 只认字符串 order_no，按数字 ID 无法查询；调用方应走 GetOrderByNo
+func (a *GptgetAdapter) GetOrder(_ context.Context, orderID uint) (*UpstreamOrderDetail, error) {
+	return nil, fmt.Errorf("gptget: query by numeric order id %d is not supported, use order_no", orderID)
 }
 
-// GetOrderByNo 按字符串 order_no 查询（gptget 专用）
+// GetOrderByNo 按我方返回的 order_no 查询采购订单
 func (a *GptgetAdapter) GetOrderByNo(ctx context.Context, orderNo string) (*UpstreamOrderDetail, error) {
-	path := fmt.Sprintf("/orders/%s", orderNo)
-	return a.getOrderByPath(ctx, path)
-}
-
-func (a *GptgetAdapter) getOrderByPath(ctx context.Context, path string) (*UpstreamOrderDetail, error) {
+	if strings.TrimSpace(orderNo) == "" {
+		return nil, fmt.Errorf("gptget: empty order_no")
+	}
 	var resp gptgetGetOrderResp
-	if err := a.doRequest(ctx, http.MethodGet, path, nil, &resp); err != nil {
+	if err := a.doRequest(ctx, http.MethodGet, "/orders/"+url.PathEscape(orderNo), nil, &resp); err != nil {
 		return nil, err
 	}
 	if !resp.OK {
@@ -334,21 +329,22 @@ func (a *GptgetAdapter) getOrderByPath(ctx context.Context, path string) (*Upstr
 	}
 
 	d := resp.Data
+	// 对本店而言，扣款成功并拿到核销码即视为已交付；客户之后是否核销（progress_status）不影响交付。
 	status := "pending"
-	switch d.ProgressStatus {
-	case "unused":
-		status = "paid"
-	case "completed":
-		status = "completed"
-	case "processing":
-		status = "processing"
+	switch {
+	case d.FinancialStatus == "refunded":
+		status = "refunded"
+	case d.ProgressStatus == "destroyed":
+		status = "canceled"
+	case d.FinancialStatus == "paid" && d.Code != "":
+		status = "delivered"
 	}
 
 	var fulfillment *UpstreamFulfillment
 	if d.Code != "" {
 		now := time.Now()
 		fulfillment = &UpstreamFulfillment{
-			Type:        "code",
+			Type:        "auto",
 			Status:      d.ProgressStatus,
 			Payload:     d.Code,
 			DeliveredAt: &now,

@@ -176,6 +176,11 @@ type Adapter interface {
 	DownloadImage(ctx context.Context, imageURL string) (localPath string, err error)
 }
 
+// OrderNoQuerier 由只认字符串单号的协议实现（如 gptget），按上游订单号查询订单
+type OrderNoQuerier interface {
+	GetOrderByNo(ctx context.Context, orderNo string) (*UpstreamOrderDetail, error)
+}
+
 // NewAdapter 根据协议类型创建适配器
 func NewAdapter(conn *siteconnectiondomain.Connection, uploadsDir string) (Adapter, error) {
 	switch conn.Protocol {

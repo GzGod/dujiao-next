@@ -121,6 +121,64 @@ func (h *Handler) handleEpayCallback(c *gin.Context) bool {
 	return true
 }
 
+// handleXorpayCallback 处理 XorPay 回调。XorPay 仅以 HTTP 200 判定通知成功，
+// 处理失败时返回非 200，让 XorPay 按 1/2/4/16/64/300 分钟重试。
+func (h *Handler) handleXorpayCallback(c *gin.Context) bool {
+	log := ginutil.RequestLog(c)
+	form, err := parseCallbackForm(c)
+	if err != nil {
+		log.Warnw("xorpay_callback_form_parse_failed", "error", err)
+		return false
+	}
+	aoid := strings.TrimSpace(getFirstValue(form, "aoid"))
+	orderID := strings.TrimSpace(getFirstValue(form, "order_id"))
+	if aoid == "" || orderID == "" ||
+		strings.TrimSpace(getFirstValue(form, "pay_price")) == "" ||
+		strings.TrimSpace(getFirstValue(form, "pay_time")) == "" ||
+		strings.TrimSpace(getFirstValue(form, "sign")) == "" {
+		log.Debugw("xorpay_callback_not_matched")
+		return false
+	}
+	log.Infow("xorpay_callback_received", "client_ip", c.ClientIP(), "order_id", orderID, "aoid", aoid,
+		"pay_price", strings.TrimSpace(getFirstValue(form, "pay_price")))
+
+	payment, err := h.payments.GetByGatewayOrderNo(orderID)
+	if err != nil || payment == nil {
+		payment, err = h.payments.GetLatestByProviderRef(aoid)
+	}
+	if err != nil || payment == nil {
+		log.Warnw("xorpay_callback_payment_not_found", "order_id", orderID, "aoid", aoid, "error", err)
+		c.String(http.StatusNotFound, constants.XorpayCallbackFail)
+		return true
+	}
+	channel, err := h.channels.GetByID(payment.ChannelID)
+	if err != nil || channel == nil {
+		log.Warnw("xorpay_callback_channel_not_found", "payment_id", payment.ID, "channel_id", payment.ChannelID, "error", err)
+		c.String(http.StatusNotFound, constants.XorpayCallbackFail)
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(channel.ProviderType), constants.PaymentProviderXorpay) {
+		log.Warnw("xorpay_callback_provider_invalid", "payment_id", payment.ID, "channel_id", channel.ID, "provider_type", channel.ProviderType)
+		c.String(http.StatusBadRequest, constants.XorpayCallbackFail)
+		return true
+	}
+
+	updated, err := h.service.HandleSyncCallback(channel, form, nil)
+	if err != nil {
+		log.Warnw("xorpay_callback_handle_failed", "payment_id", payment.ID, "channel_id", channel.ID, "order_id", orderID, "error", err)
+		h.enqueuePaymentExceptionAlert(c, jsonmap.JSON{
+			"alert_type": "xorpay_callback_handle_failed", "alert_level": "error",
+			"payment_id": fmt.Sprintf("%d", payment.ID), "order_id": orderID, "aoid": aoid,
+			"message": strings.TrimSpace(err.Error()), "provider": constants.PaymentProviderXorpay,
+		})
+		c.String(http.StatusInternalServerError, constants.XorpayCallbackFail)
+		return true
+	}
+	log.Infow("xorpay_callback_processed", "payment_id", payment.ID, "channel_id", channel.ID, "order_id", orderID, "status", updated.Status)
+	c.String(http.StatusOK, constants.XorpayCallbackSuccess)
+	return true
+}
+
 func parseCallbackForm(c *gin.Context) (map[string][]string, error) {
 	normalizeCallbackRequestQuery(c.Request)
 	if err := c.Request.ParseForm(); err != nil {

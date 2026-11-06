@@ -75,6 +75,7 @@ func (h *Handler) PaymentCallback(c *gin.Context) {
 		h.handleWechatCallback,
 		h.handleOkpayCallback,
 		h.handleAlipayCallback,
+		h.handleXorpayCallback,
 		h.handleEpayCallback,
 		h.handleTokenPayCallback,
 		h.handleEpusdtCallback,

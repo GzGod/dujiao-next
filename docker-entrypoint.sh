@@ -4,13 +4,14 @@
 set -e
 
 # ---------------------------------------------------------------------------
-# Parse Redis URL (Railway format: redis://:password@host:port/db)
+# Parse Redis URL (Railway format: redis://default:password@host:port)
 # ---------------------------------------------------------------------------
 if [ -n "$REDIS_URL" ]; then
   _redis_auth=$(echo "$REDIS_URL" | sed 's|redis://\(.*\)@.*|\1|')
   _redis_host=$(echo "$REDIS_URL" | sed 's|redis://.*@\(.*\):[0-9]*.*|\1|')
   _redis_port=$(echo "$REDIS_URL" | sed 's|redis://.*@.*:\([0-9]*\).*|\1|')
-  _redis_pass=$(echo "$_redis_auth" | sed 's|^:||')
+  # 去掉 "user:" 前缀，只保留密码（兼容 ":password" 与 "default:password"）
+  _redis_pass="${_redis_auth#*:}"
   REDIS_HOST="${REDIS_HOST:-$_redis_host}"
   REDIS_PORT="${REDIS_PORT:-$_redis_port}"
   REDIS_PASSWORD="${REDIS_PASSWORD:-$_redis_pass}"

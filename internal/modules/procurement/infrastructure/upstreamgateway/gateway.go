@@ -66,8 +66,14 @@ func (s *session) CreateOrder(ctx context.Context, request procurementcontract.C
 	}, nil
 }
 
-func (s *session) GetOrder(ctx context.Context, orderID uint) (*procurementcontract.UpstreamOrder, error) {
-	detail, err := s.adapter.GetOrder(ctx, orderID)
+func (s *session) GetOrder(ctx context.Context, orderID uint, orderNo string) (*procurementcontract.UpstreamOrder, error) {
+	var detail *upstream.UpstreamOrderDetail
+	var err error
+	if byNo, ok := s.adapter.(upstream.OrderNoQuerier); ok && orderNo != "" {
+		detail, err = byNo.GetOrderByNo(ctx, orderNo)
+	} else {
+		detail, err = s.adapter.GetOrder(ctx, orderID)
+	}
 	if err != nil {
 		return nil, err
 	}

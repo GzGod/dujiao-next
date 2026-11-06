@@ -63,6 +63,7 @@ const (
 	PaymentProviderDujiaoPay = "dujiaopay"
 	PaymentProviderOkpay     = "okpay"
 	PaymentProviderTokenpay  = "tokenpay"
+	PaymentProviderXorpay    = "xorpay"
 	PaymentProviderWallet    = "wallet"
 )
 
@@ -212,6 +213,12 @@ const (
 const (
 	OkpayCallbackSuccess = `{"status":"success"}`
 	OkpayCallbackFail    = `{"status":"fail"}`
+)
+
+// XorPay 回调常量：只有 HTTP 200 才算通知成功，失败时返回非 200 让 XorPay 重试。
+const (
+	XorpayCallbackSuccess = "success"
+	XorpayCallbackFail    = "fail"
 )
 
 // TokenPay 回调常量
