@@ -24,6 +24,7 @@ import {
 import QRCode from 'qrcode'
 import { type PageAlert } from '../utils/alerts'
 import { loadGuestOrderAuth, saveGuestOrderAuth } from '../utils/guestOrderAuth'
+import { X402WalletError, networkLabel, signX402Payment, type X402Requirements } from '../utils/x402Wallet'
 
 /**
  * 支付页共享逻辑（classic + vault 双模板共用）。
@@ -280,7 +281,23 @@ export function usePayment() {
   })
   const qrDisplayContent = computed(() => qrCodeContent.value || qrFallbackContent.value)
   const qrUsingPayLinkFallback = computed(() => Boolean(!qrCodeContent.value && qrFallbackContent.value))
-  const showQRCode = computed(() => paymentPresentationMode.value === 'qr' && Boolean(qrDisplayContent.value))
+  const showQRCode = computed(() => paymentPresentationMode.value === 'qr' && Boolean(qrDisplayContent.value) && !isX402Payment.value)
+
+  // x402：没有二维码和跳转链接，由浏览器钱包签名后提交给后端结算。
+  const x402Requirements = computed<X402Requirements | null>(() => {
+    const req = paymentResult.value?.x402_requirements
+    return req && typeof req === 'object' && req.amount && req.payTo ? (req as X402Requirements) : null
+  })
+  const isX402Payment = computed(() => paymentProviderType.value === 'x402' && Boolean(x402Requirements.value))
+  const x402Signing = ref(false)
+  const x402Error = ref('')
+  const x402AmountDisplay = computed(() => {
+    const raw = x402Requirements.value?.amount
+    if (!raw) return ''
+    const value = Number(raw) / 1_000_000
+    return Number.isFinite(value) ? value.toFixed(2) : ''
+  })
+  const x402NetworkLabel = computed(() => networkLabel(x402Requirements.value?.network || ''))
 
   const qrImageUrl = ref('')
   const qrRenderVersion = ref(0)
@@ -787,7 +804,7 @@ export function usePayment() {
         response = await paymentAPI.latest({ order_no: orderNoResolved.value })
       }
       const data = response.data.data
-      if (data && (data.pay_url || data.qr_code)) {
+      if (data && (data.pay_url || data.qr_code || data.x402_requirements)) {
         cachedPayment.value = data
         paymentResult.value = data
         selectedChannelId.value = data.channel_id || null
@@ -984,7 +1001,7 @@ export function usePayment() {
           channel_id: selectedChannelId.value,
         })
         paymentResult.value = response.data.data
-        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code) {
+        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code || paymentResult.value?.x402_requirements) {
           cachedPayment.value = paymentResult.value
         }
         openedPayWindow.value = false
@@ -1015,7 +1032,7 @@ export function usePayment() {
           return
         }
         paymentResult.value = created
-        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code) {
+        if (paymentResult.value?.pay_url || paymentResult.value?.qr_code || paymentResult.value?.x402_requirements) {
           cachedPayment.value = paymentResult.value
         }
         openedPayWindow.value = false
@@ -1035,6 +1052,35 @@ export function usePayment() {
   }
 
   const handlePayment = debounceAsync(performPayment, 200)
+
+  const handleX402Pay = async () => {
+    const requirements = x402Requirements.value
+    const paymentID = currentPaymentID()
+    if (!requirements || !paymentID || x402Signing.value) return
+    x402Error.value = ''
+    x402Signing.value = true
+    try {
+      const signed = await signX402Payment(requirements)
+      if (isGuest.value) {
+        await guestOrderAPI.settlePayment(paymentID, {
+          email: guestAuth.value.email,
+          order_password: guestAuth.value.order_password,
+          payload: signed,
+        })
+      } else {
+        await paymentAPI.settle(paymentID, signed)
+      }
+      await debouncedLoadOrder({ silent: true })
+    } catch (err: any) {
+      if (err instanceof X402WalletError) {
+        x402Error.value = t(`payment.x402.errors.${err.code}`)
+      } else {
+        x402Error.value = err?.message || t('payment.x402.errors.failed')
+      }
+    } finally {
+      x402Signing.value = false
+    }
+  }
 
   const shouldRedirect = (status?: string) => {
     if (!status) return false
@@ -1425,5 +1471,12 @@ export function usePayment() {
     handlePayment,
     handleGuestAuthSubmit,
     handleRefresh,
+    // x402
+    isX402Payment,
+    x402Signing,
+    x402Error,
+    x402AmountDisplay,
+    x402NetworkLabel,
+    handleX402Pay,
   }
 }

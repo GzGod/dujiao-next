@@ -95,6 +95,15 @@ func (a writerAdapter) CapturePayment(input paymenttransport.CapturePaymentInput
 	return payment, mapTransportError(err)
 }
 
+func (a writerAdapter) SettleSignedPayment(input paymenttransport.SettleSignedPaymentInput) (*paymentdomain.Payment, error) {
+	payment, err := a.payments.SettleSignedPayment(paymentapp.SettleSignedPaymentInput{
+		PaymentID: input.PaymentID,
+		Signed:    input.Signed,
+		Context:   input.Context,
+	})
+	return payment, mapTransportError(err)
+}
+
 func mapTransportError(err error) error {
 	if err == nil {
 		return nil

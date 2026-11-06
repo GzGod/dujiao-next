@@ -87,7 +87,22 @@
 
           <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-4">
-              <div v-if="showQRCode"
+              <div v-if="isX402Payment"
+                class="bg-secondary border rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center text-center gap-4">
+                <div class="text-sm text-muted-foreground">{{ t('payment.x402.title') }}</div>
+                <div class="text-3xl font-black text-foreground">{{ x402AmountDisplay }} USDC</div>
+                <div class="text-xs text-muted-foreground">{{ t('payment.x402.network') }}：{{ x402NetworkLabel }}</div>
+                <Button type="button" variant="default" class="font-bold" :disabled="x402Signing" @click="handleX402Pay">
+                  <Wallet class="h-4 w-4" aria-hidden="true" />
+                  {{ x402Signing ? t('payment.x402.signing') : t('payment.x402.payWithWallet') }}
+                </Button>
+                <div class="max-w-md text-xs text-muted-foreground">{{ t('payment.x402.tip') }}</div>
+                <Alert v-if="x402Error" variant="destructive" class="w-full max-w-md text-left">
+                  <AlertDescription>{{ x402Error }}</AlertDescription>
+                </Alert>
+              </div>
+
+              <div v-else-if="showQRCode"
                 class="bg-secondary border rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center text-center">
                 <div class="text-sm text-muted-foreground mb-4">{{ paymentGuideTitle }}</div>
                 <div class="w-full max-w-[280px] sm:max-w-[240px] aspect-square rounded-xl overflow-hidden bg-white p-2">
@@ -490,7 +505,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Copy, ExternalLink } from 'lucide-vue-next'
+import { Copy, ExternalLink, Wallet } from 'lucide-vue-next'
 import { pageAlertVariant, pageAlertToneClass } from '../utils/alerts'
 import PaymentAmountBreakdown from '../components/payment/PaymentAmountBreakdown.vue'
 import PaymentChannelSelector from '../components/payment/PaymentChannelSelector.vue'
@@ -518,5 +533,6 @@ const {
   formatDate, statusLabel, formatMoney, hasDiscountAmount, formatDiscountMoney, getLocalizedText, orderItemSkuText, fulfillmentTypeLabelText,
   handleCopyPayLink, handleCopyWalletAddress, handleOpenPayLink, restoreCachedPayment, handleChangePaymentMethod,
   handlePayment, handleGuestAuthSubmit, handleRefresh,
+  isX402Payment, x402Signing, x402Error, x402AmountDisplay, x402NetworkLabel, handleX402Pay,
 } = usePayment()
 </script>

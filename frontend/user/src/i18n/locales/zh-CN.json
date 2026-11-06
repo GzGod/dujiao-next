@@ -1284,6 +1284,19 @@
       "success": "成功",
       "failed": "失败",
       "expired": "已过期"
+    },
+    "x402": {
+      "title": "使用加密钱包支付（x402）",
+      "network": "网络",
+      "payWithWallet": "连接钱包并支付",
+      "signing": "请在钱包中确认签名…",
+      "tip": "只需在钱包中签名授权，无需支付 Gas。签名后由服务端完成链上结算，到账后订单自动变为已支付。",
+      "errors": {
+        "no_wallet": "未检测到浏览器钱包，请安装 MetaMask 或 Coinbase Wallet 后重试",
+        "rejected": "已取消签名",
+        "wrong_network": "钱包网络切换失败，请手动切换到对应网络后重试",
+        "failed": "支付失败，请稍后重试"
+      }
     }
   },
   "resellerConsole": {

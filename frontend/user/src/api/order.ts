@@ -77,6 +77,10 @@ export const guestOrderAPI = {
         const request = withGuestAuth(data)
         return userApi.post(`/guest/payments/${id}/capture`, request.payload, request.options)
     },
+    settlePayment: (id: number, data: GuestAuthInput & { payload: unknown }) => {
+        const request = withGuestAuth(data)
+        return userApi.post(`/guest/payments/${id}/settle`, request.payload, request.options)
+    },
     latestPayment: (params: GuestAuthInput) => {
         const request = withGuestAuth(params, { silentBusinessError: true })
         return userApi.get('/guest/payments/latest', { ...request.options, params: request.payload })
@@ -86,5 +90,6 @@ export const guestOrderAPI = {
 export const paymentAPI = {
     create: (data: CreatePaymentPayload) => userApi.post('/payments', data),
     capture: (id: number) => userApi.post(`/payments/${id}/capture`),
+    settle: (id: number, payload: unknown) => userApi.post(`/payments/${id}/settle`, { payload }),
     latest: (params: any) => userApi.get('/payments/latest', { params, silentBusinessError: true }),
 }

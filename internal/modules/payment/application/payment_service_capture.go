@@ -122,6 +122,82 @@ func (s *PaymentService) captureViaRegistry(input CapturePaymentInput, payment *
 	return s.HandleCallback(callbackInput)
 }
 
+// SettleSignedPaymentInput 付款人客户端提交签名载荷（如 x402 钱包签名）后由服务端结算的输入。
+type SettleSignedPaymentInput struct {
+	PaymentID uint
+	Signed    jsonmap.JSON
+	Context   context.Context
+}
+
+// SettleSignedPayment 把客户端签名载荷交给网关结算；结算成功后走与回调相同的事务路径确认支付。
+// 金额、收款方以创建支付时保存的快照为准，网关结算失败时支付状态保持不变，可重新签名提交。
+func (s *PaymentService) SettleSignedPayment(input SettleSignedPaymentInput) (*paymentdomain.Payment, error) {
+	if input.PaymentID == 0 || len(input.Signed) == 0 {
+		return nil, ErrPaymentInvalid
+	}
+	payment, err := s.paymentRepo.GetByID(input.PaymentID)
+	if err != nil {
+		return nil, ErrPaymentUpdateFailed
+	}
+	if payment == nil {
+		return nil, ErrPaymentNotFound
+	}
+	if payment.Status == constants.PaymentStatusSuccess {
+		return payment, nil
+	}
+	if payment.Status != constants.PaymentStatusPending {
+		return nil, ErrPaymentStatusInvalid
+	}
+	if payment.ExpiredAt != nil && time.Now().After(*payment.ExpiredAt) {
+		return nil, ErrPaymentStatusInvalid
+	}
+	channel, err := s.channelRepo.GetByID(payment.ChannelID)
+	if err != nil {
+		return nil, ErrPaymentUpdateFailed
+	}
+	if channel == nil {
+		return nil, ErrPaymentChannelNotFound
+	}
+	if s.paymentProviderRegistry == nil {
+		return nil, ErrPaymentProviderNotSupported
+	}
+	p, ok := s.paymentProviderRegistry.Lookup(channel.ProviderType, channel.ChannelType)
+	if !ok {
+		return nil, ErrPaymentProviderNotSupported
+	}
+	settler, ok := p.(paymentcontract.GatewayPayloadSettler)
+	if !ok {
+		return nil, ErrPaymentProviderNotSupported
+	}
+
+	ctx, cancel := detachOutboundRequestContext(input.Context)
+	defer cancel()
+	result, err := settler.SettlePayload(ctx, channel.ConfigJSON, payment.ProviderPayload, input.Signed)
+	if err != nil {
+		logger.Warnw("payment_settle_signed_failed",
+			"payment_id", payment.ID,
+			"provider_type", channel.ProviderType,
+			"error", err,
+		)
+		return nil, mapProviderErrorToService(err)
+	}
+	logger.Infow("payment_settle_signed_success",
+		"payment_id", payment.ID,
+		"provider_type", channel.ProviderType,
+		"provider_ref", result.ProviderRef,
+	)
+	return s.HandleCallback(PaymentCallbackInput{
+		PaymentID:   payment.ID,
+		ChannelID:   channel.ID,
+		Status:      result.Status,
+		ProviderRef: result.ProviderRef,
+		Amount:      result.Amount,
+		Currency:    result.Currency,
+		PaidAt:      result.PaidAt,
+		Payload:     result.Payload,
+	})
+}
+
 // mapProviderErrorToService 把 provider.ErrXxx 转换为 service 层的 ErrPaymentXxx。
 func mapProviderErrorToService(err error) error {
 	if err == nil {

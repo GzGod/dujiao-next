@@ -99,6 +99,13 @@ type GatewayCallbackVerifier interface {
 	VerifyCallback(cfg jsonmap.JSON, form map[string][]string, body []byte) (*GatewayCallbackResult, error)
 }
 
+// GatewayPayloadSettler 是由付款人客户端提交签名载荷、服务端代为结算的网关可选能力（如 x402）。
+// providerPayload 是创建支付时保存的快照，signed 是客户端提交的签名载荷。
+type GatewayPayloadSettler interface {
+	GatewayProvider
+	SettlePayload(ctx context.Context, cfg jsonmap.JSON, providerPayload jsonmap.JSON, signed jsonmap.JSON) (*GatewayCallbackResult, error)
+}
+
 // GatewayRegistry 是应用层使用的只读网关注册表端口。
 type GatewayRegistry interface {
 	Lookup(providerType, channelType string) (GatewayProvider, bool)

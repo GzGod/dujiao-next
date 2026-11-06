@@ -1332,6 +1332,19 @@
       "success": "Success",
       "failed": "Failed",
       "expired": "Expired"
+    },
+    "x402": {
+      "title": "Pay with crypto wallet (x402)",
+      "network": "Network",
+      "payWithWallet": "Connect wallet and pay",
+      "signing": "Confirm the signature in your wallet…",
+      "tip": "You only sign an authorization in your wallet — no gas required. The server settles on-chain and the order is marked paid once funds arrive.",
+      "errors": {
+        "no_wallet": "No browser wallet detected. Install MetaMask or Coinbase Wallet and try again.",
+        "rejected": "Signature cancelled",
+        "wrong_network": "Could not switch wallet network. Switch manually and try again.",
+        "failed": "Payment failed, please try again later"
+      }
     }
   },
   "resellerConsole": {

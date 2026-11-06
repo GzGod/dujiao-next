@@ -113,3 +113,19 @@ func readPayloadString(payload jsonmap.JSON, keys ...string) string {
 		return strings.TrimSpace(fmt.Sprintf("%v", v))
 	}
 }
+
+// ExtractX402Requirements 返回 x402 渠道创建支付时保存的收款要求快照（PaymentRequirements），
+// 供前台钱包签名；其他渠道返回 nil。键名与 adapters/x402.PayloadKeyRequirements 保持一致。
+func ExtractX402Requirements(providerType string, payload jsonmap.JSON) jsonmap.JSON {
+	if strings.ToLower(strings.TrimSpace(providerType)) != constants.PaymentProviderX402 || payload == nil {
+		return nil
+	}
+	raw, ok := payload["x402_requirements"].(map[string]interface{})
+	if !ok {
+		if typed, typedOK := payload["x402_requirements"].(jsonmap.JSON); typedOK {
+			return typed
+		}
+		return nil
+	}
+	return jsonmap.JSON(raw)
+}

@@ -11,6 +11,7 @@ import (
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	ginutil "github.com/dujiao-next/internal/platform/http/ginutil"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 
 	"github.com/dujiao-next/internal/i18n"
@@ -68,6 +69,7 @@ type PaymentWriter interface {
 	CreatePayment(input CreatePaymentInput) (*CreatePaymentResult, error)
 	GetPayment(id uint) (*paymentdomain.Payment, error)
 	CapturePayment(input CapturePaymentInput) (*paymentdomain.Payment, error)
+	SettleSignedPayment(input SettleSignedPaymentInput) (*paymentdomain.Payment, error)
 }
 
 // CreatePaymentRequest 用户创建支付请求。
@@ -377,4 +379,111 @@ func concatMappedErrors(groups ...[]mappedError) []mappedError {
 		result = append(result, group...)
 	}
 	return result
+}
+
+// SettleSignedPaymentInput 客户端签名载荷结算输入（如 x402 钱包签名）。
+type SettleSignedPaymentInput struct {
+	PaymentID uint
+	Signed    jsonmap.JSON
+	Context   context.Context
+}
+
+// SettleSignedPaymentRequest 前台提交签名载荷请求。
+type SettleSignedPaymentRequest struct {
+	Payload jsonmap.JSON `json:"payload" binding:"required"`
+}
+
+// SettleSignedPayment 用户提交钱包签名，由服务端结算。
+func (h *WriteHandler) SettleSignedPayment(c *gin.Context) {
+	uid, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	paymentID, req, ok := bindSettleSignedPayment(c)
+	if !ok {
+		return
+	}
+	payment, err := h.payments.GetPayment(paymentID)
+	if err != nil {
+		respondSettlePaymentFetchError(c, err)
+		return
+	}
+	if _, err := h.userOrders.GetOrderByUserForTenant(tenantFromRequest(c), payment.OrderID, uid); err != nil {
+		if errors.Is(err, ErrOrderNotFound) {
+			ginutil.RespondError(c, response.CodeNotFound, "error.order_not_found", nil)
+			return
+		}
+		ginutil.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+	h.settleSignedPayment(c, paymentID, req)
+}
+
+// SettleGuestSignedPayment 游客提交钱包签名，由服务端结算。
+func (h *WriteHandler) SettleGuestSignedPayment(c *gin.Context) {
+	email, password, ok := ginutil.GetGuestCredentials(c)
+	if !ok || email == "" {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.guest_email_required", nil)
+		return
+	}
+	if password == "" {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.guest_password_required", nil)
+		return
+	}
+	paymentID, req, ok := bindSettleSignedPayment(c)
+	if !ok {
+		return
+	}
+	payment, err := h.payments.GetPayment(paymentID)
+	if err != nil {
+		respondSettlePaymentFetchError(c, err)
+		return
+	}
+	if _, err := h.guestOrders.GetOrderByGuestForTenant(tenantFromRequest(c), payment.OrderID, email, password); err != nil {
+		if errors.Is(err, ErrGuestOrderNotFound) {
+			ginutil.RespondError(c, response.CodeNotFound, "error.guest_order_not_found", nil)
+			return
+		}
+		ginutil.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+	h.settleSignedPayment(c, paymentID, req)
+}
+
+func bindSettleSignedPayment(c *gin.Context) (uint, SettleSignedPaymentRequest, bool) {
+	var req SettleSignedPaymentRequest
+	paymentID, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_invalid", nil)
+		return 0, req, false
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return 0, req, false
+	}
+	return paymentID, req, true
+}
+
+func respondSettlePaymentFetchError(c *gin.Context, err error) {
+	if errors.Is(err, ErrPaymentNotFound) {
+		ginutil.RespondError(c, response.CodeNotFound, "error.payment_not_found", nil)
+		return
+	}
+	ginutil.RespondError(c, response.CodeInternal, "error.payment_fetch_failed", err)
+}
+
+func (h *WriteHandler) settleSignedPayment(c *gin.Context, paymentID uint, req SettleSignedPaymentRequest) {
+	updated, err := h.payments.SettleSignedPayment(SettleSignedPaymentInput{
+		PaymentID: paymentID,
+		Signed:    req.Payload,
+		Context:   c.Request.Context(),
+	})
+	if err != nil {
+		respondPaymentCaptureError(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"payment_id": updated.ID,
+		"status":     updated.Status,
+	})
 }

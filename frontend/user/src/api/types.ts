@@ -487,6 +487,7 @@ export interface PaymentCreateResult {
     wallet_address?: string
     chain_amount?: string
     chain?: string
+    x402_requirements?: Record<string, any>
     token_id?: string
     expires_at?: string
 }

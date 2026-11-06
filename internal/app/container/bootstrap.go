@@ -17,6 +17,7 @@ import (
 	stripeadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/stripe"
 	tokenpayadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/tokenpay"
 	wechatpayadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/wechatpay"
+	x402adapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/x402"
 	xorpayadapter "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/adapters/xorpay"
 	paymentprovider "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/provider"
 	"github.com/dujiao-next/internal/queue"
@@ -68,5 +69,6 @@ func newPaymentProviderRegistry() *paymentprovider.Registry {
 	registry.Register(constants.PaymentProviderTokenpay, "", tokenpayadapter.NewTokenpayAdapter())
 	registry.Register(constants.PaymentProviderOkpay, "", okpayadapter.NewOkpayAdapter())
 	registry.Register(constants.PaymentProviderXorpay, "", xorpayadapter.NewXorpayAdapter())
+	registry.Register(constants.PaymentProviderX402, "", x402adapter.NewX402Adapter())
 	return registry
 }

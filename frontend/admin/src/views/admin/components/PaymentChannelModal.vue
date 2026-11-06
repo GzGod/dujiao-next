@@ -187,6 +187,14 @@ const xorpayConfig = reactive({
   exchange_rate: '',
 })
 
+const x402Config = reactive({
+  pay_to: '',
+  network: 'eip155:84532',
+  facilitator_url: 'https://x402.org/facilitator',
+  exchange_rate: '',
+  max_timeout_seconds: '',
+})
+
 const dujiaopayConfig = reactive({
   api_base_url: 'https://www.dujiaopay.com',
   api_key_id: '',
@@ -216,6 +224,15 @@ const bepusdtChannelOptions = [
   { value: 'usdt-trc20', label: 'admin.paymentChannels.channelTypes.usdtTrc20' },
   { value: 'usdc-trc20', label: 'admin.paymentChannels.channelTypes.usdcTrc20' },
   { value: 'trx', label: 'admin.paymentChannels.channelTypes.trx' },
+]
+
+const x402ChannelOptions = [
+  { value: 'x402-usdc', label: 'admin.paymentChannels.channelTypes.x402Usdc' },
+]
+
+const x402NetworkOptions = [
+  { value: 'eip155:84532', label: 'Base Sepolia (testnet)' },
+  { value: 'eip155:8453', label: 'Base' },
 ]
 
 const xorpayChannelOptions = [
@@ -271,6 +288,9 @@ const formChannelOptions = computed(() => {
   if (form.provider_type === 'xorpay') {
     return xorpayChannelOptions
   }
+  if (form.provider_type === 'x402') {
+    return x402ChannelOptions
+  }
   return channelOptions
 })
 
@@ -311,6 +331,9 @@ const interactionModeOptions = computed(() => {
   }
   if (form.provider_type === 'xorpay') {
     return [{ value: 'qr', label: 'admin.paymentChannels.interactionModes.qr' }]
+  }
+  if (form.provider_type === 'x402') {
+    return [{ value: 'redirect', label: 'admin.paymentChannels.interactionModes.x402Wallet' }]
   }
   if (form.provider_type === 'dujiaopay') {
     if (dujiaopayConfig.order_mode === 'cashier') {
@@ -480,6 +503,14 @@ const resetXorpayConfig = () => {
   xorpayConfig.exchange_rate = ''
 }
 
+const resetX402Config = () => {
+  x402Config.pay_to = ''
+  x402Config.network = 'eip155:84532'
+  x402Config.facilitator_url = 'https://x402.org/facilitator'
+  x402Config.exchange_rate = ''
+  x402Config.max_timeout_seconds = ''
+}
+
 const resetDujiaoPayConfig = () => {
   dujiaopayConfig.api_base_url = 'https://www.dujiaopay.com'
   dujiaopayConfig.api_key_id = ''
@@ -503,6 +534,7 @@ const resetAllConfigs = () => {
   resetTokenpayConfig()
   resetOkpayConfig()
   resetXorpayConfig()
+  resetX402Config()
   resetDujiaoPayConfig()
 }
 
@@ -625,6 +657,14 @@ const applyOkpayConfig = (raw: Record<string, unknown>) => {
   okpayConfig.return_url = String(raw.return_url || '')
   okpayConfig.callback_url = String(raw.callback_url || '')
   okpayConfig.display_name = String(raw.display_name || '')
+}
+
+const applyX402Config = (raw: Record<string, unknown>) => {
+  x402Config.pay_to = String(raw.pay_to || '')
+  x402Config.network = String(raw.network || 'eip155:84532')
+  x402Config.facilitator_url = String(raw.facilitator_url || 'https://x402.org/facilitator')
+  x402Config.exchange_rate = String(raw.exchange_rate || '')
+  x402Config.max_timeout_seconds = raw.max_timeout_seconds ? String(raw.max_timeout_seconds) : ''
 }
 
 const applyXorpayConfig = (raw: Record<string, unknown>) => {
@@ -883,6 +923,25 @@ const buildXorpayConfig = () => {
   return config
 }
 
+const buildX402Config = () => {
+  const config: Record<string, unknown> = {}
+  const setIfNotEmpty = (key: string, value: string) => {
+    const trimmed = String(value || '').trim()
+    if (trimmed !== '') {
+      config[key] = trimmed
+    }
+  }
+  setIfNotEmpty('pay_to', x402Config.pay_to)
+  setIfNotEmpty('network', x402Config.network)
+  setIfNotEmpty('facilitator_url', x402Config.facilitator_url)
+  setIfNotEmpty('exchange_rate', x402Config.exchange_rate)
+  const timeout = Number.parseInt(String(x402Config.max_timeout_seconds || '').trim(), 10)
+  if (Number.isFinite(timeout) && timeout > 0) {
+    config.max_timeout_seconds = timeout
+  }
+  return config
+}
+
 const buildDujiaoPayConfig = () => {
   const config: Record<string, unknown> = {}
   const setIfNotEmpty = (key: string, value: string) => {
@@ -951,6 +1010,9 @@ watch(
       if (!allowed.includes(form.channel_type)) {
         form.channel_type = allowed[0] || 'wechat'
       }
+    } else if (value === 'x402') {
+      form.channel_type = 'x402-usdc'
+      form.interaction_mode = 'redirect'
     } else if (value === 'dujiaopay') {
       if (dujiaopayConfig.order_mode === 'cashier') {
         form.channel_type = 'dujiaopay'
@@ -1125,6 +1187,7 @@ watch(
           applyTokenpayConfig(channel.config_json)
           applyOkpayConfig(channel.config_json)
           applyXorpayConfig(channel.config_json)
+          applyX402Config(channel.config_json)
           applyDujiaoPayConfig(channel.config_json)
           if (channel.provider_type === 'okpay' && !String(form.channel_type || '').trim()) {
             form.channel_type = resolveOkpayChannelTypeFromConfig(channel.config_json)
@@ -1258,6 +1321,12 @@ const handleSubmit = async () => {
       ...configJson,
       ...buildXorpayConfig(),
     }
+  } else if (form.provider_type === 'x402') {
+    delete configJson.max_timeout_seconds
+    configJson = {
+      ...configJson,
+      ...buildX402Config(),
+    }
   } else if (form.provider_type === 'dujiaopay') {
     // chain 一律删除，由后端按 token_id 重新推导，避免切换 token 后残留旧链；
     // allowed_methods 一律删除，build 在 cashier 且非空时重新写入，清空即保存为不限制
@@ -1358,6 +1427,7 @@ const closeModal = () => {
                 <SelectItem value="okpay">{{ t('admin.paymentChannels.providerTypes.okpay') }}</SelectItem>
                 <SelectItem value="tokenpay">{{ t('admin.paymentChannels.providerTypes.tokenpay') }}</SelectItem>
                 <SelectItem value="xorpay">{{ t('admin.paymentChannels.providerTypes.xorpay') }}</SelectItem>
+                <SelectItem value="x402">{{ t('admin.paymentChannels.providerTypes.x402') }}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1949,6 +2019,40 @@ const closeModal = () => {
             </div>
           </div>
           <div class="mt-3 text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.xorpayHint') }}</div>
+        </div>
+
+        <div v-if="form.provider_type === 'x402'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
+          <div class="text-sm font-semibold text-foreground mb-3">{{ t('admin.paymentChannels.modal.x402Section') }}</div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <div class="min-w-0 md:col-span-2">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.x402PayTo') }}</label>
+              <Input v-model="x402Config.pay_to" placeholder="0x..." />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.x402Network') }}</label>
+              <Select v-model="x402Config.network">
+                <SelectTrigger class="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in x402NetworkOptions" :key="option.value" :value="option.value">{{ option.label }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.x402ExchangeRate') }}</label>
+              <Input v-model="x402Config.exchange_rate" :placeholder="t('admin.paymentChannels.modal.x402ExchangeRatePlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.x402FacilitatorUrl') }}</label>
+              <Input v-model="x402Config.facilitator_url" placeholder="https://x402.org/facilitator" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.x402MaxTimeout') }}</label>
+              <Input v-model="x402Config.max_timeout_seconds" type="number" min="60" step="1" placeholder="600" />
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.x402Hint') }}</div>
         </div>
 
         <div v-if="form.provider_type === 'dujiaopay'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">

@@ -25,6 +25,7 @@ func RegisterGuestWriteRoutes(guest gin.IRoutes, handler *WriteHandler) {
 	}
 	guest.POST("/payments", handler.CreateGuestPayment)
 	guest.POST("/payments/:id/capture", handler.CaptureGuestPayment)
+	guest.POST("/payments/:id/settle", handler.SettleGuestSignedPayment)
 }
 
 // RegisterUserWriteRoutes 注册前台用户支付创建/捕获路由。
@@ -34,6 +35,7 @@ func RegisterUserWriteRoutes(user gin.IRoutes, handler *WriteHandler) {
 	}
 	user.POST("/payments", handler.CreatePayment)
 	user.POST("/payments/:id/capture", handler.CapturePayment)
+	user.POST("/payments/:id/settle", handler.SettleSignedPayment)
 }
 
 // RegisterAdminRoutes 注册后台支付只读路由。

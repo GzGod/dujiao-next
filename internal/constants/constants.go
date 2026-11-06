@@ -64,6 +64,7 @@ const (
 	PaymentProviderOkpay     = "okpay"
 	PaymentProviderTokenpay  = "tokenpay"
 	PaymentProviderXorpay    = "xorpay"
+	PaymentProviderX402      = "x402"
 	PaymentProviderWallet    = "wallet"
 )
 
@@ -80,6 +81,7 @@ const (
 	PaymentChannelTypeUsdcTrc20 = "usdc-trc20"
 	PaymentChannelTypeTrx       = "trx"
 	PaymentChannelTypeBalance   = "balance"
+	PaymentChannelTypeX402USDC  = "x402-usdc"
 )
 
 // 支付渠道付款角色常量
