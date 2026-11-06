@@ -234,6 +234,7 @@ const providerTypeLabel = (value?: string) => {
     bepusdt: t('admin.paymentChannels.providerTypes.bepusdt'),
     epusdt: t('admin.paymentChannels.providerTypes.epusdt'),
     tokenpay: t('admin.paymentChannels.providerTypes.tokenpay'),
+    xorpay: t('admin.paymentChannels.providerTypes.xorpay'),
     wallet: t('admin.paymentChannels.providerTypes.wallet'),
   }
   if (!value) return '-'

@@ -177,6 +177,16 @@ const okpayConfig = reactive({
   display_name: '',
 })
 
+const xorpayConfig = reactive({
+  api_base_url: 'https://xorpay.com',
+  aid: '',
+  app_secret: '',
+  notify_url: '',
+  expire: '',
+  target_currency: '',
+  exchange_rate: '',
+})
+
 const dujiaopayConfig = reactive({
   api_base_url: 'https://www.dujiaopay.com',
   api_key_id: '',
@@ -206,6 +216,11 @@ const bepusdtChannelOptions = [
   { value: 'usdt-trc20', label: 'admin.paymentChannels.channelTypes.usdtTrc20' },
   { value: 'usdc-trc20', label: 'admin.paymentChannels.channelTypes.usdcTrc20' },
   { value: 'trx', label: 'admin.paymentChannels.channelTypes.trx' },
+]
+
+const xorpayChannelOptions = [
+  { value: 'wechat', label: 'admin.paymentChannels.channelTypes.wechat' },
+  { value: 'alipay', label: 'admin.paymentChannels.channelTypes.alipay' },
 ]
 
 const okpayChannelOptions = [
@@ -253,6 +268,9 @@ const formChannelOptions = computed(() => {
   if (form.provider_type === 'okpay') {
     return okpayChannelOptions
   }
+  if (form.provider_type === 'xorpay') {
+    return xorpayChannelOptions
+  }
   return channelOptions
 })
 
@@ -290,6 +308,9 @@ const interactionModeOptions = computed(() => {
       { value: 'qr', label: 'admin.paymentChannels.interactionModes.qr' },
       { value: 'redirect', label: 'admin.paymentChannels.interactionModes.redirect' },
     ]
+  }
+  if (form.provider_type === 'xorpay') {
+    return [{ value: 'qr', label: 'admin.paymentChannels.interactionModes.qr' }]
   }
   if (form.provider_type === 'dujiaopay') {
     if (dujiaopayConfig.order_mode === 'cashier') {
@@ -449,6 +470,16 @@ const resetOkpayConfig = () => {
   okpayConfig.display_name = ''
 }
 
+const resetXorpayConfig = () => {
+  xorpayConfig.api_base_url = 'https://xorpay.com'
+  xorpayConfig.aid = ''
+  xorpayConfig.app_secret = ''
+  xorpayConfig.notify_url = 'https://api.yourdomain.com/api/v1/payments/callback'
+  xorpayConfig.expire = ''
+  xorpayConfig.target_currency = ''
+  xorpayConfig.exchange_rate = ''
+}
+
 const resetDujiaoPayConfig = () => {
   dujiaopayConfig.api_base_url = 'https://www.dujiaopay.com'
   dujiaopayConfig.api_key_id = ''
@@ -471,6 +502,7 @@ const resetAllConfigs = () => {
   resetEpusdtConfig()
   resetTokenpayConfig()
   resetOkpayConfig()
+  resetXorpayConfig()
   resetDujiaoPayConfig()
 }
 
@@ -593,6 +625,16 @@ const applyOkpayConfig = (raw: Record<string, unknown>) => {
   okpayConfig.return_url = String(raw.return_url || '')
   okpayConfig.callback_url = String(raw.callback_url || '')
   okpayConfig.display_name = String(raw.display_name || '')
+}
+
+const applyXorpayConfig = (raw: Record<string, unknown>) => {
+  xorpayConfig.api_base_url = String(raw.api_base_url || 'https://xorpay.com')
+  xorpayConfig.aid = String(raw.aid || '')
+  xorpayConfig.app_secret = String(raw.app_secret || '')
+  xorpayConfig.notify_url = String(raw.notify_url || '')
+  xorpayConfig.expire = raw.expire ? String(raw.expire) : ''
+  xorpayConfig.target_currency = String(raw.target_currency || '')
+  xorpayConfig.exchange_rate = String(raw.exchange_rate || '')
 }
 
 const applyDujiaoPayConfig = (raw: Record<string, unknown>) => {
@@ -820,6 +862,27 @@ const buildOkpayConfig = () => {
   return config
 }
 
+const buildXorpayConfig = () => {
+  const config: Record<string, unknown> = {}
+  const setIfNotEmpty = (key: string, value: string) => {
+    const trimmed = String(value || '').trim()
+    if (trimmed !== '') {
+      config[key] = trimmed
+    }
+  }
+  setIfNotEmpty('api_base_url', xorpayConfig.api_base_url)
+  setIfNotEmpty('aid', xorpayConfig.aid)
+  setIfNotEmpty('app_secret', xorpayConfig.app_secret)
+  setIfNotEmpty('notify_url', xorpayConfig.notify_url)
+  setIfNotEmpty('target_currency', xorpayConfig.target_currency.toUpperCase())
+  setIfNotEmpty('exchange_rate', xorpayConfig.exchange_rate)
+  const expire = Number.parseInt(String(xorpayConfig.expire || '').trim(), 10)
+  if (Number.isFinite(expire) && expire > 0) {
+    config.expire = expire
+  }
+  return config
+}
+
 const buildDujiaoPayConfig = () => {
   const config: Record<string, unknown> = {}
   const setIfNotEmpty = (key: string, value: string) => {
@@ -882,6 +945,11 @@ watch(
       const allowed = okpayChannelOptions.map((option) => option.value)
       if (!allowed.includes(form.channel_type)) {
         form.channel_type = allowed[0] || 'usdt'
+      }
+    } else if (value === 'xorpay') {
+      const allowed = xorpayChannelOptions.map((option) => option.value)
+      if (!allowed.includes(form.channel_type)) {
+        form.channel_type = allowed[0] || 'wechat'
       }
     } else if (value === 'dujiaopay') {
       if (dujiaopayConfig.order_mode === 'cashier') {
@@ -1056,6 +1124,7 @@ watch(
           applyEpusdtConfig(channel.config_json)
           applyTokenpayConfig(channel.config_json)
           applyOkpayConfig(channel.config_json)
+          applyXorpayConfig(channel.config_json)
           applyDujiaoPayConfig(channel.config_json)
           if (channel.provider_type === 'okpay' && !String(form.channel_type || '').trim()) {
             form.channel_type = resolveOkpayChannelTypeFromConfig(channel.config_json)
@@ -1181,6 +1250,14 @@ const handleSubmit = async () => {
       ...configJson,
       ...buildOkpayConfig(),
     }
+  } else if (form.provider_type === 'xorpay') {
+    delete configJson.target_currency
+    delete configJson.exchange_rate
+    delete configJson.expire
+    configJson = {
+      ...configJson,
+      ...buildXorpayConfig(),
+    }
   } else if (form.provider_type === 'dujiaopay') {
     // chain 一律删除，由后端按 token_id 重新推导，避免切换 token 后残留旧链；
     // allowed_methods 一律删除，build 在 cashier 且非空时重新写入，清空即保存为不限制
@@ -1280,6 +1357,7 @@ const closeModal = () => {
                 <SelectItem value="epusdt">{{ t('admin.paymentChannels.providerTypes.epusdt') }}</SelectItem>
                 <SelectItem value="okpay">{{ t('admin.paymentChannels.providerTypes.okpay') }}</SelectItem>
                 <SelectItem value="tokenpay">{{ t('admin.paymentChannels.providerTypes.tokenpay') }}</SelectItem>
+                <SelectItem value="xorpay">{{ t('admin.paymentChannels.providerTypes.xorpay') }}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1836,6 +1914,41 @@ const closeModal = () => {
             </div>
           </div>
           <div class="mt-3 text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.okpayHint') }}</div>
+        </div>
+
+        <div v-if="form.provider_type === 'xorpay'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
+          <div class="text-sm font-semibold text-foreground mb-3">{{ t('admin.paymentChannels.modal.xorpaySection') }}</div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayAid') }}</label>
+              <Input v-model="xorpayConfig.aid" :placeholder="t('admin.paymentChannels.modal.xorpayAidPlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayAppSecret') }}</label>
+              <Input v-model="xorpayConfig.app_secret" :placeholder="t('admin.paymentChannels.modal.xorpayAppSecretPlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayApiBaseUrl') }}</label>
+              <Input v-model="xorpayConfig.api_base_url" :placeholder="t('admin.paymentChannels.modal.xorpayApiBaseUrlPlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayNotifyUrl') }}</label>
+              <Input v-model="xorpayConfig.notify_url" :placeholder="t('admin.paymentChannels.modal.xorpayNotifyUrlPlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayExpire') }}</label>
+              <Input v-model="xorpayConfig.expire" type="number" min="0" step="1" :placeholder="t('admin.paymentChannels.modal.xorpayExpirePlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayTargetCurrency') }}</label>
+              <Input v-model="xorpayConfig.target_currency" :placeholder="t('admin.paymentChannels.modal.xorpayTargetCurrencyPlaceholder')" />
+            </div>
+            <div class="min-w-0">
+              <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.paymentChannels.modal.xorpayExchangeRate') }}</label>
+              <Input v-model="xorpayConfig.exchange_rate" :placeholder="t('admin.paymentChannels.modal.xorpayExchangeRatePlaceholder')" />
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-muted-foreground">{{ t('admin.paymentChannels.modal.xorpayHint') }}</div>
         </div>
 
         <div v-if="form.provider_type === 'dujiaopay'" class="min-w-0 rounded-xl border border-border bg-muted/20 p-4 overflow-hidden">
