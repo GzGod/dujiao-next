@@ -18,6 +18,7 @@ import (
 
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/logger"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
 const (
@@ -55,26 +56,18 @@ type gptgetPingResp struct {
 }
 
 type gptgetProduct struct {
-	SKUID         uint    `json:"sku_id"`
-	ProductName   string  `json:"product_name"`
-	// 价格字段：兼容多种可能的字段名
-	UnitPrice     string  `json:"unit_price"`
-	Price         string  `json:"price"`
-	SupplyPrice   string  `json:"supply_price"`
-	AgentPrice    string  `json:"agent_price"`
-	Currency      string  `json:"currency"`
-	// 库存字段：兼容多种可能的字段名
-	Stock         int     `json:"stock"`
-	StockQuantity int     `json:"stock_quantity"`
-	StockCount    int     `json:"stock_count"`
-	IsActive      bool    `json:"is_active"`
-	Available     bool    `json:"available"`
-	ProductID     uint    `json:"product_id"`
-	ProductSlug   string  `json:"product_slug"`
-	CategoryID    uint    `json:"category_id"`
-	ImageURL      string  `json:"image_url"`
-	Name          string  `json:"name"`
-	Title         string  `json:"title"`
+	SKUID       uint     `json:"sku_id"`
+	SKUCode     string   `json:"sku_code"`
+	SKUName     string   `json:"sku_name"`
+	ProductName string   `json:"product_name"`
+	SupplyPrice string   `json:"supply_price"`
+	Currency    string   `json:"currency"`
+	Available   bool     `json:"available"`
+	ProductID   uint     `json:"product_id"`
+	ProductSlug string   `json:"product_slug"`
+	CategoryID  uint     `json:"category_id"`
+	Images      []string `json:"images"`
+	Description string   `json:"description"`
 }
 
 type gptgetProductsResp struct {
@@ -159,108 +152,72 @@ func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts)
 	if err := a.doRequest(ctx, http.MethodGet, path, nil, &resp); err != nil {
 		return nil, err
 	}
-	// 调试：记录原始第一条数据的结构，用于确认字段名（只记录首页首条）
-	if page == 1 && len(resp.Data.Items) > 0 {
-		logger.Infow("gptget_products_sample",
-			"first_item_sku_id", resp.Data.Items[0].SKUID,
-			"first_item_price_unit", resp.Data.Items[0].UnitPrice,
-			"first_item_price_supply", resp.Data.Items[0].SupplyPrice,
-			"first_item_price_agent", resp.Data.Items[0].AgentPrice,
-			"first_item_price", resp.Data.Items[0].Price,
-			"first_item_stock", resp.Data.Items[0].Stock,
-			"first_item_stock_qty", resp.Data.Items[0].StockQuantity,
-			"first_item_is_active", resp.Data.Items[0].IsActive,
-			"first_item_available", resp.Data.Items[0].Available,
-			"total", resp.Data.Total,
-		)
-	}
 	if !resp.OK {
 		return nil, fmt.Errorf("gptget list products failed: %s", resp.Msg)
 	}
 
 	items := make([]UpstreamProduct, 0, len(resp.Data.Items))
 	for _, p := range resp.Data.Items {
-		// 兼容多种价格字段名
-		price := p.UnitPrice
-		if price == "" {
-			price = p.SupplyPrice
-		}
-		if price == "" {
-			price = p.AgentPrice
-		}
-		if price == "" {
-			price = p.Price
-		}
 		cur := p.Currency
 		if cur == "" {
 			cur = "CNY"
 		}
 
-		// 兼容多种库存字段名
-		stockQty := p.Stock
-		if stockQty == 0 && p.StockQuantity != 0 {
-			stockQty = p.StockQuantity
-		}
-		if stockQty == 0 && p.StockCount != 0 {
-			stockQty = p.StockCount
-		}
-
-		// 商品名兼容
+		// 商品名包装为多语言 JSON（import.go 要求 title_json 非空）
 		name := p.ProductName
-		if name == "" {
-			name = p.Name
-		}
-		if name == "" {
-			name = p.Title
-		}
 		if name == "" {
 			name = fmt.Sprintf("Product #%d", p.ProductID)
 		}
+		titleJSON := jsonmap.JSON{
+			"zh-CN": name,
+			"zh-TW": name,
+			"en-US": name,
+		}
 
-		// is_active：如果未设置但 available=true 也视为有效
-		active := p.IsActive || p.Available
-
-		// 库存：gptget 是按需采购模式，stock=0 不代表缺货
-		// 只有明确缺货（stock=-2 或类似负值表示缺货）才标记缺货；
-		// stock=0 且 active=true 视为无限库存（-1）
-		effectiveStock := stockQty
+		// available=true 视为在售；gptget 是按需采购，不维护本地库存
+		active := p.Available
+		stockQty := -1 // 无限库存
+		if !active {
+			stockQty = 0
+		}
 		stockStatus := "in_stock"
 		if !active {
 			stockStatus = "out_of_stock"
-		} else if stockQty < 0 && stockQty != -1 {
-			// 特殊负值表示缺货
-			stockStatus = "out_of_stock"
-			effectiveStock = 0
-		} else if stockQty == 0 {
-			// 0 视为无限库存
-			effectiveStock = -1
 		}
 
 		sku := UpstreamSKU{
 			ID:            p.SKUID,
-			SKUCode:       fmt.Sprintf("gptget-sku-%d", p.SKUID),
-			PriceAmount:   price,
+			SKUCode:       p.SKUCode,
+			PriceAmount:   p.SupplyPrice,
 			StockStatus:   stockStatus,
-			StockQuantity: effectiveStock,
+			StockQuantity: stockQty,
 			IsActive:      active,
 		}
+		if sku.SKUCode == "" {
+			sku.SKUCode = fmt.Sprintf("gptget-sku-%d", p.SKUID)
+		}
+
 		product := UpstreamProduct{
 			ID:          p.ProductID,
 			Slug:        p.ProductSlug,
-			PriceAmount: price,
+			Title:       titleJSON,
+			PriceAmount: p.SupplyPrice,
 			Currency:    cur,
 			IsActive:    active,
 			CategoryID:  p.CategoryID,
+			Images:      p.Images,
 			SKUs:        []UpstreamSKU{sku},
-		}
-		if p.ImageURL != "" {
-			product.Images = []string{p.ImageURL}
 		}
 		items = append(items, product)
 	}
 
+	total := resp.Data.Total
+	if total == 0 {
+		total = len(items)
+	}
+
 	return &ProductListResult{
-		Total: resp.Data.Total,
+		Total: total,
 		Items: items,
 	}, nil
 }
