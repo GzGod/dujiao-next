@@ -203,6 +203,7 @@ export function usePayment() {
   const paymentGuideTip = computed(() => paymentPresentationMode.value === 'redirect' ? t('payment.redirectTip') : t('payment.qrTip'))
 
   const showPayLink = computed(() => {
+    if (isX402Payment.value) return false
     return paymentPresentationMode.value === 'redirect' || Boolean(payLink.value)
   })
   const isTelegramMiniApp = computed(() => telegramMiniAppStore.isMiniApp && telegramMiniAppStore.isReady)

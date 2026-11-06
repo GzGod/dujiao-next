@@ -81,8 +81,11 @@ func (a *x402Adapter) CreatePayment(_ context.Context, raw jsonmap.JSON, input p
 		"original_currency":    strings.ToUpper(strings.TrimSpace(input.Currency)),
 		"usdc_amount":          usdcAmount,
 	}
+	// x402 没有二维码与跳转链接；QRCodeURL 写入 CAIP-10 风格的收款标识，
+	// 使支付记录满足"有网关结果"的判定，刷新页面或重新选择同一渠道时能复用这笔待支付记录。
 	return &paymentcontract.GatewayCreateResult{
 		ProviderRef:  input.OrderNo,
+		QRCodeURL:    requirements.Network + ":" + requirements.PayTo,
 		Payload:      payload,
 		AmountSent:   usdcAmount,
 		CurrencySent: x402.AssetSymbol,

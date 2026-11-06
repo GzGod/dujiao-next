@@ -57,6 +57,9 @@ func createPayment(t *testing.T, facilitator string) *paymentcontract.GatewayCre
 
 func TestCreatePaymentSnapshotsRequirements(t *testing.T) {
 	result := createPayment(t, "")
+	if result.QRCodeURL != "eip155:84532:"+testPayTo {
+		t.Fatalf("payment must carry a resumable identifier, got %q", result.QRCodeURL)
+	}
 	if result.AmountSent != "4.20" || result.CurrencySent != "USDC" {
 		t.Fatalf("unexpected amount: %s %s", result.AmountSent, result.CurrencySent)
 	}
