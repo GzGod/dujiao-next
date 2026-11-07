@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createHead } from '@unhead/vue/client'
 import './style.css'
 import App from './App.vue'
+import { installStaleChunkReload } from './utils/staleChunkReload'
 import router, { warmupCommonRoutes } from './router'
 import i18n, { detectLocale, setI18nLocale, warmupLocaleMessages } from './i18n'
 import { useTelegramMiniAppStore } from './stores/telegramMiniApp'
@@ -18,6 +19,8 @@ brandLog?.(
   'background:#1d1d1f;color:#f5f5f7;padding:4px 8px;border-radius:0 4px 4px 0;',
 )
 brandLog?.('%cGitHub → https://github.com/dujiao-next', 'color:#6e6e73;')
+
+installStaleChunkReload()
 
 const app = createApp(App)
 const head = createHead()

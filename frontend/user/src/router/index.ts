@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { reloadOnStaleChunk } from '@/utils/staleChunkReload'
 import { useUserAuthStore } from '../stores/userAuth'
 import { useAppStore } from '../stores/app'
 import { useTelegramMiniAppStore } from '../stores/telegramMiniApp'
@@ -377,6 +378,11 @@ router.afterEach(() => {
         }
         void router.push('/')
     })
+})
+
+// 部署后旧标签页导航到未加载过的页面时分片会 404，整页刷新到目标地址拿新版本
+router.onError((err, to) => {
+  reloadOnStaleChunk(err, '' + to.fullPath)
 })
 
 export default router

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { reloadOnStaleChunk } from '@/utils/staleChunkReload'
 import { useAdminAuthStore } from '@/stores/auth'
 import { ADMIN_BASE } from '@/utils/adminBase'
 
@@ -455,6 +456,11 @@ router.beforeEach(async (to) => {
   }
 
   return true
+})
+
+// 部署后旧标签页导航到未加载过的页面时分片会 404，整页刷新到目标地址拿新版本
+router.onError((err, to) => {
+  reloadOnStaleChunk(err, ADMIN_BASE + to.fullPath)
 })
 
 export default router
