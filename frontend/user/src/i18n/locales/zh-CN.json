@@ -1668,7 +1668,11 @@
     "fulfillmentDownload": "下载交付内容",
     "fulfillmentTotalLines": "共 {count} 条交付内容",
     "fulfillmentDownloading": "下载中...",
-    "fulfillmentTruncatedHint": "当前仅显示前 100 条预览，请下载获取完整交付内容"
+    "fulfillmentTruncatedHint": "当前仅显示前 100 条预览，请下载获取完整交付内容",
+    "paymentProof": {
+      "title": "链上交易哈希",
+      "copy": "复制交易哈希"
+    }
   },
   "guestOrders": {
     "title": "游客订单查询",

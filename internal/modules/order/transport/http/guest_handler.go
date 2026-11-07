@@ -26,6 +26,7 @@ type GuestHandler struct {
 	orders   GuestOrderQuery
 	payments PaymentChannelPolicy
 	refunds  RefundRecordDirectory
+	proofs   PaymentProofReader
 }
 
 func NewGuestHandler(orders GuestOrderQuery, payments PaymentChannelPolicy, refunds RefundRecordDirectory) *GuestHandler {
@@ -33,6 +34,12 @@ func NewGuestHandler(orders GuestOrderQuery, payments PaymentChannelPolicy, refu
 		panic("order guest handler: orders is nil")
 	}
 	return &GuestHandler{orders: orders, payments: payments, refunds: refunds}
+}
+
+// WithPaymentProofs 启用订单详情中的链上支付凭证。
+func (h *GuestHandler) WithPaymentProofs(proofs PaymentProofReader) *GuestHandler {
+	h.proofs = proofs
+	return h
 }
 
 // ListGuestOrders 获取游客订单列表
@@ -113,6 +120,7 @@ func (h *GuestHandler) GetGuestOrderByOrderNo(c *gin.Context) {
 	orderDetail := orderpresenter.NewOrderDetailTruncated(order)
 	enrichOrderWithAllowedChannels(h.payments, order, &orderDetail)
 	enrichOrderWithRefundRecords(h.refunds, order, &orderDetail)
+	enrichOrderWithPaymentProof(h.proofs, order, &orderDetail)
 	response.Success(c, orderDetail)
 }
 

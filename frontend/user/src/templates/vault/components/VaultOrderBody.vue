@@ -127,6 +127,7 @@
           <div class="text-xs text-muted-foreground">{{ t('orderDetail.paidAtLabel') }}</div>
           <div class="mt-1.5 font-bold">{{ formatDate(order.paid_at) }}</div>
         </div>
+        <PaymentProof :proof="order.payment_proof" box-class="rounded-md border bg-secondary px-3.5 py-3" />
         <div v-if="order.expires_at" class="rounded-md border bg-secondary px-3.5 py-3">
           <div class="text-xs text-muted-foreground">{{ t('orderDetail.expiresAtLabel') }}</div>
           <div class="mt-1.5 font-bold">{{ formatDate(order.expires_at) }}</div>
@@ -146,6 +147,7 @@ import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
 import VaultOrderItem from './VaultOrderItem.vue'
 import VaultOrderFulfillment from './VaultOrderFulfillment.vue'
+import PaymentProof from '../../../components/payment/PaymentProof.vue'
 import { useOrderDisplayHelpers } from '../../../composables/useOrderDisplayHelpers'
 
 const props = defineProps<{

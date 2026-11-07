@@ -85,7 +85,16 @@ type OrderDetail struct {
 	RefundRecords            []OrderRefundResp `json:"refund_records,omitempty"`
 	Items                    []OrderItemResp   `json:"items,omitempty"`
 	Fulfillment              *FulfillmentResp  `json:"fulfillment,omitempty"`
+	PaymentProof             *PaymentProofResp `json:"payment_proof,omitempty"`
 	Children                 []OrderDetail     `json:"children,omitempty"`
+}
+
+// PaymentProofResp 链上支付凭证（如 x402 结算交易），供买家核对付款。
+type PaymentProofResp struct {
+	ProviderType string `json:"provider_type"`
+	Network      string `json:"network"`
+	Transaction  string `json:"transaction"`
+	Payer        string `json:"payer,omitempty"`
 }
 
 // OrderRefundResp 用户侧订单退款记录响应

@@ -1716,7 +1716,11 @@
     "fulfillmentDownload": "Download",
     "fulfillmentTotalLines": "{count} items in total",
     "fulfillmentDownloading": "Downloading...",
-    "fulfillmentTruncatedHint": "Showing first 100 items only. Please download for full content."
+    "fulfillmentTruncatedHint": "Showing first 100 items only. Please download for full content.",
+    "paymentProof": {
+      "title": "On-chain transaction",
+      "copy": "Copy transaction hash"
+    }
   },
   "guestOrders": {
     "title": "Guest Order Lookup",

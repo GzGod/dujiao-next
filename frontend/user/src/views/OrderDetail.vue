@@ -419,6 +419,7 @@
               <div class="text-xs text-muted-foreground">{{ t('orderDetail.paidAtLabel') }}</div>
               <div class="text-foreground mt-1">{{ formatDate(order.paid_at) }}</div>
             </div>
+            <PaymentProof :proof="order.payment_proof" box-class="border rounded-xl p-4" />
             <div v-if="order.expires_at" class="border rounded-xl p-4">
               <div class="text-xs text-muted-foreground">{{ t('orderDetail.expiresAtLabel') }}</div>
               <div class="text-foreground mt-1">{{ formatDate(order.expires_at) }}</div>
@@ -435,6 +436,7 @@
 </template>
 
 <script setup lang="ts">
+import PaymentProof from '../components/payment/PaymentProof.vue'
 import { Copy, Check, Download, Info } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'

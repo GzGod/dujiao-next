@@ -3,6 +3,7 @@ package orderwiring
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
@@ -29,6 +30,7 @@ import (
 	captchahttp "github.com/dujiao-next/internal/modules/captcha/transport/http"
 	couponcontract "github.com/dujiao-next/internal/modules/coupon/contract"
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
+	orderpresenter "github.com/dujiao-next/internal/modules/order/transport/presenter"
 	orderriskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
 	promotioncontract "github.com/dujiao-next/internal/modules/promotion/contract"
 	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
@@ -102,6 +104,46 @@ type orderAdminPaymentAdapter struct {
 
 func (a orderAdminPaymentAdapter) ListByOrderID(orderID uint) ([]paymentdomain.Payment, error) {
 	return a.payments.ListByOrderID(orderID)
+}
+
+// orderPaymentProofAdapter 从成功的 x402 支付记录中取出链上结算凭证。
+type orderPaymentProofAdapter struct {
+	payments interface {
+		ListByOrderID(orderID uint) ([]paymentdomain.Payment, error)
+	}
+}
+
+func (a orderPaymentProofAdapter) GetPaymentProof(orderID uint) (*orderpresenter.PaymentProofResp, error) {
+	if a.payments == nil {
+		return nil, nil
+	}
+	payments, err := a.payments.ListByOrderID(orderID)
+	if err != nil {
+		return nil, err
+	}
+	for _, payment := range payments {
+		if payment.Status != constants.PaymentStatusSuccess || payment.ProviderType != constants.PaymentProviderX402 {
+			continue
+		}
+		settlement, ok := payment.ProviderPayload["x402_settlement"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		tx := strings.TrimSpace(fmt.Sprint(settlement["transaction"]))
+		if tx == "" || tx == "<nil>" {
+			continue
+		}
+		proof := &orderpresenter.PaymentProofResp{
+			ProviderType: payment.ProviderType,
+			Network:      strings.TrimSpace(fmt.Sprint(settlement["network"])),
+			Transaction:  tx,
+		}
+		if payer, ok := settlement["payer"].(string); ok {
+			proof.Payer = strings.TrimSpace(payer)
+		}
+		return proof, nil
+	}
+	return nil, nil
 }
 
 type orderAdminPaymentChannelAdapter struct {

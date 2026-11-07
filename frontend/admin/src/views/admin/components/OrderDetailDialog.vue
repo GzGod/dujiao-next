@@ -80,6 +80,23 @@ const couponCodeLink = (code: string) => adminUrl(`/coupons?code=${encodeURIComp
 const promotionLink = (promotionId: number) => adminUrl(`/promotions?id=${promotionId}`)
 const paymentLink = (paymentId: number) => adminUrl(`/payments?payment_id=${paymentId}`)
 
+// x402 等链上支付：从 provider_payload 取结算交易，生成区块浏览器链接
+const explorerBaseByNetwork: Record<string, string> = {
+  'eip155:84532': 'https://sepolia.basescan.org',
+  'eip155:8453': 'https://basescan.org',
+}
+const paymentChainTx = (payment: AdminPayment) => {
+  const settlement = payment.provider_payload?.x402_settlement as Record<string, unknown> | undefined
+  const tx = String(settlement?.transaction || '').trim()
+  if (!tx) return null
+  const base = explorerBaseByNetwork[String(settlement?.network || '')]
+  return {
+    tx,
+    short: tx.length > 20 ? `${tx.slice(0, 10)}…${tx.slice(-8)}` : tx,
+    url: base ? `${base}/tx/${tx}` : '',
+  }
+}
+
 const statusLabel = (status: string) => orderStatusLabel(t, status)
 const statusClass = (status: string) => orderStatusClass(status)
 const fulfillmentTypeLabel = (type: string) => fulfillmentTypeLabelMap(t, type, 'admin.orders')
@@ -1199,6 +1216,7 @@ watch(
                     <TableHead class="px-4 py-3">{{ t('admin.payments.table.feeRate') }}</TableHead>
                     <TableHead class="px-4 py-3">{{ t('admin.payments.table.amount') }}</TableHead>
                     <TableHead class="px-4 py-3">{{ t('admin.payments.table.createdAt') }}</TableHead>
+                    <TableHead class="px-4 py-3">{{ t('admin.orders.chainTx') }}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody class="divide-y divide-border">
@@ -1223,6 +1241,20 @@ watch(
                     <TableCell class="px-4 py-3 text-xs text-muted-foreground">{{ formatFeeRate(payment) }}</TableCell>
                     <TableCell class="px-4 py-3 font-mono text-foreground">{{ formatMoney(payment.amount, payment.currency) }}</TableCell>
                     <TableCell class="px-4 py-3 text-xs text-muted-foreground">{{ formatDate(payment.created_at) }}</TableCell>
+                    <TableCell class="px-4 py-3 text-xs font-mono">
+                      <template v-if="paymentChainTx(payment)">
+                        <a
+                          v-if="paymentChainTx(payment)?.url"
+                          :href="paymentChainTx(payment)?.url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-primary underline-offset-4 hover:underline"
+                          :title="paymentChainTx(payment)?.tx"
+                        >{{ paymentChainTx(payment)?.short }}</a>
+                        <span v-else :title="paymentChainTx(payment)?.tx">{{ paymentChainTx(payment)?.short }}</span>
+                      </template>
+                      <span v-else class="text-muted-foreground">-</span>
+                    </TableCell>
                   </TableRow>
                 </TableBody>
                 </Table>

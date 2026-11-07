@@ -56,6 +56,11 @@ type RefundRecordDirectory interface {
 	ListByOrderIDs(orderIDs []uint) ([]orderdomain.OrderRefundRecord, error)
 }
 
+// PaymentProofReader 订单链上支付凭证查询端口（可选）。
+type PaymentProofReader interface {
+	GetPaymentProof(orderID uint) (*orderpresenter.PaymentProofResp, error)
+}
+
 // UserLookup 用户查询端口。
 type UserLookup interface {
 	GetByID(id uint) (*userdomain.User, error)
@@ -74,6 +79,7 @@ type UserHandler struct {
 	payments PaymentChannelPolicy
 	refunds  RefundRecordDirectory
 	users    UserLookup
+	proofs   PaymentProofReader
 }
 
 func NewUserHandler(orders UserOrderQuery, payments PaymentChannelPolicy, refunds RefundRecordDirectory, users UserLookup) *UserHandler {
@@ -81,6 +87,12 @@ func NewUserHandler(orders UserOrderQuery, payments PaymentChannelPolicy, refund
 		panic("order user handler: orders is nil")
 	}
 	return &UserHandler{orders: orders, payments: payments, refunds: refunds, users: users}
+}
+
+// WithPaymentProofs 启用订单详情中的链上支付凭证。
+func (h *UserHandler) WithPaymentProofs(proofs PaymentProofReader) *UserHandler {
+	h.proofs = proofs
+	return h
 }
 
 func tenantFromRequest(c *gin.Context) reseller.TenantContext {
@@ -167,6 +179,7 @@ func (h *UserHandler) GetOrderByOrderNo(c *gin.Context) {
 	orderDetail := orderpresenter.NewOrderDetailTruncated(order)
 	enrichOrderWithAllowedChannels(h.payments, order, &orderDetail)
 	enrichOrderWithRefundRecords(h.refunds, order, &orderDetail)
+	enrichOrderWithPaymentProof(h.proofs, order, &orderDetail)
 	response.Success(c, orderDetail)
 }
 
@@ -341,6 +354,22 @@ func enrichOrderWithAllowedChannels(payments PaymentChannelPolicy, order *orderd
 	if len(allowed) > 0 {
 		detail.AllowedPaymentChannelIDs = allowed
 	}
+}
+
+func enrichOrderWithPaymentProof(proofs PaymentProofReader, order *orderdomain.Order, detail *orderpresenter.OrderDetail) {
+	if proofs == nil || order == nil || detail == nil || order.PaidAt == nil {
+		return
+	}
+	proof, err := proofs.GetPaymentProof(order.ID)
+	if err != nil {
+		logger.Warnw("public_order_payment_proof_fetch_failed",
+			"order_id", order.ID,
+			"order_no", order.OrderNo,
+			"error", err,
+		)
+		return
+	}
+	detail.PaymentProof = proof
 }
 
 func collectRefundRelevantOrderIDs(order *orderdomain.Order) []uint {
