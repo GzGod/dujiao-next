@@ -37,16 +37,18 @@ func NewAdminHandler(service AdminService) *AdminHandler {
 
 // CreateMemberLevelRequest 创建/更新会员等级请求
 type CreateMemberLevelRequest struct {
-	NameJSON          jsonmap.JSON `json:"name" binding:"required"`
-	Slug              string       `json:"slug" binding:"required"`
-	Icon              string       `json:"icon"`
-	DiscountRate      float64      `json:"discount_rate"`
-	RechargeThreshold float64      `json:"recharge_threshold"`
-	SpendThreshold    float64      `json:"spend_threshold"`
-	IsDefault         bool         `json:"is_default"`
-	RequiresApproval  bool         `json:"requires_approval"`
-	SortOrder         int          `json:"sort_order"`
-	IsActive          *bool        `json:"is_active"`
+	NameJSON     jsonmap.JSON `json:"name" binding:"required"`
+	Slug         string       `json:"slug" binding:"required"`
+	Icon         string       `json:"icon"`
+	DiscountRate float64      `json:"discount_rate"`
+	// CostMarkupPercent 按成本加价百分比；不传则保持原值，传负数表示清除（恢复按折扣率）。
+	CostMarkupPercent *float64 `json:"cost_markup_percent"`
+	RechargeThreshold float64  `json:"recharge_threshold"`
+	SpendThreshold    float64  `json:"spend_threshold"`
+	IsDefault         bool     `json:"is_default"`
+	RequiresApproval  bool     `json:"requires_approval"`
+	SortOrder         int      `json:"sort_order"`
+	IsActive          *bool    `json:"is_active"`
 }
 
 // GetAdminMemberLevels 获取会员等级列表
@@ -98,6 +100,7 @@ func (h *AdminHandler) CreateMemberLevel(c *gin.Context) {
 		SortOrder:         req.SortOrder,
 		IsActive:          isActive,
 	}
+	applyCostMarkup(level, req.CostMarkupPercent)
 
 	if err := h.service.CreateLevel(level); err != nil {
 		switch {
@@ -150,6 +153,7 @@ func (h *AdminHandler) UpdateMemberLevel(c *gin.Context) {
 	if req.IsActive != nil {
 		existing.IsActive = *req.IsActive
 	}
+	applyCostMarkup(existing, req.CostMarkupPercent)
 
 	if err := h.service.UpdateLevel(existing); err != nil {
 		switch {
@@ -321,4 +325,16 @@ func (h *AdminHandler) BackfillMemberLevels(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"affected": affected})
+}
+
+// applyCostMarkup 不传保持原值；负数清除；其余设为按成本加价百分比。
+func applyCostMarkup(level *memberleveldomain.MemberLevel, markup *float64) {
+	if level == nil || markup == nil {
+		return
+	}
+	if *markup < 0 {
+		level.CostMarkupPercent = decimal.NullDecimal{}
+		return
+	}
+	level.CostMarkupPercent = decimal.NewNullDecimal(decimal.NewFromFloat(*markup))
 }

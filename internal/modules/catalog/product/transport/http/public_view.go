@@ -195,7 +195,7 @@ func (h *PublicHandler) decoratePublicProduct(product *productdomain.Product, pr
 
 		// 计算当前用户的会员价
 		if memberLevelID > 0 && h.memberLevels != nil && sku.IsActive {
-			memberPrice, _ := h.memberLevels.ResolveMemberPrice(memberLevelID, product.ID, sku.ID, sku.PriceAmount.Decimal)
+			memberPrice, _ := h.memberLevels.ResolveMemberPrice(memberLevelID, product.ID, sku.ID, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal)
 			if memberPrice.LessThan(sku.PriceAmount.Decimal) {
 				mp := money.FromDecimal(memberPrice)
 				sv.MemberPriceAmount = &mp

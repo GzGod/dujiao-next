@@ -264,7 +264,7 @@ func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memb
 			IsActive:      s.IsActive,
 		}
 		if memberLevelID > 0 && h.MemberLevels != nil {
-			mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, s.ID, s.PriceAmount.Decimal)
+			mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, s.ID, s.PriceAmount.Decimal, s.CostPriceAmount.Decimal)
 			if mp.LessThan(s.PriceAmount.Decimal) {
 				si.OriginalPrice = si.PriceAmount
 				si.MemberPrice = money.FromDecimal(mp).StringFixed(2)
@@ -301,7 +301,7 @@ func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memb
 	}
 
 	if memberLevelID > 0 && h.MemberLevels != nil {
-		mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, 0, p.PriceAmount.Decimal)
+		mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, 0, p.PriceAmount.Decimal, p.CostPriceAmount.Decimal)
 		if mp.LessThan(p.PriceAmount.Decimal) {
 			result.OriginalPrice = result.PriceAmount
 			result.MemberPrice = money.FromDecimal(mp).StringFixed(2)

@@ -125,9 +125,9 @@ func (s *Service) DeleteLevelPrice(id uint) error {
 // --- 价格解析 ---
 
 // ResolveMemberPrice 解析会员价
-// 优先级：SKU级覆盖 > 商品级覆盖 > 等级折扣率 * basePrice
-// 返回会员价和会员优惠金额
-func (s *Service) ResolveMemberPrice(levelID, productID, skuID uint, basePrice decimal.Decimal) (memberPrice decimal.Decimal, memberDiscount decimal.Decimal) {
+// 优先级：SKU级覆盖 > 商品级覆盖 > 等级成本加价（costPrice × (1+加价%)）> 等级折扣率 * basePrice
+// costPrice 为该 SKU（或商品最低）成本价，未知时传 0。返回会员价和会员优惠金额
+func (s *Service) ResolveMemberPrice(levelID, productID, skuID uint, basePrice, costPrice decimal.Decimal) (memberPrice decimal.Decimal, memberDiscount decimal.Decimal) {
 	if levelID == 0 {
 		return basePrice, decimal.Zero
 	}
@@ -154,6 +154,12 @@ func (s *Service) ResolveMemberPrice(levelID, productID, skuID uint, basePrice d
 		if mp, ok := productPrice.Resolve(basePrice); ok {
 			return capMemberPrice(mp, basePrice)
 		}
+	}
+
+	// 使用等级成本加价（如高级代理固定只赚 1 个点）
+	if level.CostMarkupPercent.Valid && costPrice.GreaterThan(decimal.Zero) {
+		mp := costPrice.Mul(decimal.NewFromInt(1).Add(level.CostMarkupPercent.Decimal.Div(decimal.NewFromInt(100)))).Round(2)
+		return capMemberPrice(mp, basePrice)
 	}
 
 	// 使用等级折扣率
