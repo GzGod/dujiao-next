@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 )
@@ -47,7 +48,7 @@ func (s *Service) sendViaResendAPI(from, toEmail, subject, body, replyTo, attach
 		return fmt.Errorf("resend api key is empty")
 	}
 	payload := resendEmailRequest{
-		From:    from,
+		From:    resendFromAddress(from),
 		To:      []string{toEmail},
 		Subject: subject,
 		Text:    body,
@@ -79,4 +80,15 @@ func (s *Service) sendViaResendAPI(from, toEmail, subject, body, replyTo, attach
 		return nil
 	}
 	return fmt.Errorf("resend api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+}
+
+// resendFromAddress 把 SMTP 用的 RFC 2047 编码发件人（=?utf-8?q?...?=）还原成明文，
+// Resend API 需要 "名称 <地址>" 的原文，否则部分客户端会直接显示编码串。
+func resendFromAddress(from string) string {
+	addr, err := mail.ParseAddress(from)
+	if err != nil || strings.TrimSpace(addr.Name) == "" {
+		return from
+	}
+	name := strings.NewReplacer("<", "", ">", "", "\"", "", "\r", " ", "\n", " ").Replace(addr.Name)
+	return fmt.Sprintf("%s <%s>", strings.TrimSpace(name), addr.Address)
 }

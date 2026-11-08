@@ -75,3 +75,13 @@ func TestResendAPIErrorIsReturned(t *testing.T) {
 		t.Fatal("expected error from resend api")
 	}
 }
+
+func TestResendFromAddressDecodesDisplayName(t *testing.T) {
+	encoded := buildFromAddress("noreply@example.com", "雪糕AI")
+	if got := resendFromAddress(encoded); got != "雪糕AI <noreply@example.com>" {
+		t.Fatalf("unexpected from: %q (encoded %q)", got, encoded)
+	}
+	if got := resendFromAddress("noreply@example.com"); got != "noreply@example.com" {
+		t.Fatalf("bare address changed: %q", got)
+	}
+}
