@@ -50,8 +50,7 @@
     "products": "商品中心",
     "blog": "博客",
     "notice": "公告",
-    "about": "关于",
-    "check": "账号检测"
+    "about": "关于"
   },
   "vault": {
     "hero": {
@@ -1922,14 +1921,6 @@
       "factOwnValue": "自己的号",
       "factOwn": "不共享不换号"
     },
-    "receipt": {
-      "title": "订单凭证",
-      "delivered": "已交付",
-      "account": "充值账号",
-      "paid": "实付",
-      "code": "核销码",
-      "note": "示例凭证，价格与站内实时同步"
-    },
     "trust": {
       "auto": "自动发码",
       "track": "订单可查",
@@ -1938,7 +1929,7 @@
     },
     "shop": {
       "title": "商品中心",
-      "lede": "价格按最低到最高排列，自动交付的商品付款后马上发码。",
+      "lede": "价格从低到高，GPT 系列在前，自动交付的商品付款后马上发码。",
       "all": "查看全部商品",
       "allTab": "全部"
     },
@@ -1995,20 +1986,13 @@
     },
     "check": {
       "title": "ChatGPT 账号检测",
-      "lede": "粘贴账号的 Session，几秒看清当前套餐、订阅到期时间，以及适合充值哪一档。",
-      "facts": {
-        "local": "在你的浏览器里解析",
-        "noUpload": "Session 不上传、不保存",
-        "free": "免费，无需下单"
-      },
-      "step1": "在浏览器登录 ChatGPT 后，新标签页打开：",
+      "step1": "登录 ChatGPT 后打开",
       "step2": "把页面上的全部内容复制下来（以 {'{'} 开头、{'}'} 结尾），粘贴到下面。",
       "inputLabel": "Session 内容",
       "placeholder": "{'{'}\"user\": ..., \"accessToken\": \"...\"{'}'}",
       "submit": "开始检测",
       "clear": "清空",
       "warning": "Session 相当于账号的登录凭据，只粘贴在本页，不要发给任何人。检测完成后建议退出 ChatGPT 再重新登录，让旧凭据失效。",
-      "empty": "检测结果会显示在这里",
       "errors": {
         "empty": "请先粘贴 Session 内容",
         "not_json": "内容不完整，请复制从 {'{'} 到 {'}'} 的全部文字",
@@ -2041,15 +2025,15 @@
       "fields": {
         "email": "账号邮箱",
         "accountType": "账号类型",
-        "until": "订阅到期",
-        "session": "本次登录有效至"
+        "until": "订阅到期"
       },
       "personal": "个人",
       "workspace": "团队空间",
       "untilUnknown": "Session 中没有到期信息",
       "disclaimer": "结果从 Session 本地解析，仅供参考，以 ChatGPT 账号设置页显示为准。本工具为第三方工具，不是 OpenAI 官方产品。",
-      "suggestTitle": "适合这个账号的套餐",
-      "suggestLede": "按检测到的套餐推荐，付款后系统自动下单。"
+      "badge": "本地解析 · 不上传",
+      "buy": "开通 {name}",
+      "again": "重新检测"
     }
   }
 }

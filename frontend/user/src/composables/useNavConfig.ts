@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import {
     Home, LayoutGrid, Newspaper, Bell, Info,
     Link2, FileText, Globe, Star, Heart, MessageCircle, Gift, Zap, Shield,
-    BookOpen, Code, Phone, MapPin, Music, Camera, ScanSearch,
+    BookOpen, Code, Phone, MapPin, Music, Camera,
 } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { getLocalizedText } from '../utils/resellerSiteConfig'
@@ -123,12 +123,7 @@ export const useNavConfig = () => {
             .filter((item) => item.label && item.path)
     })
 
-    /** ChatGPT 账号检测（纯前端工具页），固定显示 */
-    const checkNavItem = computed<NavItem>(() => ({
-        key: 'check', path: '/check', label: t('nav.check'), icon: ScanSearch, type: 'route', target: '_self',
-    }))
-
-    /** 首页 + 商品 + 账号检测 + 内置 + 自定义，供顶栏主导航使用 */
+    /** 首页 + 商品 + 内置 + 自定义，供顶栏主导航使用 */
     const primaryNavItems = computed<NavItem[]>(() => {
         const items: NavItem[] = [
             { key: 'home', path: '/', label: t('nav.home'), icon: Home, type: 'route', target: '_self' },
@@ -136,13 +131,12 @@ export const useNavConfig = () => {
         if (!isListMode.value) {
             items.push({ key: 'products', path: '/products', label: t('nav.products'), icon: LayoutGrid, type: 'route', target: '_self' })
         }
-        items.push(checkNavItem.value)
         items.push(...builtinNavItems.value, ...customNavItems.value)
         return items
     })
 
     /** 内置 + 自定义（不含首页/商品，供移动端抽屉等已在别处露出首页入口的场景使用） */
-    const secondaryNavItems = computed<NavItem[]>(() => [checkNavItem.value, ...builtinNavItems.value, ...customNavItems.value])
+    const secondaryNavItems = computed<NavItem[]>(() => [...builtinNavItems.value, ...customNavItems.value])
 
     return {
         navConfig,

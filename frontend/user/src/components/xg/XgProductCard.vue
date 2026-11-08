@@ -28,6 +28,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getFirstImageUrl } from '../../utils/image'
+import { brandLogoUrl, detectAiBrand } from '../../utils/aiBrand'
 import { amountToCents, centsToAmount } from '../../utils/money'
 import { useLocalized } from '../../composables/useProduct'
 import XgStockTag from './XgStockTag.vue'
@@ -40,7 +41,8 @@ const { getLocalizedText, siteCurrency } = useLocalized()
 const logoFailed = ref(false)
 
 const title = computed(() => getLocalizedText(props.product?.title) || '')
-const logo = computed(() => getFirstImageUrl(props.product?.images))
+// 图标统一用 AI 品牌 logo（GPT → OpenAI，Grok → Grok），识别不出品牌时才用商品自带图片
+const logo = computed(() => brandLogoUrl(detectAiBrand(props.product)) || getFirstImageUrl(props.product?.images))
 const soldOut = computed(() => Boolean(props.product?.is_sold_out || props.product?.stock_status === 'out_of_stock'))
 const symbol = computed(() => (String(siteCurrency.value || 'CNY').toUpperCase() === 'CNY' ? '¥' : `${siteCurrency.value} `))
 

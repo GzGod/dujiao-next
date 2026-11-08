@@ -117,58 +117,8 @@
 .xg-hero__facts strong { font-size: 24px; font-weight: 700; color: var(--brand-700); }
 .xg-hero__facts span { font-size: 13px; color: var(--ui-text-muted); }
 
-/* 凭证卡：用户付款后实际拿到的东西 */
-.xg-receipt {
-  padding: var(--space-6);
-  border-radius: var(--ui-radius-lg);
-  border: 1px solid var(--neutral-200);
-  background: var(--neutral-0);
-  box-shadow: var(--ui-shadow-3);
-}
-.xg-receipt__row {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  font-size: 14px;
-  color: var(--ui-text-muted);
-}
-.xg-receipt__row span:last-child { color: var(--ui-text-primary); }
-.xg-receipt__row--head { padding-top: 0; font-weight: 600; color: var(--ui-text-primary); }
-.xg-receipt__status {
-  padding: 0 var(--space-2);
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 22px;
-  color: var(--ui-success) !important;
-  background: var(--ui-success-soft);
-}
-.xg-receipt__product {
-  margin: var(--space-2) 0 var(--space-3);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--neutral-900);
-}
-.xg-receipt__price { font-weight: 700; color: var(--brand-700) !important; }
-.xg-receipt__code {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--ui-radius-sm);
-  background: var(--brand-50);
-  font-size: 12px;
-  color: var(--brand-700);
-}
-.xg-receipt__code code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--brand-900);
-}
-.xg-receipt__note { margin-top: var(--space-3); font-size: 12px; color: var(--ui-text-muted); }
+/* 右侧账号检测卡（样式在 XgSessionChecker.vue），锚点跳转时让出顶部导航 */
+.xg-hero__checker { scroll-margin-top: 96px; }
 
 /* ---------- 信任条 ---------- */
 .xg-trust { background: var(--neutral-50); border-bottom: 1px solid var(--neutral-200); }
@@ -244,7 +194,8 @@
   font-weight: 700;
   color: var(--brand-700);
 }
-.xg-card__logo img { width: 100%; height: 100%; object-fit: cover; }
+.xg-card__logo img { width: 100%; height: 100%; object-fit: contain; }
+.xg-card__logo { background: var(--neutral-0); }
 .xg-card__title {
   margin-top: var(--space-4);
   font-size: 17px;

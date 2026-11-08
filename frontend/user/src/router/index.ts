@@ -281,9 +281,9 @@ const router = createRouter({
             component: templateView('Notice', noticeViewLoader),
         },
         {
+            // 账号检测已并入首页 Hero，保留旧链接跳过去
             path: '/check',
-            name: 'session-check',
-            component: () => import('../views/SessionCheck.vue'),
+            redirect: { path: '/', hash: '#check' },
         },
         {
             path: '/api-docs',

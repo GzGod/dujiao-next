@@ -180,21 +180,8 @@
             </ul>
           </div>
 
-          <!-- 右侧：一张真实的「订单凭证」，展示下单后用户实际拿到的东西 -->
-          <div class="xg-receipt" aria-hidden="true">
-            <div class="xg-receipt__row xg-receipt__row--head">
-              <span>{{ t('xg.receipt.title') }}</span>
-              <span class="xg-receipt__status">{{ t('xg.receipt.delivered') }}</span>
-            </div>
-            <div class="xg-receipt__product">{{ heroProductTitle }}</div>
-            <div class="xg-receipt__row"><span>{{ t('xg.receipt.account') }}</span><span>you@example.com</span></div>
-            <div class="xg-receipt__row"><span>{{ t('xg.receipt.paid') }}</span><span class="xg-receipt__price">{{ heroProductPrice }}</span></div>
-            <div class="xg-receipt__code">
-              <span>{{ t('xg.receipt.code') }}</span>
-              <code>XG-7K2Q-9M4D-PLUS</code>
-            </div>
-            <p class="xg-receipt__note">{{ t('xg.receipt.note') }}</p>
-          </div>
+          <!-- 右侧：ChatGPT 账号检测，先查号再选购 -->
+          <XgSessionChecker id="check" class="xg-hero__checker" :products="products" @open="goToProduct" />
         </div>
       </section>
 
@@ -315,6 +302,8 @@ import PaginationNav from '../components/PaginationNav.vue'
 import EmptyState from '../components/EmptyState.vue'
 import AnnouncementModal from '../components/AnnouncementModal.vue'
 import XgProductCard from '../components/xg/XgProductCard.vue'
+import XgSessionChecker from '../components/xg/XgSessionChecker.vue'
+import { sortByBrandThenPrice } from '../utils/aiBrand'
 import XgTierCard from '../components/xg/XgTierCard.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
 
@@ -434,27 +423,12 @@ const shopCategories = computed(() => {
   return [...seen.entries()].map(([id, label]) => ({ id, label }))
 })
 
-// 按价格从低到高排，入门款在前
+// 同品牌放一起，GPT 系列最前；同品牌内按价格从低到高
 const filteredProducts = computed(() => {
   const list = activeCategory.value
     ? products.value.filter((p) => Number(p?.category_id || p?.category?.id) === activeCategory.value)
     : products.value
-  return [...list].sort((a, b) => Number(a?.price_amount || 0) - Number(b?.price_amount || 0))
-})
-
-// Hero 右侧凭证取一件真实商品（优先 GPT Plus），价格跟后台同步
-const heroProduct = computed(() => {
-  const list = products.value
-  const title = (p: any) => getLocalizedText(p?.title)
-  return list.find((p) => /gpt\s*plus/i.test(title(p)))
-    || list.find((p) => /plus/i.test(title(p)))
-    || list[0]
-    || null
-})
-const heroProductTitle = computed(() => getLocalizedText(heroProduct.value?.title) || 'ChatGPT Plus')
-const heroProductPrice = computed(() => {
-  const amount = heroProduct.value?.price_amount
-  return amount ? `¥${Number(amount).toFixed(2)}` : '—'
+  return sortByBrandThenPrice(list)
 })
 
 const trustItems = computed(() => [

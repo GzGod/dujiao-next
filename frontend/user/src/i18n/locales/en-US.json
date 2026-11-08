@@ -50,8 +50,7 @@
     "products": "Products",
     "blog": "Blog",
     "notice": "Notice",
-    "about": "About",
-    "check": "Account check"
+    "about": "About"
   },
   "vault": {
     "hero": {
@@ -1922,14 +1921,6 @@
       "factOwnValue": "Your account",
       "factOwn": "never shared"
     },
-    "receipt": {
-      "title": "Order receipt",
-      "delivered": "Delivered",
-      "account": "Account",
-      "paid": "Paid",
-      "code": "Redeem code",
-      "note": "Sample receipt. Prices sync with the store in real time."
-    },
     "trust": {
       "auto": "Instant codes",
       "track": "Trackable orders",
@@ -1938,7 +1929,7 @@
     },
     "shop": {
       "title": "Products",
-      "lede": "Sorted from lowest price. Auto-delivered plans send the code right after payment.",
+      "lede": "GPT plans first, then the rest, each from lowest price. Auto-delivered items send the code right after payment.",
       "all": "View all products",
       "allTab": "All"
     },
@@ -1995,20 +1986,13 @@
     },
     "check": {
       "title": "ChatGPT account check",
-      "lede": "Paste your account Session to see its current plan, when the subscription ends, and which top-up fits.",
-      "facts": {
-        "local": "Parsed in your browser",
-        "noUpload": "Session is never uploaded or stored",
-        "free": "Free, no order needed"
-      },
-      "step1": "Sign in to ChatGPT, then open this in a new tab:",
+      "step1": "Sign in to ChatGPT, then open",
       "step2": "Copy everything on that page (it starts with {'{'} and ends with {'}'}) and paste it below.",
       "inputLabel": "Session",
       "placeholder": "{'{'}\"user\": ..., \"accessToken\": \"...\"{'}'}",
       "submit": "Check account",
       "clear": "Clear",
       "warning": "Your Session works like a login credential. Paste it only here and never send it to anyone. Afterwards, sign out of ChatGPT and back in to retire it.",
-      "empty": "Results appear here",
       "errors": {
         "empty": "Paste your Session first",
         "not_json": "That looks incomplete. Copy everything from {'{'} to {'}'}",
@@ -2041,15 +2025,15 @@
       "fields": {
         "email": "Email",
         "accountType": "Account type",
-        "until": "Subscription ends",
-        "session": "Login valid until"
+        "until": "Subscription ends"
       },
       "personal": "Personal",
       "workspace": "Team workspace",
       "untilUnknown": "Not included in the Session",
       "disclaimer": "Read locally from your Session and for reference only; your ChatGPT settings page is the source of truth. This is a third-party tool, not an OpenAI product.",
-      "suggestTitle": "Plans for this account",
-      "suggestLede": "Picked from the plan we detected. Orders are placed automatically after payment."
+      "badge": "Parsed locally · never uploaded",
+      "buy": "Get {name}",
+      "again": "Check another"
     }
   }
 }
