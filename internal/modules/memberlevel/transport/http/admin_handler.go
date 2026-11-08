@@ -218,7 +218,9 @@ type MemberLevelPriceInput struct {
 	MemberLevelID uint    `json:"member_level_id" binding:"required"`
 	ProductID     uint    `json:"product_id" binding:"required"`
 	SKUID         uint    `json:"sku_id"`
-	PriceAmount   float64 `json:"price_amount" binding:"required"`
+	PriceAmount   float64 `json:"price_amount"`
+	// PriceRate 按售价比例定价（百分比）。price_amount > 0 时以固定金额为准。
+	PriceRate *float64 `json:"price_rate"`
 }
 
 // BatchUpsertMemberLevelPrices 批量设置等级价
@@ -231,12 +233,23 @@ func (h *AdminHandler) BatchUpsertMemberLevelPrices(c *gin.Context) {
 
 	prices := make([]memberleveldomain.MemberLevelPrice, 0, len(req.Prices))
 	for _, p := range req.Prices {
-		prices = append(prices, memberleveldomain.MemberLevelPrice{
+		price := memberleveldomain.MemberLevelPrice{
 			MemberLevelID: p.MemberLevelID,
 			ProductID:     p.ProductID,
 			SKUID:         p.SKUID,
 			PriceAmount:   money.FromDecimal(decimal.NewFromFloat(p.PriceAmount)),
-		})
+		}
+		if p.PriceRate != nil {
+			price.PriceRate = decimal.NewNullDecimal(decimal.NewFromFloat(*p.PriceRate))
+		}
+		// 固定金额和比例至少给一个，且都必须为正数、比例不超过 100%
+		hasAmount := p.PriceAmount > 0
+		hasRate := p.PriceRate != nil && *p.PriceRate > 0 && *p.PriceRate <= 100
+		if p.PriceAmount < 0 || (p.PriceRate != nil && !hasRate) || (!hasAmount && !hasRate) {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+			return
+		}
+		prices = append(prices, price)
 	}
 
 	if err := h.service.BatchUpsertLevelPrices(prices); err != nil {

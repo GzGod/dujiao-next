@@ -6,6 +6,7 @@ import (
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/shared/money"
+	"github.com/shopspring/decimal"
 )
 
 // 上游商品状态枚举（Mapping.UpstreamStatus）
@@ -17,17 +18,19 @@ const (
 
 // Mapping 表示一个本地商品与上游商品之间的映射。
 type Mapping struct {
-	ID                      uint       `gorm:"primarykey" json:"id"`
-	ConnectionID            uint       `gorm:"index;not null" json:"connection_id"`
-	LocalProductID          uint       `gorm:"uniqueIndex;not null" json:"local_product_id"`
-	UpstreamProductID       uint       `gorm:"not null" json:"upstream_product_id"`
-	UpstreamFulfillmentType string     `gorm:"type:varchar(20);not null;default:'manual'" json:"upstream_fulfillment_type"` // 上游原始交付类型（auto/manual）
-	UpstreamStatus          string     `gorm:"type:varchar(16);not null;default:'active';index" json:"upstream_status"`     // 上游商品状态：active/inactive/deleted
-	IsActive                bool       `gorm:"not null;default:true" json:"is_active"`
-	LastSyncedAt            *time.Time `json:"last_synced_at,omitempty"`
-	CreatedAt               time.Time  `gorm:"index" json:"created_at"`
-	UpdatedAt               time.Time  `gorm:"index" json:"updated_at"`
-	DeletedAt               *time.Time `gorm:"index" json:"-"`
+	ID                      uint   `gorm:"primarykey" json:"id"`
+	ConnectionID            uint   `gorm:"index;not null" json:"connection_id"`
+	LocalProductID          uint   `gorm:"uniqueIndex;not null" json:"local_product_id"`
+	UpstreamProductID       uint   `gorm:"not null" json:"upstream_product_id"`
+	UpstreamFulfillmentType string `gorm:"type:varchar(20);not null;default:'manual'" json:"upstream_fulfillment_type"` // 上游原始交付类型（auto/manual）
+	UpstreamStatus          string `gorm:"type:varchar(16);not null;default:'active';index" json:"upstream_status"`     // 上游商品状态：active/inactive/deleted
+	IsActive                bool   `gorm:"not null;default:true" json:"is_active"`
+	// PriceMarkupPercent 单品加价百分比，覆盖连接上的统一加价；为空时沿用连接配置。
+	PriceMarkupPercent decimal.NullDecimal `gorm:"type:decimal(10,4)" json:"price_markup_percent"`
+	LastSyncedAt       *time.Time          `json:"last_synced_at,omitempty"`
+	CreatedAt          time.Time           `gorm:"index" json:"created_at"`
+	UpdatedAt          time.Time           `gorm:"index" json:"updated_at"`
+	DeletedAt          *time.Time          `gorm:"index" json:"-"`
 
 	Connection *siteconnectiondomain.Connection `gorm:"foreignKey:ConnectionID" json:"connection,omitempty"`
 	Product    *productdomain.Product           `gorm:"foreignKey:LocalProductID" json:"product,omitempty"`
@@ -56,4 +59,12 @@ type SKUMapping struct {
 // TableName 指定表名
 func (SKUMapping) TableName() string {
 	return "sku_mappings"
+}
+
+// EffectiveMarkupPercent 返回该映射实际使用的加价百分比：单品覆盖优先，否则用连接统一加价。
+func (m *Mapping) EffectiveMarkupPercent(connectionMarkup decimal.Decimal) decimal.Decimal {
+	if m != nil && m.PriceMarkupPercent.Valid {
+		return m.PriceMarkupPercent.Decimal
+	}
+	return connectionMarkup
 }

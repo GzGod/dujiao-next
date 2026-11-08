@@ -3,6 +3,9 @@ package application
 import (
 	"strconv"
 
+	"github.com/shopspring/decimal"
+
+	mappingcontract "github.com/dujiao-next/internal/modules/catalog/mapping/contract"
 	siteconnectioncontract "github.com/dujiao-next/internal/modules/siteconnection/contract"
 
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
@@ -33,7 +36,7 @@ func (s *Service) ReapplyMarkup(connectionID uint) (int, error) {
 		}
 
 		for _, sm := range skuMappings {
-			newLocalPrice := CalculateLocalPrice(sm.UpstreamPrice.Decimal, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
+			newLocalPrice := CalculateLocalPrice(sm.UpstreamPrice.Decimal, conn.ExchangeRate, mapping.EffectiveMarkupPercent(conn.PriceMarkupPercent), conn.PriceRoundingMode)
 			localSKU, err := s.skus.GetByID(sm.LocalSKUID)
 			if err != nil || localSKU == nil {
 				continue
@@ -74,3 +77,58 @@ func (s *Service) recalcProductPrice(product *productdomain.Product) {
 	product.CostPriceAmount = money.FromDecimal(minCostPrice.Round(2))
 	_ = s.products.Update(product)
 }
+
+// SetMarkup 设置单个映射商品的加价百分比（nil 表示恢复使用连接统一加价），并立即按新比例重算本地售价。
+// 价格计算基于最近一次同步记录的上游价格，不发起上游请求。
+func (s *Service) SetMarkup(id uint, markupPercent *decimal.Decimal) error {
+	mapping, err := s.mappings.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if mapping == nil {
+		return mappingcontract.ErrMappingNotFound
+	}
+	if markupPercent != nil && markupPercent.LessThan(minMarkupPercent) {
+		return mappingcontract.ErrMarkupInvalid
+	}
+	if markupPercent != nil {
+		mapping.PriceMarkupPercent = decimal.NewNullDecimal(*markupPercent)
+	} else {
+		mapping.PriceMarkupPercent = decimal.NullDecimal{}
+	}
+	if err := s.mappings.Update(mapping); err != nil {
+		return err
+	}
+
+	conn, err := s.connections.GetByID(mapping.ConnectionID)
+	if err != nil {
+		return err
+	}
+	if conn == nil {
+		return siteconnectioncontract.ErrNotFound
+	}
+	skuMappings, err := s.skuMappings.ListByProductMapping(mapping.ID)
+	if err != nil {
+		return err
+	}
+	markup := mapping.EffectiveMarkupPercent(conn.PriceMarkupPercent)
+	for _, sm := range skuMappings {
+		localSKU, err := s.skus.GetByID(sm.LocalSKUID)
+		if err != nil || localSKU == nil {
+			continue
+		}
+		localSKU.PriceAmount = money.FromDecimal(CalculateLocalPrice(sm.UpstreamPrice.Decimal, conn.ExchangeRate, markup, conn.PriceRoundingMode).Round(2))
+		localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(sm.UpstreamPrice.Decimal, conn.ExchangeRate).Round(2))
+		if err := s.skus.Update(localSKU); err != nil {
+			return err
+		}
+	}
+	localProduct, err := s.products.GetByID(strconv.FormatUint(uint64(mapping.LocalProductID), 10))
+	if err == nil && localProduct != nil {
+		s.recalcProductPrice(localProduct)
+	}
+	return nil
+}
+
+// minMarkupPercent 单品加价下限：-100% 即售价为 0，再低没有意义。
+var minMarkupPercent = decimal.NewFromInt(-100)

@@ -26,10 +26,13 @@ import (
 	mappinggormstore "github.com/dujiao-next/internal/modules/catalog/mapping/infrastructure/gormstore"
 	mappinghttp "github.com/dujiao-next/internal/modules/catalog/mapping/transport/http"
 	productgormstore "github.com/dujiao-next/internal/modules/catalog/product/store/gormstore"
+	"github.com/dujiao-next/internal/platform/http/response"
 	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/upstream"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -284,5 +287,134 @@ func TestBatchImportUpstreamProductsRestoresSoftDeletedAutoCategory(t *testing.T
 	}
 	if restored.NameJSON["zh-CN"] != "流媒体" {
 		t.Fatalf("expected restored category name to be refreshed, got %+v", restored.NameJSON)
+	}
+}
+
+// seedMappedProduct 建一个已对接商品：上游价 100，本地 1 个 SKU。
+func seedMappedProduct(t *testing.T, db *gorm.DB, connID uint) (mappingdomain.Mapping, productdomain.ProductSKU) {
+	t.Helper()
+	product := productdomain.Product{
+		CategoryID: 1, Slug: fmt.Sprintf("p-%d", connID), TitleJSON: jsonmap.JSON{"zh-CN": "GPT Plus"},
+		PriceAmount: money.FromDecimal(decimal.RequireFromString("110")), IsMapped: true, IsActive: true,
+		FulfillmentType: constants.FulfillmentTypeManual,
+	}
+	if err := db.Create(&product).Error; err != nil {
+		t.Fatal(err)
+	}
+	sku := productdomain.ProductSKU{ProductID: product.ID, SKUCode: "DEFAULT", PriceAmount: product.PriceAmount, IsActive: true}
+	if err := db.Create(&sku).Error; err != nil {
+		t.Fatal(err)
+	}
+	mapping := mappingdomain.Mapping{ConnectionID: connID, LocalProductID: product.ID, UpstreamProductID: 101, IsActive: true}
+	if err := db.Create(&mapping).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&mappingdomain.SKUMapping{
+		ProductMappingID: mapping.ID, LocalSKUID: sku.ID, UpstreamSKUID: 201,
+		UpstreamPrice: money.FromDecimal(decimal.RequireFromString("100")), UpstreamIsActive: true,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	return mapping, sku
+}
+
+// putMarkup 返回业务码（项目统一 HTTP 200 + body.status_code）。
+func putMarkup(t *testing.T, h interface{ UpdateProductMappingMarkup(*gin.Context) }, mappingID uint, body string) int {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Params = gin.Params{{Key: "id", Value: fmt.Sprint(mappingID)}}
+	h.UpdateProductMappingMarkup(c)
+	var resp struct {
+		StatusCode int `json:"status_code"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v body=%s", err, w.Body.String())
+	}
+	return resp.StatusCode
+}
+
+func TestMappingMarkupOverridesConnectionAndRepricesNow(t *testing.T) {
+	h, db, connID, cleanup := setupAdminHandlerTest(t, http.NotFound)
+	defer cleanup()
+	if err := db.Model(&siteconnectiondomain.Connection{}).Where("id = ?", connID).
+		Updates(map[string]any{"price_markup_percent": 10, "exchange_rate": 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	mapping, sku := seedMappedProduct(t, db, connID)
+
+	if code := putMarkup(t, h, mapping.ID, `{"price_markup_percent":30}`); code != 0 {
+		t.Fatalf("set markup status %d", code)
+	}
+	var got productdomain.ProductSKU
+	db.First(&got, sku.ID)
+	if !got.PriceAmount.Decimal.Equal(decimal.RequireFromString("130")) {
+		t.Fatalf("expected 130 after 30%% markup, got %s", got.PriceAmount.Decimal)
+	}
+	if !got.CostPriceAmount.Decimal.Equal(decimal.RequireFromString("100")) {
+		t.Fatalf("cost should be upstream price, got %s", got.CostPriceAmount.Decimal)
+	}
+
+	// 清空单品加价 → 回到连接统一的 10%
+	if code := putMarkup(t, h, mapping.ID, `{"price_markup_percent":null}`); code != 0 {
+		t.Fatalf("clear markup status %d", code)
+	}
+	db.First(&got, sku.ID)
+	if !got.PriceAmount.Decimal.Equal(decimal.RequireFromString("110")) {
+		t.Fatalf("expected connection markup 110, got %s", got.PriceAmount.Decimal)
+	}
+
+	if code := putMarkup(t, h, mapping.ID, `{"price_markup_percent":-150}`); code != response.CodeBadRequest {
+		t.Fatalf("expected 400 for markup below -100%%, got %d", code)
+	}
+}
+
+func TestSyncUsesPerMappingMarkupWhenUpstreamPriceChanges(t *testing.T) {
+	var upstreamPrice = "200.00"
+	h, db, connID, cleanup := setupAdminHandlerTest(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/upstream/products/101" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "product": upstream.UpstreamProduct{
+			ID: 101, Title: jsonmap.JSON{"zh-CN": "GPT Plus"}, PriceAmount: upstreamPrice, Currency: "CNY",
+			FulfillmentType: constants.FulfillmentTypeAuto, IsActive: true,
+			SKUs: []upstream.UpstreamSKU{{ID: 201, SKUCode: "DEFAULT", PriceAmount: upstreamPrice, IsActive: true, StockQuantity: -1}},
+		}})
+	})
+	defer cleanup()
+	if err := db.Model(&siteconnectiondomain.Connection{}).Where("id = ?", connID).
+		Updates(map[string]any{"price_markup_percent": 10, "exchange_rate": 1, "auto_sync_price": true}).Error; err != nil {
+		t.Fatal(err)
+	}
+	mapping, sku := seedMappedProduct(t, db, connID)
+	if code := putMarkup(t, h, mapping.ID, `{"price_markup_percent":25}`); code != 0 {
+		t.Fatalf("set markup status %d", code)
+	}
+
+	// 上游涨价到 200，同步后应按单品 25% 而不是连接的 10%
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Params = gin.Params{{Key: "id", Value: fmt.Sprint(mapping.ID)}}
+	h.SyncProductMapping(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("sync status %d body=%s", w.Code, w.Body.String())
+	}
+
+	var got productdomain.ProductSKU
+	db.First(&got, sku.ID)
+	if !got.PriceAmount.Decimal.Equal(decimal.RequireFromString("250")) {
+		t.Fatalf("expected 250 (200 × 1.25), got %s", got.PriceAmount.Decimal)
+	}
+	var product productdomain.Product
+	db.First(&product, mapping.LocalProductID)
+	if !product.PriceAmount.Decimal.Equal(decimal.RequireFromString("250")) {
+		t.Fatalf("product price should follow sku, got %s", product.PriceAmount.Decimal)
 	}
 }

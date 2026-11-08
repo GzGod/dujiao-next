@@ -14,6 +14,7 @@ import (
 	"github.com/dujiao-next/internal/upstream"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 )
 
 // ProductMappingService 是后台商品映射端点所需的最小用例接口。
@@ -25,6 +26,7 @@ type ProductMappingService interface {
 	BatchImportUpstreamProducts(connectionID uint, upstreamProductIDs []uint, categoryID uint, autoCreateCategory bool) ([]mappingapp.BatchUpstreamProductImportOutcome, error)
 	SyncProduct(mappingID uint) error
 	SetActive(id uint, active bool) error
+	SetMarkup(id uint, markupPercent *decimal.Decimal) error
 	Delete(id uint) error
 	ListUpstreamProducts(connectionID uint, page, pageSize int) (*upstream.ProductListResult, error)
 	GetMappedUpstreamIDs(connectionID uint) ([]uint, error)
@@ -342,6 +344,45 @@ func (h *AdminHandler) UpdateProductMappingStatus(c *gin.Context) {
 			return
 		}
 		ginutil.RespondError(c, response.CodeInternal, "error.mapping_update_failed", err)
+		return
+	}
+
+	response.Success(c, gin.H{"updated": true})
+}
+
+// UpdateProductMappingMarkupRequest 设置单品加价；price_markup_percent 为 null 表示恢复使用连接统一加价。
+type UpdateProductMappingMarkupRequest struct {
+	PriceMarkupPercent *float64 `json:"price_markup_percent"`
+}
+
+// UpdateProductMappingMarkup 设置单个映射商品的加价百分比，并立即重算本地售价
+func (h *AdminHandler) UpdateProductMappingMarkup(c *gin.Context) {
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", err)
+		return
+	}
+
+	var req UpdateProductMappingMarkupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	var markup *decimal.Decimal
+	if req.PriceMarkupPercent != nil {
+		value := decimal.NewFromFloat(*req.PriceMarkupPercent)
+		markup = &value
+	}
+
+	if err := h.service.SetMarkup(id, markup); err != nil {
+		switch {
+		case errors.Is(err, mappingcontract.ErrMappingNotFound):
+			ginutil.RespondError(c, response.CodeNotFound, "error.mapping_not_found", nil)
+		case errors.Is(err, mappingcontract.ErrMarkupInvalid):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", err)
+		default:
+			ginutil.RespondError(c, response.CodeInternal, "error.mapping_update_failed", err)
+		}
 		return
 	}
 

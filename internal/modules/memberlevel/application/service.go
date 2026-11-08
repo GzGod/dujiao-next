@@ -138,26 +138,22 @@ func (s *Service) ResolveMemberPrice(levelID, productID, skuID uint, basePrice d
 		return basePrice, decimal.Zero
 	}
 
-	// 查找 SKU 级覆盖
+	// 查找 SKU 级覆盖（固定金额或按售价比例）
 	if skuID > 0 {
 		skuPrice, err := s.priceRepo.GetByLevelAndProductAndSKU(levelID, productID, skuID)
-		if err == nil && skuPrice != nil && skuPrice.PriceAmount.Decimal.GreaterThan(decimal.Zero) {
-			mp := skuPrice.PriceAmount.Decimal.Round(2)
-			if mp.LessThan(basePrice) {
-				return mp, basePrice.Sub(mp).Round(2)
+		if err == nil {
+			if mp, ok := skuPrice.Resolve(basePrice); ok {
+				return capMemberPrice(mp, basePrice)
 			}
-			return basePrice, decimal.Zero
 		}
 	}
 
-	// 查找商品级覆盖
+	// 查找商品级覆盖（固定金额或按售价比例）
 	productPrice, err := s.priceRepo.GetByLevelAndProductAndSKU(levelID, productID, 0)
-	if err == nil && productPrice != nil && productPrice.PriceAmount.Decimal.GreaterThan(decimal.Zero) {
-		mp := productPrice.PriceAmount.Decimal.Round(2)
-		if mp.LessThan(basePrice) {
-			return mp, basePrice.Sub(mp).Round(2)
+	if err == nil {
+		if mp, ok := productPrice.Resolve(basePrice); ok {
+			return capMemberPrice(mp, basePrice)
 		}
-		return basePrice, decimal.Zero
 	}
 
 	// 使用等级折扣率
@@ -377,4 +373,12 @@ func (s *Service) BackfillDefaultLevel() (int64, error) {
 		return 0, memberlevelcontract.ErrNotFound
 	}
 	return s.userRepo.AssignDefaultMemberLevel(defaultLevel.ID)
+}
+
+// capMemberPrice 等级价不得高于售价；高于或等于售价时按售价结算、无优惠。
+func capMemberPrice(memberPrice, basePrice decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
+	if memberPrice.LessThan(basePrice) {
+		return memberPrice, basePrice.Sub(memberPrice).Round(2)
+	}
+	return basePrice, decimal.Zero
 }

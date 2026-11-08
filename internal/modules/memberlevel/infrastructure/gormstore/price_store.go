@@ -73,6 +73,7 @@ func (r *PriceStore) BatchUpsert(prices []memberleveldomain.MemberLevelPrice) er
 		}
 		if existing != nil {
 			existing.PriceAmount = p.PriceAmount
+			existing.PriceRate = p.PriceRate
 			if err := r.db.Save(existing).Error; err != nil {
 				return err
 			}

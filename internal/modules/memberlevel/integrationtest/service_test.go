@@ -248,3 +248,86 @@ func TestMemberLevelServiceUpdateLevelRejectsActiveSortOrderConflict(t *testing.
 		t.Fatalf("expected active sort_order conflict to be rejected")
 	}
 }
+
+func TestResolveMemberPriceFollowsRetailByRate(t *testing.T) {
+	svc, db := newMemberLevelServiceForTest(t)
+	level := createMemberLevelFixture(t, db, "dealer-rate", 1, "0", false)
+
+	if err := gormstore.NewPriceStore(db).BatchUpsert([]memberleveldomain.MemberLevelPrice{{
+		MemberLevelID: level.ID,
+		ProductID:     7,
+		PriceRate:     decimal.NewNullDecimal(decimal.RequireFromString("96")),
+	}}); err != nil {
+		t.Fatalf("upsert rate price: %v", err)
+	}
+
+	// 售价 100 → 96；上游涨价后售价 200 → 192，等级价跟着售价走
+	for _, tc := range []struct{ base, want string }{{"100", "96"}, {"200", "192"}} {
+		got, discount := svc.ResolveMemberPrice(level.ID, 7, 0, decimal.RequireFromString(tc.base))
+		if !got.Equal(decimal.RequireFromString(tc.want)) {
+			t.Fatalf("base %s: got %s want %s", tc.base, got, tc.want)
+		}
+		if !discount.Equal(decimal.RequireFromString(tc.base).Sub(got)) {
+			t.Fatalf("base %s: unexpected discount %s", tc.base, discount)
+		}
+	}
+}
+
+func TestResolveMemberPriceFixedAmountWinsOverRate(t *testing.T) {
+	svc, db := newMemberLevelServiceForTest(t)
+	level := createMemberLevelFixture(t, db, "dealer-fixed", 1, "0", false)
+
+	if err := gormstore.NewPriceStore(db).BatchUpsert([]memberleveldomain.MemberLevelPrice{{
+		MemberLevelID: level.ID,
+		ProductID:     8,
+		PriceAmount:   money.FromDecimal(decimal.RequireFromString("90")),
+		PriceRate:     decimal.NewNullDecimal(decimal.RequireFromString("50")),
+	}}); err != nil {
+		t.Fatalf("upsert price: %v", err)
+	}
+
+	got, _ := svc.ResolveMemberPrice(level.ID, 8, 0, decimal.RequireFromString("100"))
+	if !got.Equal(decimal.RequireFromString("90")) {
+		t.Fatalf("fixed amount should win, got %s", got)
+	}
+}
+
+func TestResolveMemberPriceNeverExceedsRetail(t *testing.T) {
+	svc, db := newMemberLevelServiceForTest(t)
+	level := createMemberLevelFixture(t, db, "dealer-cap", 1, "0", false)
+
+	if err := gormstore.NewPriceStore(db).BatchUpsert([]memberleveldomain.MemberLevelPrice{{
+		MemberLevelID: level.ID,
+		ProductID:     9,
+		PriceRate:     decimal.NewNullDecimal(decimal.RequireFromString("100")),
+	}}); err != nil {
+		t.Fatalf("upsert price: %v", err)
+	}
+
+	got, discount := svc.ResolveMemberPrice(level.ID, 9, 0, decimal.RequireFromString("100"))
+	if !got.Equal(decimal.RequireFromString("100")) || !discount.IsZero() {
+		t.Fatalf("rate 100%% must not discount, got %s / %s", got, discount)
+	}
+}
+
+func TestBatchUpsertUpdatesRateOnExistingPrice(t *testing.T) {
+	_, db := newMemberLevelServiceForTest(t)
+	store := gormstore.NewPriceStore(db)
+	base := memberleveldomain.MemberLevelPrice{MemberLevelID: 1, ProductID: 10, PriceAmount: money.FromDecimal(decimal.RequireFromString("50"))}
+	if err := store.BatchUpsert([]memberleveldomain.MemberLevelPrice{base}); err != nil {
+		t.Fatal(err)
+	}
+	// 从固定金额切换到比例
+	if err := store.BatchUpsert([]memberleveldomain.MemberLevelPrice{{
+		MemberLevelID: 1, ProductID: 10, PriceRate: decimal.NewNullDecimal(decimal.RequireFromString("95")),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := store.GetByLevelAndProductAndSKU(1, 10, 0)
+	if err != nil || saved == nil {
+		t.Fatalf("load: %v", err)
+	}
+	if !saved.PriceAmount.Decimal.IsZero() || !saved.PriceRate.Valid || !saved.PriceRate.Decimal.Equal(decimal.RequireFromString("95")) {
+		t.Fatalf("unexpected saved price: amount=%s rate=%v", saved.PriceAmount.Decimal, saved.PriceRate)
+	}
+}
