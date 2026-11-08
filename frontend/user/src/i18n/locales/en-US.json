@@ -1935,7 +1935,9 @@
     },
     "card": {
       "buy": "Buy now",
-      "auto": "Ordered automatically after payment; the code lands in your order"
+      "auto": "Ordered automatically after payment; the code lands in your order",
+      "official": "Official ${usd} ≈ ¥{cny}",
+      "save": "Save ¥{amount} vs official"
     },
     "stock": {
       "in": "In stock",

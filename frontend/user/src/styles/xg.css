@@ -229,6 +229,11 @@
 .xg-price__symbol { font-size: 16px; font-weight: 700; }
 .xg-price__amount { font-size: 28px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; }
 .xg-price__original { margin-left: var(--space-2); font-size: 13px; color: var(--ui-price-original); text-decoration: line-through; }
+.xg-card__pricing { min-width: 0; }
+/* 官方价对比：官方价划线 + 省多少 */
+.xg-official { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-2); font-size: 12px; line-height: 20px; }
+.xg-official__ref { color: var(--ui-text-muted); text-decoration: line-through; }
+.xg-official__save { padding: 0 var(--space-2); border-radius: 999px; font-weight: 600; color: var(--ui-success); background: var(--ui-success-soft); white-space: nowrap; }
 
 .xg-empty {
   display: flex;

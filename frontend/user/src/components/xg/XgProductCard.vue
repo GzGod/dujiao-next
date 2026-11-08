@@ -12,10 +12,16 @@
     <p class="xg-card__desc">{{ desc }}</p>
 
     <div class="xg-card__foot">
-      <div class="xg-price">
-        <span class="xg-price__symbol">{{ symbol }}</span>
-        <span class="xg-price__amount">{{ priceText }}</span>
-        <span v-if="originalText" class="xg-price__original">{{ symbol }}{{ originalText }}</span>
+      <div class="xg-card__pricing">
+        <div class="xg-price">
+          <span class="xg-price__symbol">{{ symbol }}</span>
+          <span class="xg-price__amount">{{ priceText }}</span>
+          <span v-if="originalText" class="xg-price__original">{{ symbol }}{{ originalText }}</span>
+        </div>
+        <p v-if="official" class="xg-official">
+          <span class="xg-official__ref">{{ t('xg.card.official', { usd: official.usd, cny: official.officialCny }) }}</span>
+          <span class="xg-official__save">{{ t('xg.card.save', { amount: official.savingCny }) }}</span>
+        </p>
       </div>
       <button type="button" class="xg-btn xg-btn--primary xg-btn--sm" :disabled="soldOut" @click.stop="buy">
         {{ soldOut ? t('xg.stock.out') : t('xg.card.buy') }}
@@ -29,6 +35,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getFirstImageUrl } from '../../utils/image'
 import { brandLogoUrl, detectAiBrand } from '../../utils/aiBrand'
+import { compareWithOfficial } from '../../utils/officialPrice'
 import { amountToCents, centsToAmount } from '../../utils/money'
 import { useLocalized } from '../../composables/useProduct'
 import XgStockTag from './XgStockTag.vue'
@@ -59,6 +66,13 @@ const hasPromotion = computed(() => {
 })
 const priceText = computed(() => fmt(hasPromotion.value ? props.product?.promotion_price_amount : props.product?.price_amount))
 const originalText = computed(() => (hasPromotion.value ? fmt(props.product?.price_amount) : ''))
+
+// 与官方订阅价对比，只有确实更便宜时才显示（人民币站点才有意义）
+const official = computed(() => {
+  if (symbol.value !== '¥') return null
+  const paid = Number(hasPromotion.value ? props.product?.promotion_price_amount : props.product?.price_amount)
+  return compareWithOfficial(title.value, paid)
+})
 
 // 交付说明：商品自带简介优先；没有简介时用统一的交付说明。
 // 上游对接商品在接口里统一标成 manual，但实际是付款后由系统向上游采购自动发码，所以不按该字段区分。
