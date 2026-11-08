@@ -541,3 +541,16 @@ func TestIsSMTPAlreadyClosedError(t *testing.T) {
 		})
 	}
 }
+
+func TestRegisterVerifyCodeSubjectJoinsSiteName(t *testing.T) {
+	brand := mailbrand.Brand{SiteName: "雪糕AI"}
+	if subject, _ := buildVerifyCodeContent("123456", "register", i18n.LocaleZH, brand); subject != "雪糕AI注册验证码" {
+		t.Fatalf("unexpected register subject: %q", subject)
+	}
+	if subject, _ := buildVerifyCodeContent("123456", "reset", i18n.LocaleZH, brand); subject != "雪糕AI - 重置密码验证码" {
+		t.Fatalf("unexpected reset subject: %q", subject)
+	}
+	if subject, _ := buildVerifyCodeContent("123456", "register", i18n.LocaleEN, brand); subject != "雪糕AI Registration Code" {
+		t.Fatalf("unexpected english register subject: %q", subject)
+	}
+}

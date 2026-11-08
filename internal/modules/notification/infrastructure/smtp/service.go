@@ -344,6 +344,17 @@ func buildVerifyCodeContent(code, purpose, locale string, brands ...mailbrand.Br
 	}
 }
 
+func verifyCodeSubjectSeparator(subject string) string {
+	switch subject {
+	case "注册验证码", "註冊驗證碼":
+		return ""
+	case "Registration Code":
+		return " "
+	default:
+		return " - "
+	}
+}
+
 func firstMailBrand(brands []mailbrand.Brand) mailbrand.Brand {
 	if len(brands) == 0 {
 		return mailbrand.Brand{}
@@ -358,7 +369,8 @@ func applyVerifyCodeBrand(locale, subject, body string, brand mailbrand.Brand) (
 		return subject, body
 	}
 	if siteName != "" {
-		subject = siteName + " - " + subject
+		// 注册验证码标题直接拼成「站点名注册验证码」，与邮箱验证码区分开；其他用途保留「站点名 - 标题」格式。
+		subject = siteName + verifyCodeSubjectSeparator(subject) + subject
 	}
 	switch locale {
 	case i18n.LocaleTW:
