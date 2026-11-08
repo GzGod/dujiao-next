@@ -281,6 +281,11 @@ const router = createRouter({
             component: templateView('Notice', noticeViewLoader),
         },
         {
+            path: '/api-docs',
+            name: 'api-docs',
+            component: () => import('../views/ApiDocs.vue'),
+        },
+        {
             path: '/about',
             name: 'about',
             component: templateView('About', () => import('../views/About.vue')),

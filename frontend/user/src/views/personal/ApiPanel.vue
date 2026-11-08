@@ -5,6 +5,9 @@
         <div>
           <PanelHeading :title="t('personalCenter.apiPanel.title')" :description="t('personalCenter.apiPanel.subtitle')" :icon="Key">
             <template #actions>
+              <router-link to="/api-docs" class="text-xs font-medium text-primary underline-offset-4 hover:underline">
+                {{ t('personalCenter.apiPanel.docsLink') }}
+              </router-link>
               <Badge variant="accent" size="sm">{{ t('personalCenter.tabs.api') }}</Badge>
             </template>
           </PanelHeading>

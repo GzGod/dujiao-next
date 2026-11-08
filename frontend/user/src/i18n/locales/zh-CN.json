@@ -942,7 +942,8 @@
       "enabled": "API 已启用。",
       "disabled": "API 已禁用。",
       "toggleFailed": "操作失败，请稍后重试。",
-      "cancel": "取消"
+      "cancel": "取消",
+      "docsLink": "查看 API 对接文档"
     }
   },
   "auth": {
@@ -1757,5 +1758,155 @@
     "label": "购买身份",
     "member": "会员购买",
     "guest": "游客可购"
+  },
+  "apiDocs": {
+    "eyebrow": "代理 API",
+    "title": "代理 API 对接文档",
+    "subtitle": "给你的服务器用：查询代理价、用账户余额下单、查单取码、接收发货回调。接口按你的代理等级计价，并从你在本站的账户余额扣款。",
+    "copy": "复制",
+    "getCredential": "去申请 / 管理 API 凭证 →",
+    "prepare": {
+      "title": "接入准备",
+      "steps": [
+        "在本站注册账号，联系站长开通代理等级（初级 / 中级 / 高级，等级越高折扣越大；累计消费达到门槛会自动升级）。",
+        "进入「个人中心 → API」申请 API 凭证，审核通过后生成 Secret。Secret 只显示一次，请立即保存；丢失可以重新生成，旧 Secret 立即失效。",
+        "给账户充值余额。API 下单只能用余额支付，余额不足会下单失败。",
+        "把 Key 和 Secret 只放在你自己的服务器上，不要写进浏览器、App 或任何前端代码。",
+        "先调用 /ping 确认签名正确、能看到你的代理等级和余额，再拉商品、下单。"
+      ],
+      "dujiaoTip": "如果你也在用 dujiao-next 建站：后台「对接管理 → 连接管理」新建连接，协议选 dujiao-next，Base URL 填本站域名，填入 Key 和 Secret 即可，无需自己写代码。"
+    },
+    "auth": {
+      "title": "签名规则",
+      "intro": "每个请求都要带下面三个请求头，签名算法为 HMAC-SHA256，结果为小写十六进制。",
+      "headers": {
+        "key": "你的 API Key",
+        "timestamp": "当前 Unix 时间戳（秒），与服务器时间相差不能超过 60 秒",
+        "signature": "按下方规则计算的签名"
+      },
+      "stringToSign": "待签名字符串由四部分用换行符连接：",
+      "rules": [
+        "METHOD 为大写请求方法（GET / POST）。",
+        "PATH 为精确路径，以 /api/v1/upstream 开头，不含域名，也不含 ? 后面的查询参数。",
+        "MD5(BODY) 为请求正文原始字节的 MD5 小写十六进制；GET 请求或无正文时，对空字符串计算 MD5（d41d8cd98f00b204e9800998ecf8427e）。",
+        "POST 时签名用的正文必须与实际发送的字节完全一致，建议只序列化一次。"
+      ]
+    },
+    "endpoints": {
+      "title": "接口列表",
+      "intro": "所有接口都返回 JSON，成功时 ok 为 true。金额均为字符串，保留两位小数。",
+      "params": "参数",
+      "request": "请求示例",
+      "response": "响应示例",
+      "ping": {
+        "desc": "检查签名，返回你的账户余额、币种和当前代理等级。"
+      },
+      "categories": {
+        "desc": "获取商品分类列表。"
+      },
+      "products": {
+        "desc": "分页获取商品与你的代理价。",
+        "fields": {
+          "page": "页码，从 1 开始，默认 1",
+          "page_size": "每页数量，最大 50，默认 50",
+          "updated_after": "可选，RFC3339 时间，只返回该时间之后更新过的商品，用于增量同步",
+          "include_inactive": "可选，传 true 时同时返回已下架商品，便于你同步下架状态"
+        },
+        "notes": {
+          "price": "price_amount 是你实际要付的价格（已按代理等级打折）；original_price 是零售价。下单以 SKU 的 price_amount 为准。",
+          "stock": "stock_status 取值：unlimited（不限量）、in_stock、low_stock、out_of_stock；stock_quantity 为 -1 表示不限量。"
+        }
+      },
+      "product": {
+        "desc": "获取单个商品详情，字段同商品列表。",
+        "notes": {
+          "inactive": "商品下架时仍返回 200，is_active 为 false；商品被删除时返回 404 product_not_found。"
+        }
+      },
+      "createOrder": {
+        "desc": "购买一个 SKU，自动从账户余额扣款。",
+        "fields": {
+          "sku_id": "必填，商品列表里的 SKU ID",
+          "quantity": "必填，购买数量，至少为 1",
+          "downstream_order_no": "强烈建议填写，你自己的订单号，用于防重复下单",
+          "callback_url": "可选，发货后推送通知的地址，必须是公网 http(s) 地址",
+          "trace_id": "可选，你的追踪 ID，会原样保存",
+          "manual_form_data": "可选，商品需要填写资料时传入（如账号信息），按商品的 manual_form_schema 填写"
+        },
+        "notes": {
+          "balance": "价格按你的代理等级计算，从余额直接扣款，不支持其他支付方式。",
+          "idempotent": "同一个 downstream_order_no 重复提交会返回同一笔订单，不会重复扣款；只有该订单已取消时才会重新下单。网络超时请用同一单号重试，不要换号重下。",
+          "paymentFailed": "余额不足时返回 HTTP 200、ok 为 false、error_code 为 payment_failed，订单会被自动取消，不会扣款。",
+          "async": "下单成功后 status 通常为 paid，卡密/核销码会在几秒到几分钟后交付，请通过回调或查单获取。"
+        }
+      },
+      "getOrder": {
+        "desc": "查询订单状态和交付内容。路径里的 order_id 是下单返回的 order_id（数字）。",
+        "notes": {
+          "fulfillment": "只有订单已交付时才会返回 fulfillment，交付内容在 fulfillment.payload 中。",
+          "poll": "如果没有配置回调，建议下单后每 30 秒查询一次，直到状态变为 delivered 或 completed。"
+        }
+      },
+      "cancelOrder": {
+        "desc": "取消订单。",
+        "notes": {
+          "onlyUnpaid": "只有待支付（pending_payment）的订单可以取消；已付款的订单返回 409 cancel_not_allowed，需要退款请联系站长。"
+        }
+      }
+    },
+    "status": {
+      "title": "订单状态",
+      "items": {
+        "pending_payment": "待支付（API 下单会立即用余额支付，一般看不到此状态）",
+        "paid": "已付款，等待发货",
+        "fulfilling": "发货中",
+        "delivered": "已发货，可以在 fulfillment.payload 取货",
+        "completed": "已完成",
+        "canceled": "已取消，未扣款",
+        "partially_refunded": "部分退款",
+        "refunded": "已退款"
+      }
+    },
+    "callback": {
+      "title": "发货回调",
+      "intro": "下单时填写了 callback_url，订单状态变化（主要是发货）后本站会向该地址发送 POST 请求：",
+      "rules": [
+        "event 为 order.fulfilled（已发货）或 order.status_changed（其他状态变化）。",
+        "请求头带有和你调用接口时相同的三个签名头，使用你的 API Secret 签名。验签时 PATH 固定为 /api/v1/upstream/callback（与你回调地址的实际路径无关），MD5 对原始正文计算。",
+        "请校验时间戳在 60 秒内，并按 order_id + status 去重，同一事件可能重复推送。",
+        "收到后返回 HTTP 200 且正文为 {'{'}\"ok\": true{'}'} 才算成功，否则视为失败。",
+        "失败后会在 30 秒、1 分钟、2 分钟、5 分钟后重试，共最多 5 次；全部失败后不再推送，请用查单接口兜底。",
+        "回调地址不能是 localhost 或内网 IP。"
+      ]
+    },
+    "errors": {
+      "title": "错误码",
+      "intro": "出错时返回 ok 为 false，以及 error_code 和 error_message。请先看 HTTP 状态码，再看 error_code。",
+      "handling": "说明 / 建议处理",
+      "items": {
+        "missing_auth_headers": "缺少签名请求头",
+        "invalid_timestamp": "时间戳格式错误",
+        "timestamp_expired": "时间戳与服务器相差超过 60 秒，请校准服务器时间",
+        "invalid_signature": "签名不对，检查 Secret、PATH（不含 query）、正文原始字节",
+        "invalid_api_key": "Key 不存在、未审核通过或已被停用",
+        "user_disabled": "账号已被停用，请联系站长",
+        "bad_request": "参数错误，检查 JSON 和字段",
+        "invalid_callback_url": "回调地址不合法（不能是内网或 localhost）",
+        "sku_unavailable": "SKU 不存在或已停用，请重新拉取商品",
+        "product_unavailable": "商品已下架",
+        "insufficient_balance": "余额不足，充值后重试",
+        "payment_failed": "余额支付失败（多为余额不足），订单已自动取消、未扣款，充值后可用同一单号重试",
+        "insufficient_stock": "库存不足",
+        "order_not_found": "订单不存在或不属于你",
+        "product_not_found": "商品已被删除",
+        "cancel_not_allowed": "订单已付款，不能取消",
+        "rate_limited": "请求太频繁（每个 Key 每分钟最多 60 次），稍后再试",
+        "internal_error": "服务器错误，稍后重试；下单接口请用同一单号重试，不会重复扣款"
+      }
+    },
+    "sample": {
+      "title": "服务端示例代码",
+      "intro": "Node.js 示例，复制后把 Key 和 Secret 放到服务器的环境变量里即可使用。"
+    }
   }
 }

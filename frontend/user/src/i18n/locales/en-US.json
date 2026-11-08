@@ -990,7 +990,8 @@
       "enabled": "API enabled.",
       "disabled": "API disabled.",
       "toggleFailed": "Operation failed, please try again later.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "docsLink": "View API documentation"
     }
   },
   "auth": {
@@ -1757,5 +1758,155 @@
     "authInvalid": "Credentials mismatch, please try again",
     "authSubmit": "Save and search",
     "authClear": "Clear saved info"
+  },
+  "apiDocs": {
+    "eyebrow": "Dealer API",
+    "title": "Dealer API Documentation",
+    "subtitle": "For your server: get dealer prices, place orders paid from your balance, fetch delivered codes and receive delivery callbacks. Prices follow your dealer tier and are charged to your account balance on this site.",
+    "copy": "Copy",
+    "getCredential": "Apply for / manage API credentials →",
+    "prepare": {
+      "title": "Getting started",
+      "steps": [
+        "Register an account and ask the site owner to grant a dealer tier (Basic / Pro / Elite; higher tiers get bigger discounts, and tiers upgrade automatically once your total spend reaches the threshold).",
+        "Go to Account → API to apply for credentials. After approval, generate the Secret. It is shown only once, so save it right away; you can regenerate it anytime, which immediately invalidates the old one.",
+        "Top up your account balance. API orders are paid from balance only and fail when it is insufficient.",
+        "Keep the Key and Secret on your own server only, never in a browser, app or any frontend code.",
+        "Call /ping first to confirm your signature works and that you see your tier and balance, then fetch products and place orders."
+      ],
+      "dujiaoTip": "If your own shop also runs dujiao-next, just add a connection under Integrations → Connections, choose the dujiao-next protocol, use this site's domain as the Base URL and enter your Key and Secret. No code needed."
+    },
+    "auth": {
+      "title": "Signing",
+      "intro": "Every request must carry the three headers below. The signature is HMAC-SHA256 in lowercase hex.",
+      "headers": {
+        "key": "Your API Key",
+        "timestamp": "Current Unix time in seconds, within 60 seconds of server time",
+        "signature": "Signature computed as shown below"
+      },
+      "stringToSign": "The string to sign is four parts joined by newlines:",
+      "rules": [
+        "METHOD is the uppercase HTTP method (GET / POST).",
+        "PATH is the exact path starting with /api/v1/upstream, without domain and without the ?query part.",
+        "MD5(BODY) is the lowercase hex MD5 of the raw request body bytes; for GET or empty bodies, use the MD5 of an empty string (d41d8cd98f00b204e9800998ecf8427e).",
+        "For POST, the signed body must be byte-for-byte identical to what you send. Serialize it once."
+      ]
+    },
+    "endpoints": {
+      "title": "Endpoints",
+      "intro": "All endpoints return JSON with ok set to true on success. Amounts are strings with two decimals.",
+      "params": "Parameters",
+      "request": "Request example",
+      "response": "Response example",
+      "ping": {
+        "desc": "Verifies your signature and returns your balance, currency and current dealer tier."
+      },
+      "categories": {
+        "desc": "Lists product categories."
+      },
+      "products": {
+        "desc": "Lists products with your dealer prices, paginated.",
+        "fields": {
+          "page": "Page number starting at 1, default 1",
+          "page_size": "Items per page, max 50, default 50",
+          "updated_after": "Optional RFC3339 time; returns only products updated after it, for incremental sync",
+          "include_inactive": "Optional; pass true to include deactivated products so you can sync their status"
+        },
+        "notes": {
+          "price": "price_amount is what you actually pay (already discounted for your tier); original_price is the retail price. Orders are charged by the SKU's price_amount.",
+          "stock": "stock_status is unlimited, in_stock, low_stock or out_of_stock; stock_quantity -1 means unlimited."
+        }
+      },
+      "product": {
+        "desc": "Gets one product. Same fields as the list.",
+        "notes": {
+          "inactive": "Deactivated products still return 200 with is_active false; deleted products return 404 product_not_found."
+        }
+      },
+      "createOrder": {
+        "desc": "Buys one SKU and charges your account balance automatically.",
+        "fields": {
+          "sku_id": "Required, SKU ID from the product list",
+          "quantity": "Required, at least 1",
+          "downstream_order_no": "Strongly recommended, your own order number, used to prevent duplicate orders",
+          "callback_url": "Optional, a public http(s) URL to notify after delivery",
+          "trace_id": "Optional, your trace ID, stored as-is",
+          "manual_form_data": "Optional, required info for products that ask for it (e.g. account details), following the product's manual_form_schema"
+        },
+        "notes": {
+          "balance": "Priced at your dealer tier and paid from your balance only.",
+          "idempotent": "Resubmitting the same downstream_order_no returns the same order without charging again; a new order is created only if that order was canceled. On timeouts, retry with the same number instead of a new one.",
+          "paymentFailed": "With insufficient balance you get HTTP 200, ok false and error_code payment_failed. The order is canceled automatically and nothing is charged.",
+          "async": "A successful order usually returns status paid; the code is delivered within seconds to minutes. Get it via callback or by querying the order."
+        }
+      },
+      "getOrder": {
+        "desc": "Gets order status and delivered content. order_id in the path is the numeric order_id returned when ordering.",
+        "notes": {
+          "fulfillment": "fulfillment is returned only once the order is delivered; the content is in fulfillment.payload.",
+          "poll": "Without a callback, poll every 30 seconds after ordering until the status is delivered or completed."
+        }
+      },
+      "cancelOrder": {
+        "desc": "Cancels an order.",
+        "notes": {
+          "onlyUnpaid": "Only pending_payment orders can be canceled; paid orders return 409 cancel_not_allowed. Contact the site owner for refunds."
+        }
+      }
+    },
+    "status": {
+      "title": "Order statuses",
+      "items": {
+        "pending_payment": "Awaiting payment (API orders are paid from balance immediately, so you rarely see this)",
+        "paid": "Paid, awaiting delivery",
+        "fulfilling": "Being delivered",
+        "delivered": "Delivered; get it from fulfillment.payload",
+        "completed": "Completed",
+        "canceled": "Canceled, not charged",
+        "partially_refunded": "Partially refunded",
+        "refunded": "Refunded"
+      }
+    },
+    "callback": {
+      "title": "Delivery callback",
+      "intro": "If you set callback_url, this site sends a POST to it when the order status changes (mainly on delivery):",
+      "rules": [
+        "event is order.fulfilled (delivered) or order.status_changed (other changes).",
+        "The request carries the same three signature headers, signed with your API Secret. When verifying, PATH is always /api/v1/upstream/callback (regardless of your actual URL path), and MD5 is computed over the raw body.",
+        "Check that the timestamp is within 60 seconds and deduplicate by order_id + status; the same event may arrive more than once.",
+        "Respond with HTTP 200 and body {'{'}\"ok\": true{'}'} to acknowledge; anything else counts as a failure.",
+        "Failures are retried after 30 s, 1 min, 2 min and 5 min, up to 5 attempts in total. After that no more callbacks are sent, so use order queries as a fallback.",
+        "The callback URL cannot be localhost or a private IP."
+      ]
+    },
+    "errors": {
+      "title": "Error codes",
+      "intro": "Errors return ok false with error_code and error_message. Check the HTTP status first, then error_code.",
+      "handling": "Meaning / what to do",
+      "items": {
+        "missing_auth_headers": "Signature headers are missing",
+        "invalid_timestamp": "Timestamp is malformed",
+        "timestamp_expired": "Timestamp is more than 60 seconds off; sync your server clock",
+        "invalid_signature": "Wrong signature; check the Secret, PATH (no query) and raw body bytes",
+        "invalid_api_key": "Key does not exist, is not approved, or is disabled",
+        "user_disabled": "Account is disabled; contact the site owner",
+        "bad_request": "Invalid parameters; check the JSON and fields",
+        "invalid_callback_url": "Invalid callback URL (no private IPs or localhost)",
+        "sku_unavailable": "SKU not found or disabled; refresh the product list",
+        "product_unavailable": "Product is deactivated",
+        "insufficient_balance": "Insufficient balance; top up and retry",
+        "payment_failed": "Balance payment failed (usually insufficient balance). The order was canceled and not charged; top up and retry with the same order number",
+        "insufficient_stock": "Out of stock",
+        "order_not_found": "Order not found or not yours",
+        "product_not_found": "Product was deleted",
+        "cancel_not_allowed": "Order is already paid and cannot be canceled",
+        "rate_limited": "Too many requests (max 60 per minute per key); retry later",
+        "internal_error": "Server error; retry later. For orders, retry with the same order number to avoid double charges"
+      }
+    },
+    "sample": {
+      "title": "Server-side sample",
+      "intro": "Node.js example. Put your Key and Secret in server environment variables and use it as-is."
+    }
   }
 }

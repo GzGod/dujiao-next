@@ -990,7 +990,8 @@
       "enabled": "API 已啟用。",
       "disabled": "API 已停用。",
       "toggleFailed": "操作失敗，請稍後重試。",
-      "cancel": "取消"
+      "cancel": "取消",
+      "docsLink": "查看 API 對接文件"
     }
   },
   "auth": {
@@ -1757,5 +1758,155 @@
     "authInvalid": "資訊不匹配，請重新輸入",
     "authSubmit": "保存並查詢",
     "authClear": "清除已保存資訊"
+  },
+  "apiDocs": {
+    "eyebrow": "代理 API",
+    "title": "代理 API 對接文件",
+    "subtitle": "給你的伺服器使用：查詢代理價、用帳戶餘額下單、查單取碼、接收出貨回調。介面按你的代理等級計價，並從你在本站的帳戶餘額扣款。",
+    "copy": "複製",
+    "getCredential": "前往申請／管理 API 憑證 →",
+    "prepare": {
+      "title": "接入準備",
+      "steps": [
+        "在本站註冊帳號，聯絡站長開通代理等級（初級／中級／高級，等級越高折扣越大；累計消費達到門檻會自動升級）。",
+        "進入「個人中心 → API」申請 API 憑證，審核通過後產生 Secret。Secret 只顯示一次，請立即保存；遺失可以重新產生，舊的 Secret 會立即失效。",
+        "為帳戶儲值餘額。API 下單只能用餘額付款，餘額不足會下單失敗。",
+        "Key 和 Secret 只能放在你自己的伺服器上，不要寫進瀏覽器、App 或任何前端程式碼。",
+        "先呼叫 /ping 確認簽名正確、能看到你的代理等級和餘額，再拉取商品、下單。"
+      ],
+      "dujiaoTip": "如果你也在用 dujiao-next 架站：後台「對接管理 → 連線管理」新增連線，協定選 dujiao-next，Base URL 填本站網域，填入 Key 和 Secret 即可，不需要自己寫程式。"
+    },
+    "auth": {
+      "title": "簽名規則",
+      "intro": "每個請求都要帶下面三個請求標頭，簽名演算法為 HMAC-SHA256，結果為小寫十六進位。",
+      "headers": {
+        "key": "你的 API Key",
+        "timestamp": "目前的 Unix 時間戳（秒），與伺服器時間相差不能超過 60 秒",
+        "signature": "按下方規則計算的簽名"
+      },
+      "stringToSign": "待簽名字串由四個部分以換行符號連接：",
+      "rules": [
+        "METHOD 為大寫請求方法（GET／POST）。",
+        "PATH 為精確路徑，以 /api/v1/upstream 開頭，不含網域，也不含 ? 後面的查詢參數。",
+        "MD5(BODY) 為請求本文原始位元組的 MD5 小寫十六進位；GET 請求或無本文時，對空字串計算 MD5（d41d8cd98f00b204e9800998ecf8427e）。",
+        "POST 時簽名用的本文必須與實際送出的位元組完全一致，建議只序列化一次。"
+      ]
+    },
+    "endpoints": {
+      "title": "介面列表",
+      "intro": "所有介面都回傳 JSON，成功時 ok 為 true。金額均為字串，保留兩位小數。",
+      "params": "參數",
+      "request": "請求範例",
+      "response": "回應範例",
+      "ping": {
+        "desc": "檢查簽名，回傳你的帳戶餘額、幣別和目前的代理等級。"
+      },
+      "categories": {
+        "desc": "取得商品分類列表。"
+      },
+      "products": {
+        "desc": "分頁取得商品與你的代理價。",
+        "fields": {
+          "page": "頁碼，從 1 開始，預設 1",
+          "page_size": "每頁數量，最多 50，預設 50",
+          "updated_after": "選填，RFC3339 時間，只回傳該時間之後更新過的商品，用於增量同步",
+          "include_inactive": "選填，傳 true 時一併回傳已下架商品，方便你同步下架狀態"
+        },
+        "notes": {
+          "price": "price_amount 是你實際要付的價格（已按代理等級打折）；original_price 是零售價。下單以 SKU 的 price_amount 為準。",
+          "stock": "stock_status 取值：unlimited（不限量）、in_stock、low_stock、out_of_stock；stock_quantity 為 -1 表示不限量。"
+        }
+      },
+      "product": {
+        "desc": "取得單一商品詳情，欄位同商品列表。",
+        "notes": {
+          "inactive": "商品下架時仍回傳 200，is_active 為 false；商品被刪除時回傳 404 product_not_found。"
+        }
+      },
+      "createOrder": {
+        "desc": "購買一個 SKU，自動從帳戶餘額扣款。",
+        "fields": {
+          "sku_id": "必填，商品列表中的 SKU ID",
+          "quantity": "必填，購買數量，至少為 1",
+          "downstream_order_no": "強烈建議填寫，你自己的訂單編號，用於防止重複下單",
+          "callback_url": "選填，出貨後推送通知的網址，必須是公開的 http(s) 網址",
+          "trace_id": "選填，你的追蹤 ID，會原樣保存",
+          "manual_form_data": "選填，商品需要填寫資料時傳入（例如帳號資訊），依商品的 manual_form_schema 填寫"
+        },
+        "notes": {
+          "balance": "價格按你的代理等級計算，直接從餘額扣款，不支援其他付款方式。",
+          "idempotent": "同一個 downstream_order_no 重複送出會回傳同一筆訂單，不會重複扣款；只有該訂單已取消時才會重新下單。網路逾時請用同一個單號重試，不要換號重下。",
+          "paymentFailed": "餘額不足時回傳 HTTP 200、ok 為 false、error_code 為 payment_failed，訂單會自動取消，不會扣款。",
+          "async": "下單成功後 status 通常為 paid，卡密／核銷碼會在幾秒到幾分鐘後交付，請透過回調或查單取得。"
+        }
+      },
+      "getOrder": {
+        "desc": "查詢訂單狀態和交付內容。路徑中的 order_id 是下單時回傳的 order_id（數字）。",
+        "notes": {
+          "fulfillment": "只有訂單已交付時才會回傳 fulfillment，交付內容在 fulfillment.payload 中。",
+          "poll": "如果沒有設定回調，建議下單後每 30 秒查詢一次，直到狀態變為 delivered 或 completed。"
+        }
+      },
+      "cancelOrder": {
+        "desc": "取消訂單。",
+        "notes": {
+          "onlyUnpaid": "只有待付款（pending_payment）的訂單可以取消；已付款的訂單回傳 409 cancel_not_allowed，需要退款請聯絡站長。"
+        }
+      }
+    },
+    "status": {
+      "title": "訂單狀態",
+      "items": {
+        "pending_payment": "待付款（API 下單會立即用餘額付款，一般看不到此狀態）",
+        "paid": "已付款，等待出貨",
+        "fulfilling": "出貨中",
+        "delivered": "已出貨，可在 fulfillment.payload 取貨",
+        "completed": "已完成",
+        "canceled": "已取消，未扣款",
+        "partially_refunded": "部分退款",
+        "refunded": "已退款"
+      }
+    },
+    "callback": {
+      "title": "出貨回調",
+      "intro": "下單時填了 callback_url，訂單狀態變化（主要是出貨）後本站會向該網址送出 POST 請求：",
+      "rules": [
+        "event 為 order.fulfilled（已出貨）或 order.status_changed（其他狀態變化）。",
+        "請求標頭帶有和你呼叫介面時相同的三個簽名標頭，使用你的 API Secret 簽名。驗簽時 PATH 固定為 /api/v1/upstream/callback（與你回調網址的實際路徑無關），MD5 對原始本文計算。",
+        "請檢查時間戳在 60 秒內，並以 order_id + status 去重，同一事件可能重複推送。",
+        "收到後回傳 HTTP 200 且本文為 {'{'}\"ok\": true{'}'} 才算成功，否則視為失敗。",
+        "失敗後會在 30 秒、1 分鐘、2 分鐘、5 分鐘後重試，最多共 5 次；全部失敗後不再推送，請以查單介面作為備援。",
+        "回調網址不能是 localhost 或內網 IP。"
+      ]
+    },
+    "errors": {
+      "title": "錯誤碼",
+      "intro": "出錯時回傳 ok 為 false，以及 error_code 和 error_message。請先看 HTTP 狀態碼，再看 error_code。",
+      "handling": "說明／建議處理",
+      "items": {
+        "missing_auth_headers": "缺少簽名請求標頭",
+        "invalid_timestamp": "時間戳格式錯誤",
+        "timestamp_expired": "時間戳與伺服器相差超過 60 秒，請校準伺服器時間",
+        "invalid_signature": "簽名錯誤，檢查 Secret、PATH（不含 query）、本文原始位元組",
+        "invalid_api_key": "Key 不存在、未審核通過或已被停用",
+        "user_disabled": "帳號已被停用，請聯絡站長",
+        "bad_request": "參數錯誤，檢查 JSON 和欄位",
+        "invalid_callback_url": "回調網址不合法（不能是內網或 localhost）",
+        "sku_unavailable": "SKU 不存在或已停用，請重新拉取商品",
+        "product_unavailable": "商品已下架",
+        "insufficient_balance": "餘額不足，儲值後重試",
+        "payment_failed": "餘額付款失敗（多為餘額不足），訂單已自動取消、未扣款，儲值後可用同一單號重試",
+        "insufficient_stock": "庫存不足",
+        "order_not_found": "訂單不存在或不屬於你",
+        "product_not_found": "商品已被刪除",
+        "cancel_not_allowed": "訂單已付款，不能取消",
+        "rate_limited": "請求過於頻繁（每個 Key 每分鐘最多 60 次），請稍後再試",
+        "internal_error": "伺服器錯誤，請稍後重試；下單介面請用同一單號重試，不會重複扣款"
+      }
+    },
+    "sample": {
+      "title": "伺服器端範例程式碼",
+      "intro": "Node.js 範例，複製後把 Key 和 Secret 放到伺服器的環境變數中即可使用。"
+    }
   }
 }
