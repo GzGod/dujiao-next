@@ -235,6 +235,10 @@ func (s *Service) findUpgradeTarget(user *userdomain.User, levels []memberleveld
 	if err != nil || !ok {
 		return nil, err
 	}
+	currentRequiresApproval, err := s.currentLevelRequiresApproval(user.MemberLevelID, levels)
+	if err != nil {
+		return nil, err
+	}
 	for i := range levels {
 		level := &levels[i]
 		if level.ID == user.MemberLevelID {
@@ -243,11 +247,31 @@ func (s *Service) findUpgradeTarget(user *userdomain.User, levels []memberleveld
 		if level.SortOrder <= currentSortOrder {
 			continue
 		}
+		// 需审核的等级（如代理）不能靠消费自动进入；只有已被管理员放进同类等级的用户才能在其中按阈值升级。
+		if level.RequiresApproval && !currentRequiresApproval {
+			continue
+		}
 		if s.meetsThreshold(user, level) {
 			return level, nil
 		}
 	}
 	return nil, nil
+}
+
+func (s *Service) currentLevelRequiresApproval(levelID uint, activeLevels []memberleveldomain.MemberLevel) (bool, error) {
+	if levelID == 0 {
+		return false, nil
+	}
+	for _, level := range activeLevels {
+		if level.ID == levelID {
+			return level.RequiresApproval, nil
+		}
+	}
+	level, err := s.levelRepo.GetByID(levelID)
+	if err != nil || level == nil {
+		return false, err
+	}
+	return level.RequiresApproval, nil
 }
 
 func (s *Service) resolveCurrentSortOrder(levelID uint, activeLevels []memberleveldomain.MemberLevel) (int, bool, error) {

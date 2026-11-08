@@ -44,6 +44,7 @@ type CreateMemberLevelRequest struct {
 	RechargeThreshold float64      `json:"recharge_threshold"`
 	SpendThreshold    float64      `json:"spend_threshold"`
 	IsDefault         bool         `json:"is_default"`
+	RequiresApproval  bool         `json:"requires_approval"`
 	SortOrder         int          `json:"sort_order"`
 	IsActive          *bool        `json:"is_active"`
 }
@@ -93,6 +94,7 @@ func (h *AdminHandler) CreateMemberLevel(c *gin.Context) {
 		RechargeThreshold: money.FromDecimal(decimal.NewFromFloat(req.RechargeThreshold)),
 		SpendThreshold:    money.FromDecimal(decimal.NewFromFloat(req.SpendThreshold)),
 		IsDefault:         req.IsDefault,
+		RequiresApproval:  req.RequiresApproval,
 		SortOrder:         req.SortOrder,
 		IsActive:          isActive,
 	}
@@ -143,6 +145,7 @@ func (h *AdminHandler) UpdateMemberLevel(c *gin.Context) {
 	existing.RechargeThreshold = money.FromDecimal(decimal.NewFromFloat(req.RechargeThreshold))
 	existing.SpendThreshold = money.FromDecimal(decimal.NewFromFloat(req.SpendThreshold))
 	existing.IsDefault = req.IsDefault
+	existing.RequiresApproval = req.RequiresApproval
 	existing.SortOrder = req.SortOrder
 	if req.IsActive != nil {
 		existing.IsActive = *req.IsActive

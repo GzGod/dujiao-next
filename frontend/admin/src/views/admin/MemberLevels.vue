@@ -57,6 +57,7 @@ const form = reactive({
   recharge_threshold: 0,
   spend_threshold: 0,
   is_default: false,
+  requires_approval: false,
   sort_order: 0,
   is_active: true,
 })
@@ -69,6 +70,7 @@ const resetForm = () => {
   form.recharge_threshold = 0
   form.spend_threshold = 0
   form.is_default = false
+  form.requires_approval = false
   form.sort_order = 0
   form.is_active = true
   iconMode.value = 'emoji'
@@ -117,6 +119,7 @@ const openEditModal = (level: AdminMemberLevel) => {
   form.recharge_threshold = Number(level.recharge_threshold) || 0
   form.spend_threshold = Number(level.spend_threshold) || 0
   form.is_default = Boolean(level.is_default)
+  form.requires_approval = Boolean(level.requires_approval)
   form.sort_order = level.sort_order || 0
   form.is_active = Boolean(level.is_active)
   iconMode.value = isImagePath(form.icon) ? 'image' : 'emoji'
@@ -147,6 +150,7 @@ const handleSubmit = async () => {
       recharge_threshold: Number(form.recharge_threshold),
       spend_threshold: Number(form.spend_threshold),
       is_default: form.is_default,
+      requires_approval: form.requires_approval,
       sort_order: Number(form.sort_order),
       is_active: form.is_active,
     }
@@ -278,6 +282,12 @@ onMounted(() => {
                   class="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700"
                 >
                   {{ t('admin.memberLevels.default') }}
+                </span>
+                <span
+                  v-if="level.requires_approval"
+                  class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700"
+                >
+                  {{ t('admin.memberLevels.requiresApprovalBadge') }}
                 </span>
               </div>
             </TableCell>
@@ -428,6 +438,14 @@ onMounted(() => {
                 <Switch v-model="form.is_active" />
                 <span class="text-xs text-muted-foreground">{{ t('admin.memberLevels.form.isActive') }}</span>
               </div>
+            </div>
+
+            <div class="md:col-span-2 rounded-lg border border-border bg-muted/20 p-3">
+              <div class="flex items-center gap-2">
+                <Switch v-model="form.requires_approval" />
+                <span class="text-xs font-medium text-foreground">{{ t('admin.memberLevels.form.requiresApproval') }}</span>
+              </div>
+              <p class="mt-1.5 text-xs text-muted-foreground">{{ t('admin.memberLevels.form.requiresApprovalHint') }}</p>
             </div>
           </div>
 

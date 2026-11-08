@@ -17,6 +17,7 @@ type MemberLevel struct {
 	RechargeThreshold money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"recharge_threshold"` // 充值累计升级阈值（0=不按此条件）
 	SpendThreshold    money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"spend_threshold"`    // 消费累计升级阈值（0=不按此条件）
 	IsDefault         bool         `gorm:"not null;default:false" json:"is_default"`                        // 是否默认等级（仅一个）
+	RequiresApproval  bool         `gorm:"not null;default:false" json:"requires_approval"`                 // 需审核：只能由管理员指定进入，已在同类等级的用户才可按阈值自动升级（如代理等级）
 	SortOrder         int          `gorm:"not null;default:0" json:"sort_order"`                            // 排序权重（越大等级越高）
 	IsActive          bool         `gorm:"not null;default:true" json:"is_active"`                          // 是否启用
 	CreatedAt         time.Time    `gorm:"index" json:"created_at"`

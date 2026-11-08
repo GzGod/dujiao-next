@@ -306,6 +306,7 @@ export interface AdminMemberLevel {
   recharge_threshold: number
   spend_threshold: number
   is_default: boolean
+  requires_approval?: boolean
   sort_order: number
   is_active: boolean
   created_at: string
