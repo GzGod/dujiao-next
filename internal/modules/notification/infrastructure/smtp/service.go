@@ -193,6 +193,9 @@ func (s *Service) sendTextEmail(toEmail, subject, body string, brands ...mailbra
 	if err != nil {
 		return err
 	}
+	if s.usesResendAPI() {
+		return s.sendViaResendAPI(from, toEmail, subject, body, brand.ReplyTo, "", "")
+	}
 	msg := buildEmailMessage(from, toEmail, subject, body, brand.ReplyTo)
 	return s.sendSMTPMessage(addr, toEmail, []byte(msg))
 }
@@ -205,6 +208,9 @@ func (s *Service) sendEmailWithAttachment(toEmail, subject, body, attachName, at
 	from, addr, err := s.prepareSMTPEnvelope(toEmail, brand.FromName)
 	if err != nil {
 		return err
+	}
+	if s.usesResendAPI() {
+		return s.sendViaResendAPI(from, toEmail, subject, body, brand.ReplyTo, attachName, attachContent)
 	}
 	msg := buildEmailMessageWithAttachment(from, toEmail, subject, body, attachName, attachContent, brand.ReplyTo)
 	return s.sendSMTPMessage(addr, toEmail, []byte(msg))
