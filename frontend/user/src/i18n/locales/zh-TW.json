@@ -50,7 +50,8 @@
     "products": "商品中心",
     "blog": "部落格",
     "notice": "公告",
-    "about": "關於"
+    "about": "關於",
+    "check": "帳號檢測"
   },
   "vault": {
     "hero": {
@@ -1991,6 +1992,64 @@
       "perkBest": "全站最低供貨價",
       "popular": "最多人選",
       "note": "代理身分需要站長審核開通；成為代理後依累計消費自動升級到更高等級。"
+    },
+    "check": {
+      "title": "ChatGPT 帳號檢測",
+      "lede": "貼上帳號的 Session，幾秒看清目前方案、訂閱到期時間，以及適合儲值哪一檔。",
+      "facts": {
+        "local": "在你的瀏覽器裡解析",
+        "noUpload": "Session 不上傳、不儲存",
+        "free": "免費，無需下單"
+      },
+      "step1": "在瀏覽器登入 ChatGPT 後，新分頁開啟：",
+      "step2": "把頁面上的全部內容複製下來（以 {'{'} 開頭、{'}'} 結尾），貼到下面。",
+      "inputLabel": "Session 內容",
+      "placeholder": "{'{'}\"user\": ..., \"accessToken\": \"...\"{'}'}",
+      "submit": "開始檢測",
+      "clear": "清空",
+      "warning": "Session 相當於帳號的登入憑證，只貼在本頁，不要傳給任何人。檢測完成後建議登出 ChatGPT 再重新登入，讓舊憑證失效。",
+      "empty": "檢測結果會顯示在這裡",
+      "errors": {
+        "empty": "請先貼上 Session 內容",
+        "not_json": "內容不完整，請複製從 {'{'} 到 {'}'} 的全部文字",
+        "not_session": "這不是 ChatGPT 的 Session，請確認開啟的是上面的連結",
+        "logged_out": "Session 為空，表示目前瀏覽器沒有登入 ChatGPT，請先登入再開啟連結"
+      },
+      "plans": {
+        "free": "Free",
+        "go": "Go",
+        "plus": "Plus",
+        "pro": "Pro",
+        "team": "Team",
+        "enterprise": "Enterprise",
+        "edu": "Edu",
+        "unknown": "未知方案"
+      },
+      "normal": "狀態正常",
+      "delinquent": "訂閱欠費",
+      "verdicts": {
+        "free": "免費帳號，可以直接儲值 Plus 或 Go。",
+        "go": "目前是 Go，可以升級到 Plus。",
+        "plus": "已是 Plus，到期前不能重複儲值，可以升級到 Pro。",
+        "pro": "已是 Pro，到期後可以續費。",
+        "team": "團隊空間帳號，不能直接儲值個人方案，請切換到個人帳號再檢測。",
+        "enterprise": "企業帳號，不能直接儲值個人方案。",
+        "edu": "教育帳號，不能直接儲值個人方案。",
+        "unknown": "沒辨識出方案類型，下單前請聯絡客服確認。",
+        "delinquent": "訂閱扣款失敗，處於欠費狀態，儲值前請聯絡客服確認。"
+      },
+      "fields": {
+        "email": "帳號信箱",
+        "accountType": "帳號類型",
+        "until": "訂閱到期",
+        "session": "本次登入有效至"
+      },
+      "personal": "個人",
+      "workspace": "團隊空間",
+      "untilUnknown": "Session 中沒有到期資訊",
+      "disclaimer": "結果從 Session 本地解析，僅供參考，以 ChatGPT 帳號設定頁顯示為準。本工具為第三方工具，不是 OpenAI 官方產品。",
+      "suggestTitle": "適合這個帳號的方案",
+      "suggestLede": "依檢測到的方案推薦，付款後系統自動下單。"
     }
   }
 }

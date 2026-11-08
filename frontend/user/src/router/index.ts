@@ -281,6 +281,11 @@ const router = createRouter({
             component: templateView('Notice', noticeViewLoader),
         },
         {
+            path: '/check',
+            name: 'session-check',
+            component: () => import('../views/SessionCheck.vue'),
+        },
+        {
             path: '/api-docs',
             name: 'api-docs',
             component: () => import('../views/ApiDocs.vue'),

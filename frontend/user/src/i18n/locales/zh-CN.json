@@ -50,7 +50,8 @@
     "products": "商品中心",
     "blog": "博客",
     "notice": "公告",
-    "about": "关于"
+    "about": "关于",
+    "check": "账号检测"
   },
   "vault": {
     "hero": {
@@ -1991,6 +1992,64 @@
       "perkBest": "全站最低供货价",
       "popular": "最多人选",
       "note": "代理身份需要站长审核开通；成为代理后按累计消费自动升级到更高等级。"
+    },
+    "check": {
+      "title": "ChatGPT 账号检测",
+      "lede": "粘贴账号的 Session，几秒看清当前套餐、订阅到期时间，以及适合充值哪一档。",
+      "facts": {
+        "local": "在你的浏览器里解析",
+        "noUpload": "Session 不上传、不保存",
+        "free": "免费，无需下单"
+      },
+      "step1": "在浏览器登录 ChatGPT 后，新标签页打开：",
+      "step2": "把页面上的全部内容复制下来（以 {'{'} 开头、{'}'} 结尾），粘贴到下面。",
+      "inputLabel": "Session 内容",
+      "placeholder": "{'{'}\"user\": ..., \"accessToken\": \"...\"{'}'}",
+      "submit": "开始检测",
+      "clear": "清空",
+      "warning": "Session 相当于账号的登录凭据，只粘贴在本页，不要发给任何人。检测完成后建议退出 ChatGPT 再重新登录，让旧凭据失效。",
+      "empty": "检测结果会显示在这里",
+      "errors": {
+        "empty": "请先粘贴 Session 内容",
+        "not_json": "内容不完整，请复制从 {'{'} 到 {'}'} 的全部文字",
+        "not_session": "这不是 ChatGPT 的 Session，请确认打开的是上面的链接",
+        "logged_out": "Session 为空，说明当前浏览器没有登录 ChatGPT，请先登录再打开链接"
+      },
+      "plans": {
+        "free": "Free",
+        "go": "Go",
+        "plus": "Plus",
+        "pro": "Pro",
+        "team": "Team",
+        "enterprise": "Enterprise",
+        "edu": "Edu",
+        "unknown": "未知套餐"
+      },
+      "normal": "状态正常",
+      "delinquent": "订阅欠费",
+      "verdicts": {
+        "free": "免费账号，可以直接充值 Plus 或 Go。",
+        "go": "当前是 Go，可以升级到 Plus。",
+        "plus": "已是 Plus，到期前不能重复充值，可以升级到 Pro。",
+        "pro": "已是 Pro，到期后可以续费。",
+        "team": "团队空间账号，不能直接充值个人套餐，请切换到个人账号再检测。",
+        "enterprise": "企业账号，不能直接充值个人套餐。",
+        "edu": "教育账号，不能直接充值个人套餐。",
+        "unknown": "没识别出套餐类型，下单前请联系客服确认。",
+        "delinquent": "订阅扣费失败，处于欠费状态，充值前请联系客服确认。"
+      },
+      "fields": {
+        "email": "账号邮箱",
+        "accountType": "账号类型",
+        "until": "订阅到期",
+        "session": "本次登录有效至"
+      },
+      "personal": "个人",
+      "workspace": "团队空间",
+      "untilUnknown": "Session 中没有到期信息",
+      "disclaimer": "结果从 Session 本地解析，仅供参考，以 ChatGPT 账号设置页显示为准。本工具为第三方工具，不是 OpenAI 官方产品。",
+      "suggestTitle": "适合这个账号的套餐",
+      "suggestLede": "按检测到的套餐推荐，付款后系统自动下单。"
     }
   }
 }
