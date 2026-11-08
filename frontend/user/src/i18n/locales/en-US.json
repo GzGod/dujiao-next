@@ -1908,5 +1908,89 @@
       "title": "Server-side sample",
       "intro": "Node.js example. Put your Key and Secret in server environment variables and use it as-is."
     }
+  },
+  "xg": {
+    "hero": {
+      "title": "Top up your own account. No shared logins.",
+      "lede": "ChatGPT, Grok and other AI plans charged straight to your account. Delivered automatically after payment, with every order trackable.",
+      "primary": "Shop now",
+      "secondary": "How it works",
+      "factProducts": "plans on sale",
+      "factSpeedValue": "Auto",
+      "factSpeed": "delivery after payment",
+      "factOwnValue": "Your account",
+      "factOwn": "never shared"
+    },
+    "receipt": {
+      "title": "Order receipt",
+      "delivered": "Delivered",
+      "account": "Account",
+      "paid": "Paid",
+      "code": "Redeem code",
+      "note": "Sample receipt. Prices sync with the store in real time."
+    },
+    "trust": {
+      "auto": "Instant codes",
+      "track": "Trackable orders",
+      "support": "After-sales support",
+      "own": "Your own account"
+    },
+    "shop": {
+      "title": "Products",
+      "lede": "Sorted from lowest price. Auto-delivered plans send the code right after payment.",
+      "all": "View all products",
+      "allTab": "All"
+    },
+    "card": {
+      "buy": "Buy now",
+      "auto": "Ordered automatically after payment; the code lands in your order"
+    },
+    "stock": {
+      "in": "In stock",
+      "low": "Low stock",
+      "out": "Out of stock"
+    },
+    "how": {
+      "title": "How to buy",
+      "lede": "Three steps. No account needed; track orders by email.",
+      "s1t": "Order with your email",
+      "s1": "Pick a plan and enter the email for notifications. Signed-in orders are saved automatically.",
+      "s2t": "Pay",
+      "s2": "Pay with any method offered at checkout. The checkout page shows the final amount.",
+      "s3t": "Get your code",
+      "s3": "Once paid, the code is issued automatically and stays in your order details."
+    },
+    "partner": {
+      "title": "Dealer program",
+      "lede": "Dealers get store-wide discounts and can plug our catalog into their own shop via API.",
+      "docs": "API docs",
+      "percentOff": "% of retail",
+      "free": {
+        "name": "Customer",
+        "rate": "Retail",
+        "unit": "",
+        "rule": "Sign up to buy",
+        "p1": "Access to every product",
+        "p2": "Email notices and order tracking"
+      },
+      "basic": {
+        "name": "Basic dealer",
+        "rule": "Approved by the site owner"
+      },
+      "pro": {
+        "name": "Pro dealer",
+        "rule": "Auto-upgrade at ¥10,000 total spend"
+      },
+      "elite": {
+        "name": "Elite dealer",
+        "rule": "Auto-upgrade at ¥100,000 total spend"
+      },
+      "perkApi": "API access, paid from balance",
+      "perkBalance": "3% below retail",
+      "perkAuto": "5% below retail",
+      "perkBest": "Lowest wholesale price",
+      "popular": "Most popular",
+      "note": "Dealer status is granted after approval; dealers then upgrade automatically by total spend."
+    }
   }
 }

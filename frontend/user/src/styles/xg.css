@@ -1,0 +1,387 @@
+/*
+ * 雪糕AI 组件与页面样式。只引用 style.css 中的设计 token（--brand-* / --neutral-* / --space-* / --ui-*），
+ * 不写死颜色和间距。科技蓝 + 白，浅色单主题。
+ */
+
+/* ---------- 布局 ---------- */
+.xg-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+.xg-section {
+  padding: var(--space-20) 0;
+}
+.xg-section--tint {
+  background: var(--brand-50);
+}
+.xg-section__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.xg-h2 {
+  font-size: 32px;
+  line-height: var(--ui-leading-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ui-text-primary);
+}
+.xg-section__lede {
+  margin-top: var(--space-2);
+  max-width: 560px;
+  font-size: 15px;
+  line-height: var(--ui-leading-body);
+  color: var(--ui-text-muted);
+}
+.xg-link {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-600);
+}
+.xg-link:hover { color: var(--brand-700); }
+.xg-note {
+  margin-top: var(--space-5);
+  font-size: 13px;
+  color: var(--ui-text-muted);
+}
+
+/* ---------- Button ---------- */
+.xg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--ui-radius-sm);
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.xg-btn:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 2px; }
+.xg-btn:active:not(:disabled) { transform: translateY(1px); }
+.xg-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.xg-btn--sm { min-height: 40px; padding: 0 var(--space-4); font-size: 14px; }
+.xg-btn--lg { min-height: 52px; padding: 0 var(--space-6); font-size: 16px; }
+.xg-btn--primary { background: var(--brand-600); color: var(--neutral-0); }
+.xg-btn--primary:hover:not(:disabled) { background: var(--brand-700); }
+.xg-btn--ghost { background: var(--neutral-0); border-color: var(--neutral-200); color: var(--ui-text-primary); }
+.xg-btn--ghost:hover { border-color: var(--brand-200); color: var(--brand-700); }
+
+/* ---------- Hero ---------- */
+.xg-hero {
+  padding: calc(var(--space-24) + var(--space-8)) 0 var(--space-16);
+  background: var(--neutral-0);
+  border-bottom: 1px solid var(--neutral-200);
+}
+.xg-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: center;
+  gap: var(--space-16);
+}
+.xg-hero__title {
+  font-size: 52px;
+  line-height: var(--ui-leading-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--neutral-900);
+}
+.xg-hero__lede {
+  margin-top: var(--space-5);
+  max-width: 520px;
+  font-size: 18px;
+  line-height: var(--ui-leading-body);
+  color: var(--ui-text-secondary);
+}
+.xg-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+.xg-hero__facts {
+  display: flex;
+  gap: var(--space-10);
+  margin-top: var(--space-12);
+}
+.xg-hero__facts li { display: flex; flex-direction: column; gap: var(--space-1); }
+.xg-hero__facts strong { font-size: 24px; font-weight: 700; color: var(--brand-700); }
+.xg-hero__facts span { font-size: 13px; color: var(--ui-text-muted); }
+
+/* 凭证卡：用户付款后实际拿到的东西 */
+.xg-receipt {
+  padding: var(--space-6);
+  border-radius: var(--ui-radius-lg);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-0);
+  box-shadow: var(--ui-shadow-3);
+}
+.xg-receipt__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: 14px;
+  color: var(--ui-text-muted);
+}
+.xg-receipt__row span:last-child { color: var(--ui-text-primary); }
+.xg-receipt__row--head { padding-top: 0; font-weight: 600; color: var(--ui-text-primary); }
+.xg-receipt__status {
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 22px;
+  color: var(--ui-success) !important;
+  background: var(--ui-success-soft);
+}
+.xg-receipt__product {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+.xg-receipt__price { font-weight: 700; color: var(--brand-700) !important; }
+.xg-receipt__code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--ui-radius-sm);
+  background: var(--brand-50);
+  font-size: 12px;
+  color: var(--brand-700);
+}
+.xg-receipt__code code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brand-900);
+}
+.xg-receipt__note { margin-top: var(--space-3); font-size: 12px; color: var(--ui-text-muted); }
+
+/* ---------- 信任条 ---------- */
+.xg-trust { background: var(--neutral-50); border-bottom: 1px solid var(--neutral-200); }
+.xg-trust__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ui-text-secondary);
+}
+.xg-trust__row span::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-2);
+  border-radius: 999px;
+  background: var(--brand-600);
+  vertical-align: middle;
+}
+
+/* ---------- 分类标签 ---------- */
+.xg-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-6); }
+.xg-chip {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-0);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ui-text-secondary);
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+.xg-chip:hover { border-color: var(--brand-200); color: var(--brand-700); }
+.xg-chip--active { border-color: var(--brand-600); background: var(--brand-600); color: var(--neutral-0); }
+.xg-chip--active:hover { color: var(--neutral-0); }
+
+/* ---------- 商品卡片 ---------- */
+.xg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+.xg-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5);
+  border-radius: var(--ui-radius-md);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-0);
+  box-shadow: var(--ui-shadow-1);
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.xg-card:hover { border-color: var(--brand-200); box-shadow: var(--ui-shadow-2); transform: translateY(-2px); }
+.xg-card--disabled { cursor: default; }
+.xg-card--disabled:hover { transform: none; border-color: var(--neutral-200); box-shadow: var(--ui-shadow-1); }
+.xg-card--skeleton { min-height: 220px; background: var(--neutral-50); box-shadow: none; animation: xg-pulse 1.4s ease-in-out infinite; }
+@keyframes xg-pulse { 50% { opacity: 0.55; } }
+.xg-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.xg-card__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--ui-radius-sm);
+  background: var(--neutral-50);
+  border: 1px solid var(--neutral-200);
+  font-weight: 700;
+  color: var(--brand-700);
+}
+.xg-card__logo img { width: 100%; height: 100%; object-fit: cover; }
+.xg-card__title {
+  margin-top: var(--space-4);
+  font-size: 17px;
+  line-height: var(--ui-leading-title);
+  font-weight: 700;
+  color: var(--neutral-900);
+}
+.xg-card__desc {
+  margin-top: var(--space-2);
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ui-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.xg-card__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--neutral-100);
+}
+
+/* ---------- 价格标签 ---------- */
+.xg-price { display: flex; align-items: baseline; gap: 2px; color: var(--brand-700); }
+.xg-price__symbol { font-size: 16px; font-weight: 700; }
+.xg-price__amount { font-size: 28px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; }
+.xg-price__original { margin-left: var(--space-2); font-size: 13px; color: var(--ui-price-original); text-decoration: line-through; }
+
+.xg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-16) 0;
+  border-radius: var(--ui-radius-md);
+  border: 1px dashed var(--neutral-300);
+  color: var(--ui-text-muted);
+}
+
+/* ---------- 购买步骤 ---------- */
+.xg-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin-top: var(--space-8); counter-reset: none; }
+.xg-step {
+  position: relative;
+  padding: var(--space-6);
+  border-radius: var(--ui-radius-md);
+  background: var(--neutral-0);
+  border: 1px solid var(--brand-100);
+}
+.xg-step__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--brand-600);
+  color: var(--neutral-0);
+  font-weight: 700;
+}
+.xg-step__title { margin-top: var(--space-4); font-size: 18px; font-weight: 700; color: var(--neutral-900); }
+.xg-step__text { margin-top: var(--space-2); font-size: 14px; line-height: var(--ui-leading-body); color: var(--ui-text-muted); }
+
+/* ---------- 等级徽章 / 等级卡 ---------- */
+.xg-tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+.xg-tier {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  border-radius: var(--ui-radius-md);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-0);
+}
+.xg-tier--featured { border-color: var(--brand-600); box-shadow: 0 0 0 1px var(--brand-600), var(--ui-shadow-2); }
+.xg-tier__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.xg-tier__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 26px;
+}
+.xg-tier__badge--free { background: var(--neutral-100); color: var(--neutral-700); }
+.xg-tier__badge--basic { background: var(--brand-50); color: var(--brand-700); }
+.xg-tier__badge--pro { background: var(--brand-100); color: var(--brand-700); }
+.xg-tier__badge--elite { background: var(--brand-700); color: var(--neutral-0); }
+.xg-tier__flag { font-size: 12px; font-weight: 600; color: var(--brand-600); }
+.xg-tier__rate { display: flex; align-items: baseline; gap: var(--space-1); margin-top: var(--space-5); color: var(--neutral-900); }
+.xg-tier__rate-value { font-size: 36px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; }
+.xg-tier__rate-unit { font-size: 15px; font-weight: 600; color: var(--ui-text-muted); }
+.xg-tier__rule { margin-top: var(--space-3); font-size: 14px; color: var(--ui-text-secondary); }
+.xg-tier__perks { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--neutral-100); display: flex; flex-direction: column; gap: var(--space-2); }
+.xg-tier__perks li { position: relative; padding-left: var(--space-5); font-size: 13px; line-height: 1.5; color: var(--ui-text-muted); }
+.xg-tier__perks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--brand-600);
+}
+
+/* ---------- 移动端 390 ---------- */
+@media (max-width: 1023px) {
+  .xg-hero__grid { grid-template-columns: 1fr; gap: var(--space-10); }
+  .xg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xg-tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .xg-container { padding: 0 var(--space-4); }
+  .xg-section { padding: var(--space-12) 0; }
+  .xg-hero { padding: calc(var(--space-20) + var(--space-4)) 0 var(--space-12); }
+  .xg-hero__title { font-size: 34px; }
+  .xg-hero__lede { font-size: 16px; }
+  .xg-hero__actions .xg-btn { flex: 1 1 auto; }
+  .xg-hero__facts { gap: var(--space-6); margin-top: var(--space-8); }
+  .xg-hero__facts strong { font-size: 20px; }
+  .xg-h2 { font-size: 24px; }
+  .xg-section__head { flex-direction: column; align-items: flex-start; }
+  .xg-grid, .xg-steps, .xg-tiers { grid-template-columns: 1fr; }
+  .xg-chips { flex-wrap: nowrap; overflow-x: auto; margin-left: calc(var(--space-4) * -1); margin-right: calc(var(--space-4) * -1); padding: 0 var(--space-4); scrollbar-width: none; }
+  .xg-chip { flex-shrink: 0; }
+  .xg-trust__row { justify-content: flex-start; font-size: 13px; }
+  .xg-price__amount { font-size: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xg-card, .xg-btn, .xg-chip { transition: none; }
+  .xg-card:hover { transform: none; }
+  .xg-card--skeleton { animation: none; }
+}

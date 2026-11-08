@@ -161,174 +161,122 @@
       </section>
     </template>
 
-    <!-- ==================== CARD MODE (default) ==================== -->
+    <!-- ==================== CARD MODE (default)：雪糕AI 首页 ==================== -->
     <template v-else>
-    <section v-if="showHeroSection" class="relative z-10 border-b pt-24 pb-10">
-      <div class="container mx-auto px-4">
-        <div class="relative overflow-hidden rounded-2xl border bg-card"
-          @touchstart="onBannerTouchStart"
-          @touchend="onBannerTouchEnd">
-          <!-- Banner image with fade transition -->
-          <Transition name="banner-fade" mode="out-in">
-            <img v-if="!bannerLoading && heroImage" :src="heroImage" :key="heroImage" class="absolute inset-0 h-full w-full object-cover" />
-          </Transition>
-          <div class="absolute inset-0 bg-black/50"></div>
-
-            <div v-if="bannerLoading" class="relative flex min-h-[260px] flex-col justify-between p-5 sm:min-h-[320px] sm:p-6 md:min-h-[420px] md:p-12">
-            <div class="mb-4 flex items-center justify-end">
-              <span :class="heroBadgeClass">
-                {{ t('common.loading') }}
-              </span>
+      <!-- Hero -->
+      <section class="xg-hero">
+        <div class="xg-container xg-hero__grid">
+          <div class="xg-hero__copy">
+            <h1 class="xg-hero__title">{{ t('xg.hero.title') }}</h1>
+            <p class="xg-hero__lede">{{ t('xg.hero.lede') }}</p>
+            <div class="xg-hero__actions">
+              <a href="#shop" class="xg-btn xg-btn--primary xg-btn--lg">{{ t('xg.hero.primary') }}</a>
+              <a href="#how" class="xg-btn xg-btn--ghost xg-btn--lg">{{ t('xg.hero.secondary') }}</a>
             </div>
-
-            <div class="space-y-4">
-              <div class="h-6 w-28 theme-skeleton rounded-full" style="background: rgba(255,255,255,0.35)"></div>
-              <div class="h-10 max-w-4xl theme-skeleton rounded-xl md:h-14" style="background: rgba(255,255,255,0.35)"></div>
-              <div class="h-5 max-w-3xl theme-skeleton rounded-lg" style="background: rgba(255,255,255,0.3)"></div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-3 pt-6">
-              <div class="h-11 w-36 theme-skeleton rounded-lg" style="background: rgba(255,255,255,0.35)"></div>
-              <div class="h-11 w-28 theme-skeleton rounded-lg" style="background: rgba(255,255,255,0.25)"></div>
-            </div>
+            <ul class="xg-hero__facts">
+              <li><strong>{{ products.length || '—' }}</strong><span>{{ t('xg.hero.factProducts') }}</span></li>
+              <li><strong>{{ t('xg.hero.factSpeedValue') }}</strong><span>{{ t('xg.hero.factSpeed') }}</span></li>
+              <li><strong>{{ t('xg.hero.factOwnValue') }}</strong><span>{{ t('xg.hero.factOwn') }}</span></li>
+            </ul>
           </div>
 
-          <div v-else class="relative flex min-h-[260px] flex-col justify-between p-5 sm:min-h-[320px] sm:p-6 md:min-h-[420px] md:p-12">
-            <div v-if="bannerCount > 1" class="mb-4 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/20 text-white transition hover:bg-black/35 md:h-10 md:w-10"
-                @click="handlePrevHeroBanner"
-                :aria-label="t('common.previousBanner')"
-              >
-                <ChevronLeft class="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/20 text-white transition hover:bg-black/35 md:h-10 md:w-10"
-                @click="handleNextHeroBanner"
-                :aria-label="t('common.nextBanner')"
-              >
-                <ChevronRight class="h-4 w-4" />
-              </button>
+          <!-- 右侧：一张真实的「订单凭证」，展示下单后用户实际拿到的东西 -->
+          <div class="xg-receipt" aria-hidden="true">
+            <div class="xg-receipt__row xg-receipt__row--head">
+              <span>{{ t('xg.receipt.title') }}</span>
+              <span class="xg-receipt__status">{{ t('xg.receipt.delivered') }}</span>
             </div>
-
-            <div class="space-y-3 sm:space-y-4">
-              <span :class="heroBadgeClass">
-                <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
-                {{ heroBadge }}
-              </span>
-              <h1 class="max-w-4xl text-2xl font-semibold tracking-[-0.02em] text-white sm:text-3xl md:text-[2.85rem]">
-                {{ heroTitle }}
-              </h1>
-              <p class="max-w-3xl text-xs leading-relaxed text-gray-100 sm:text-sm md:text-base">
-                {{ heroSubtitle }}
-              </p>
+            <div class="xg-receipt__product">{{ heroProductTitle }}</div>
+            <div class="xg-receipt__row"><span>{{ t('xg.receipt.account') }}</span><span>you@example.com</span></div>
+            <div class="xg-receipt__row"><span>{{ t('xg.receipt.paid') }}</span><span class="xg-receipt__price">{{ heroProductPrice }}</span></div>
+            <div class="xg-receipt__code">
+              <span>{{ t('xg.receipt.code') }}</span>
+              <code>XG-7K2Q-9M4D-PLUS</code>
             </div>
-
-            <div class="flex flex-wrap items-center gap-3 pt-5 sm:pt-6">
-              <button
-                type="button"
-                @click="goToHeroLink"
-                class="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition hover:scale-105 sm:min-h-[44px] sm:px-5 sm:py-3"
-              >
-                {{ heroPrimaryButtonText }}
-                <ArrowRight class="h-4 w-4" />
-              </button>
-              <router-link
-                v-if="!hasHeroLink"
-                to="/products"
-                class="inline-flex min-h-[40px] items-center rounded-lg border border-white/30 px-4 py-2.5 text-sm font-medium text-white transition hover:border-white hover:bg-white/10 sm:min-h-[44px] sm:px-5 sm:py-3"
-              >
-                {{ t('home.featured.viewAll') }}
-              </router-link>
-            </div>
-
-            <div v-if="bannerCount > 1" class="mt-5 flex items-center gap-2">
-              <button
-                v-for="(_, index) in banners"
-                :key="`hero-dot-${index}`"
-                type="button"
-                class="h-2.5 rounded-full transition-all"
-                :class="index === currentBannerIndex ? 'w-7 bg-white' : 'w-2.5 bg-white/45 hover:bg-white/70'"
-                @click="selectHeroBanner(index)"
-                :aria-label="t('common.switchBanner', { n: index + 1 })"
-              ></button>
-            </div>
+            <p class="xg-receipt__note">{{ t('xg.receipt.note') }}</p>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="featured" class="relative z-10 pb-14" :class="showHeroSection ? 'pt-14' : 'pt-32 md:pt-36'">
-      <div class="container mx-auto px-4">
-        <div class="mb-8 flex items-end justify-between gap-4">
-          <div>
-            <h2 class="theme-section-heading text-3xl md:text-4xl">{{ t('home.featured.title') }}</h2>
-            <p class="mt-2 text-sm text-muted-foreground">{{ t('home.featured.description') }}</p>
+      <!-- 信任条 -->
+      <section class="xg-trust" aria-label="trust">
+        <div class="xg-container xg-trust__row">
+          <span v-for="item in trustItems" :key="item">{{ item }}</span>
+        </div>
+      </section>
+
+      <!-- 商品中心 -->
+      <section id="shop" class="xg-section">
+        <div class="xg-container">
+          <div class="xg-section__head">
+            <div>
+              <h2 class="xg-h2">{{ t('xg.shop.title') }}</h2>
+              <p class="xg-section__lede">{{ t('xg.shop.lede') }}</p>
+            </div>
+            <router-link to="/products" class="xg-link">{{ t('xg.shop.all') }}</router-link>
           </div>
-          <router-link
-                v-if="!hasHeroLink"
-                to="/products"
-            class="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {{ t('home.featured.viewAll') }}
-          </router-link>
-        </div>
 
-        <div v-if="products.length > 0" class="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          <ProductCard
-            v-for="(product, idx) in products"
-            :key="product.id"
-            :product="product"
-            :index="idx"
-            :animation-step="60"
-            @click="goToProduct"
-            @quick-buy="openQuickBuy"
-          />
-        </div>
-        <div v-else class="rounded-2xl border border-dashed py-16 text-center text-muted-foreground theme-slide-up">
-          <PackageOpen class="mx-auto h-16 w-16 mb-4 text-muted-foreground opacity-50" :stroke-width="1.5" />
-          {{ t('home.featured.empty') }}
-        </div>
-      </div>
-    </section>
-
-    <template v-if="latestSectionVisible">
-    <hr class="theme-section-divider mx-4 md:mx-auto md:max-w-6xl" />
-
-    <section class="relative z-10 py-12">
-      <div class="container mx-auto px-4">
-        <div class="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <h2 class="theme-section-heading text-[1.7rem]">{{ t('home.latest.title') }}</h2>
-            <p class="mt-1 text-sm text-muted-foreground">{{ t('home.latest.description') }}</p>
+          <div class="xg-chips" role="tablist">
+            <button type="button" role="tab" class="xg-chip" :class="{ 'xg-chip--active': activeCategory === 0 }"
+              :aria-selected="activeCategory === 0" @click="activeCategory = 0">{{ t('xg.shop.allTab') }}</button>
+            <button v-for="cat in shopCategories" :key="cat.id" type="button" role="tab" class="xg-chip"
+              :class="{ 'xg-chip--active': activeCategory === cat.id }" :aria-selected="activeCategory === cat.id"
+              @click="activeCategory = cat.id">{{ cat.label }}</button>
           </div>
-          <div class="flex items-center gap-3 text-sm">
-            <router-link v-if="blogEnabled" to="/blog" class="text-muted-foreground transition-colors hover:text-foreground">{{ t('nav.blog') }}</router-link>
-            <router-link v-if="noticeEnabled" to="/notice" class="text-muted-foreground transition-colors hover:text-foreground">{{ t('nav.notice') }}</router-link>
+
+          <div v-if="productsLoading" class="xg-grid">
+            <div v-for="n in 6" :key="n" class="xg-card xg-card--skeleton"></div>
+          </div>
+          <div v-else-if="filteredProducts.length" class="xg-grid">
+            <XgProductCard v-for="product in filteredProducts" :key="product.id" :product="product"
+              @open="goToProduct" @buy="openQuickBuy" />
+          </div>
+          <div v-else class="xg-empty">
+            <PackageOpen class="h-10 w-10" :stroke-width="1.5" />
+            {{ t('home.featured.empty') }}
           </div>
         </div>
+      </section>
 
-        <div v-if="posts.length > 0" class="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <article
-            v-for="post in posts"
-            :key="post.id"
-            class="cursor-pointer rounded-xl border bg-card p-5 shadow-sm transition hover:shadow-md"
-            @click="goToPost(post.slug)"
-          >
-            <div class="mb-2 text-xs text-muted-foreground">{{ formatDate(post.published_at) }}</div>
-            <h3 class="line-clamp-2 text-base font-semibold">{{ getLocalizedText(post.title) }}</h3>
-            <p class="mt-2 line-clamp-2 text-sm text-muted-foreground">{{ getLocalizedText(post.summary) }}</p>
-            <div class="mt-4 text-sm font-medium text-primary">{{ t('blog.readMore') }}</div>
-          </article>
+      <!-- 怎么购买 -->
+      <section id="how" class="xg-section xg-section--tint">
+        <div class="xg-container">
+          <h2 class="xg-h2">{{ t('xg.how.title') }}</h2>
+          <p class="xg-section__lede">{{ t('xg.how.lede') }}</p>
+          <ol class="xg-steps">
+            <li v-for="(step, i) in howSteps" :key="step.title" class="xg-step">
+              <span class="xg-step__num">{{ i + 1 }}</span>
+              <h3 class="xg-step__title">{{ step.title }}</h3>
+              <p class="xg-step__text">{{ step.text }}</p>
+            </li>
+          </ol>
         </div>
-        <div v-else class="rounded-2xl border border-dashed py-12 text-center text-muted-foreground">
-          {{ t('blog.empty') }}
+      </section>
+
+      <!-- 代理等级 -->
+      <section id="partner" class="xg-section">
+        <div class="xg-container">
+          <div class="xg-section__head">
+            <div>
+              <h2 class="xg-h2">{{ t('xg.partner.title') }}</h2>
+              <p class="xg-section__lede">{{ t('xg.partner.lede') }}</p>
+            </div>
+            <router-link to="/api-docs" class="xg-link">{{ t('xg.partner.docs') }}</router-link>
+          </div>
+          <div class="xg-tiers">
+            <XgTierCard level="free" :name="t('xg.partner.free.name')" :rate="t('xg.partner.free.rate')" :rate-unit="t('xg.partner.free.unit')"
+              :rule="t('xg.partner.free.rule')" :perks="[t('xg.partner.free.p1'), t('xg.partner.free.p2')]" />
+            <XgTierCard level="basic" :name="t('xg.partner.basic.name')" rate="97" :rate-unit="t('xg.partner.percentOff')"
+              :rule="t('xg.partner.basic.rule')" :perks="[t('xg.partner.perkApi'), t('xg.partner.perkBalance')]" />
+            <XgTierCard level="pro" :name="t('xg.partner.pro.name')" rate="95" :rate-unit="t('xg.partner.percentOff')"
+              :rule="t('xg.partner.pro.rule')" :perks="[t('xg.partner.perkApi'), t('xg.partner.perkAuto')]"
+              featured :flag="t('xg.partner.popular')" />
+            <XgTierCard level="elite" :name="t('xg.partner.elite.name')" rate="91.9" :rate-unit="t('xg.partner.percentOff')"
+              :rule="t('xg.partner.elite.rule')" :perks="[t('xg.partner.perkApi'), t('xg.partner.perkBest')]" />
+          </div>
+          <p class="xg-note">{{ t('xg.partner.note') }}</p>
         </div>
-      </div>
-    </section>
-    </template>
+      </section>
     </template>
 
     <ProductQuickBuy
@@ -351,8 +299,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowRight, ChevronLeft, ChevronRight, PackageOpen, Search, X } from 'lucide-vue-next'
-import { postAPI, productAPI } from '../api'
+import { ChevronLeft, ChevronRight, PackageOpen, Search, X } from 'lucide-vue-next'
+import { productAPI } from '../api'
 import { getImageUrl } from '../utils/image'
 import { useLocalized } from '../composables/useProduct'
 import { useBannerCarousel } from '../composables/useBannerCarousel'
@@ -360,13 +308,14 @@ import { useProductList } from '../composables/useProductList'
 import { useProductListGroups } from '../composables/useProductListGroups'
 import { usePageSeo } from '../composables/usePageSeo'
 import { useAppStore } from '../stores/app'
-import ProductCard from '../components/ProductCard.vue'
 import ProductListItem from '../components/ProductListItem.vue'
 import ProductQuickBuy from '../components/ProductQuickBuy.vue'
 import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
 import EmptyState from '../components/EmptyState.vue'
 import AnnouncementModal from '../components/AnnouncementModal.vue'
+import XgProductCard from '../components/xg/XgProductCard.vue'
+import XgTierCard from '../components/xg/XgTierCard.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
 
 const router = useRouter()
@@ -378,14 +327,9 @@ const appStore = useAppStore()
 const heroBadgeClass = 'inline-flex items-center gap-2 rounded-md border border-white/25 bg-black/55 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm'
 
 const templateMode = computed(() => appStore.config?.template_mode || 'card')
-const navBuiltin = computed(() => (appStore.config?.nav_config as { builtin?: Record<string, boolean> } | undefined)?.builtin)
-const blogEnabled = computed(() => navBuiltin.value?.blog !== false)
-const noticeEnabled = computed(() => navBuiltin.value?.notice !== false)
-const latestSectionVisible = computed(() => blogEnabled.value || noticeEnabled.value)
 
 // ==================== Shared State ====================
 const products = ref<any[]>([])
-const posts = ref<any[]>([])
 const quickBuyProduct = ref<any>(null)
 const quickBuyVisible = ref(false)
 
@@ -409,13 +353,10 @@ const {
   heroBadge,
   heroTitle,
   heroSubtitle,
-  hasHeroLink,
-  heroPrimaryButtonText,
   loadBanners,
   handleNextHeroBanner,
   handlePrevHeroBanner,
   selectHeroBanner,
-  goToHeroLink,
   onBannerTouchStart,
   onBannerTouchEnd,
   stopHeroAutoPlay,
@@ -462,41 +403,72 @@ usePageSeo({
   },
 })
 
-// ==================== Card Mode ====================
-const formatDate = (dateString: string) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString()
-}
-
+// ==================== Card Mode：雪糕AI 首页 ====================
 const goToProduct = (slug: string) => {
   router.push(`/products/${slug}`)
 }
 
-const goToPost = (slug: string) => {
-  router.push(`/blog/${slug}`)
-}
+const productsLoading = ref(true)
+const activeCategory = ref(0)
 
 const loadFeaturedProducts = async () => {
+  productsLoading.value = true
   try {
-    const response = await productAPI.list({ page: 1, page_size: 15 })
+    const response = await productAPI.list({ page: 1, page_size: 24 })
     products.value = response.data.data || []
   } catch (error) {
     console.error('Failed to load products:', error)
+  } finally {
+    productsLoading.value = false
   }
 }
 
-const loadLatestPosts = async () => {
-  if (!latestSectionVisible.value) return
-  try {
-    const params: Record<string, unknown> = { page: 1, page_size: 3 }
-    if (blogEnabled.value && !noticeEnabled.value) params.type = 'blog'
-    if (!blogEnabled.value && noticeEnabled.value) params.type = 'notice'
-    const response = await postAPI.list(params)
-    posts.value = response.data.data || []
-  } catch (error) {
-    console.error('Failed to load posts:', error)
+// 分类标签只展示实际有商品的分类，不造假分类
+const shopCategories = computed(() => {
+  const seen = new Map<number, string>()
+  for (const p of products.value) {
+    const id = Number(p?.category_id || p?.category?.id || 0)
+    if (!id || seen.has(id)) continue
+    seen.set(id, getLocalizedText(p?.category?.name) || `#${id}`)
   }
-}
+  return [...seen.entries()].map(([id, label]) => ({ id, label }))
+})
+
+// 按价格从低到高排，入门款在前
+const filteredProducts = computed(() => {
+  const list = activeCategory.value
+    ? products.value.filter((p) => Number(p?.category_id || p?.category?.id) === activeCategory.value)
+    : products.value
+  return [...list].sort((a, b) => Number(a?.price_amount || 0) - Number(b?.price_amount || 0))
+})
+
+// Hero 右侧凭证取一件真实商品（优先 GPT Plus），价格跟后台同步
+const heroProduct = computed(() => {
+  const list = products.value
+  const title = (p: any) => getLocalizedText(p?.title)
+  return list.find((p) => /gpt\s*plus/i.test(title(p)))
+    || list.find((p) => /plus/i.test(title(p)))
+    || list[0]
+    || null
+})
+const heroProductTitle = computed(() => getLocalizedText(heroProduct.value?.title) || 'ChatGPT Plus')
+const heroProductPrice = computed(() => {
+  const amount = heroProduct.value?.price_amount
+  return amount ? `¥${Number(amount).toFixed(2)}` : '—'
+})
+
+const trustItems = computed(() => [
+  t('xg.trust.auto'),
+  t('xg.trust.track'),
+  t('xg.trust.support'),
+  t('xg.trust.own'),
+])
+
+const howSteps = computed(() => [
+  { title: t('xg.how.s1t'), text: t('xg.how.s1') },
+  { title: t('xg.how.s2t'), text: t('xg.how.s2') },
+  { title: t('xg.how.s3t'), text: t('xg.how.s3') },
+])
 
 // ==================== Lifecycle ====================
 const showAnnouncementIfNeeded = () => {
@@ -512,7 +484,7 @@ onMounted(async () => {
   if (templateMode.value === 'list') {
     await Promise.all([loadBanners(), listInitialize()])
   } else {
-    await Promise.all([loadBanners(), loadFeaturedProducts(), loadLatestPosts()])
+    await loadFeaturedProducts()
   }
   showAnnouncementIfNeeded()
 })
