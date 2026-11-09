@@ -1,0 +1,320 @@
+/* xgai auth pages — Login / Register / Forgot */
+
+/* ---------- layout ---------- */
+.xauth {
+  display: flex;
+  min-height: 70vh;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 16px;
+}
+.xauth__wrap {
+  width: 100%;
+  max-width: 460px;
+}
+.xauth__wrap--wide { max-width: 500px; }
+
+/* ---------- topbar ---------- */
+.xauth__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 14px;
+}
+.xauth__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--x-ink-3);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 160ms;
+}
+.xauth__back:hover { color: var(--x-blue); }
+.xauth__back svg { width: 15px; height: 15px; }
+.xauth__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r-pill);
+  color: var(--x-ink-3);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- card ---------- */
+.xauth__card {
+  padding: 32px 32px 36px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r-xl);
+  background: #fff;
+  box-shadow: var(--x-shadow-lg);
+}
+
+/* ---------- header ---------- */
+.xauth__head {
+  margin-bottom: 28px;
+  text-align: center;
+}
+.xauth__eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--x-blue);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.xauth__title {
+  margin: 0;
+  color: var(--x-ink);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.xauth__subtitle {
+  margin: 8px 0 0;
+  color: var(--x-ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---------- form ---------- */
+.xauth__form { display: grid; gap: 16px; }
+
+/* ---------- field ---------- */
+.xauth__field { display: grid; gap: 7px; }
+.xauth__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--x-ink-3);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.xauth__label svg { width: 13px; height: 13px; opacity: 0.7; }
+.xauth__input-wrap { position: relative; }
+.xauth__input-wrap .xck__input { height: 46px; }
+.xauth__eye {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--x-ink-3);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: color 160ms;
+}
+.xauth__eye:hover { color: var(--x-blue); }
+.xauth__eye svg { width: 16px; height: 16px; }
+.xauth__hint { margin: 0; color: var(--x-ink-4); font-size: 13px; line-height: 1.5; }
+.xauth__field-err { color: #dc2626; font-size: 13px; }
+
+/* ---------- input with suffix btn ---------- */
+.xauth__code-row { display: flex; gap: 10px; }
+.xauth__code-row .xck__input { min-width: 0; flex: 1; }
+
+/* ---------- send-code btn (secondary style) ---------- */
+.xauth__send-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r-pill);
+  color: var(--x-ink-2);
+  background: var(--x-bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms, color 160ms, background-color 160ms;
+}
+.xauth__send-btn:hover:not(:disabled) { border-color: rgba(0,113,227,0.45); color: var(--x-blue); }
+.xauth__send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- password strength ---------- */
+.xauth__strength { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.xauth__strength-bars { display: flex; flex: 1; gap: 4px; }
+.xauth__strength-bars span { flex: 1; height: 4px; border-radius: 2px; background: var(--x-line-strong); transition: background-color 240ms; }
+.xauth__strength-bars span.is-weak { background: #ef4444; }
+.xauth__strength-bars span.is-medium { background: #f59e0b; }
+.xauth__strength-bars span.is-strong { background: var(--x-green); }
+.xauth__strength-label { font-size: 11.5px; font-weight: 700; min-width: 32px; text-align: right; }
+.xauth__strength-label.is-weak { color: #ef4444; }
+.xauth__strength-label.is-medium { color: #f59e0b; }
+.xauth__strength-label.is-strong { color: var(--x-green); }
+
+/* ---------- domain select row ---------- */
+.xauth__domain-row { display: grid; gap: 8px; grid-template-columns: minmax(0,1fr) minmax(9rem,auto); }
+.xauth__domain-select {
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r);
+  color: var(--x-ink);
+  background: var(--x-bg);
+  font-size: 15px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.xauth__domain-select:focus { outline: none; border-color: rgba(0,113,227,0.5); box-shadow: 0 0 0 4px rgba(0,113,227,0.1); background-color: #fff; }
+
+/* ---------- TOTP countdown ---------- */
+.xauth__countdown {
+  padding: 10px 14px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r-sm);
+  background: var(--x-bg-alt);
+  text-align: center;
+  color: var(--x-ink-3);
+  font-size: 13px;
+}
+
+/* ---------- switch mode link ---------- */
+.xauth__mode-link {
+  display: block;
+  text-align: center;
+  color: var(--x-ink-3);
+  background: none;
+  border: 0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 160ms;
+  padding: 0;
+}
+.xauth__mode-link:hover { color: var(--x-blue); }
+
+/* ---------- remember-me / forgot row ---------- */
+.xauth__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--x-ink-3);
+}
+.xauth__meta label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.xauth__meta input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--x-blue); }
+.xauth__meta a { color: var(--x-ink-3); font-weight: 600; transition: color 160ms; }
+.xauth__meta a:hover { color: var(--x-blue); }
+
+/* ---------- agreement ---------- */
+.xauth__agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg-alt);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--x-ink-3);
+  cursor: pointer;
+}
+.xauth__agree input[type=checkbox] { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; accent-color: var(--x-blue); }
+.xauth__agree a { color: var(--x-blue); font-weight: 600; }
+.xauth__agree a:hover { color: var(--x-blue-strong); text-decoration: underline; }
+
+/* ---------- divider ---------- */
+.xauth__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--x-ink-4);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.xauth__divider::before,
+.xauth__divider::after { content: ''; flex: 1; height: 1px; background: var(--x-line-strong); }
+
+/* ---------- social block ---------- */
+.xauth__social { display: grid; gap: 10px; }
+.xauth__social-text { margin: 0; text-align: center; color: var(--x-ink-4); font-size: 13px; }
+
+/* ---------- footer link ---------- */
+.xauth__footer { margin-top: 16px; text-align: center; }
+.xauth__footer a,
+.xauth__footer button {
+  color: var(--x-ink-3);
+  background: none;
+  border: 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 160ms;
+}
+.xauth__footer a:hover,
+.xauth__footer button:hover { color: var(--x-ink); }
+
+/* ---------- disabled notice ---------- */
+.xauth__disabled { padding: 28px 0; text-align: center; }
+.xauth__disabled p { color: var(--x-ink-3); font-size: 14px; }
+.xauth__disabled a { display: inline-block; margin-top: 14px; color: var(--x-blue); font-size: 14px; font-weight: 600; }
+
+/* ---------- input error state ---------- */
+.xauth__domain-select.is-error,
+.xck__input.is-error { border-color: rgba(220,38,38,0.6); }
+.xck__input.is-error:focus { border-color: #dc2626; box-shadow: 0 0 0 4px rgba(220,38,38,0.1); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 520px) {
+  .xauth__card { padding: 24px 20px 28px; border-radius: var(--x-r-lg); }
+  .xauth__domain-row { grid-template-columns: minmax(0,1fr); }
+}
+
+/* ---------- OAuth callback pages (Google / Telegram) ---------- */
+.xauth__center {
+  display: flex;
+  width: 100%;
+  min-height: 60vh;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+.xauth__callback {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r-xl);
+  background: #fff;
+  box-shadow: var(--x-shadow);
+  text-align: center;
+}
+.xauth__callback p { margin: 0; color: var(--x-ink-2); font-size: 15px; }
+.xauth__spin {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--x-line-strong);
+  border-top-color: var(--x-blue);
+  border-radius: 50%;
+  animation: xauth-spin 0.8s linear infinite;
+}
+@keyframes xauth-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .xauth__spin { animation-duration: 2.4s; }
+}
+.xauth__err-icon { width: 36px; height: 36px; color: #dc2626; }
+.xauth__form .xck__alert { margin-top: 0; }

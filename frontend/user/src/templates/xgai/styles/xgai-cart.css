@@ -1,0 +1,137 @@
+/* xgai 购物车页。令牌见 xgai.css；标题 / 步骤 / 卡片 / 布局沿用 xgai-checkout.css（.xck__*）。 */
+
+.xcart { padding-bottom: 80px; }
+
+.xcart__list { display: grid; min-width: 0; gap: 14px; }
+
+.xcart__item {
+  display: flex;
+  min-width: 0;
+  gap: 16px;
+  padding: 18px;
+}
+.xcart__thumb {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--x-r);
+  color: var(--x-ink-4);
+  background: var(--x-bg);
+}
+.xcart__thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.xcart__thumb svg { width: 36px; height: 36px; }
+
+.xcart__body { flex: 1; min-width: 0; }
+.xcart__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.xcart__info { min-width: 0; }
+.xcart__name {
+  display: block;
+  overflow: hidden;
+  color: var(--x-ink);
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xcart__name:hover { color: var(--x-blue); }
+.xcart__meta { margin: 4px 0 0; color: var(--x-ink-3); font-size: 13px; }
+.xcart__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.xcart__remove {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r-pill);
+  color: var(--x-ink-3);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 160ms var(--x-ease), border-color 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.xcart__remove svg { width: 15px; height: 15px; }
+.xcart__remove:hover { color: #b91c1c; border-color: rgba(185, 28, 28, 0.4); background: #fef2f2; }
+
+.xcart__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--x-line);
+}
+.xcart__qty {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r-pill);
+  background: #fff;
+}
+.xcart__qty button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: var(--x-ink);
+  background: transparent;
+  cursor: pointer;
+}
+.xcart__qty button svg { width: 15px; height: 15px; }
+.xcart__qty button:disabled { cursor: not-allowed; opacity: 0.35; }
+.xcart__qty input {
+  width: 46px;
+  height: 38px;
+  border: 0;
+  border-inline: 1px solid var(--x-line);
+  color: var(--x-ink);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.xcart__qty input::-webkit-inner-spin-button,
+.xcart__qty input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+
+.xcart__subtotal { text-align: right; }
+.xcart__subtotal small {
+  display: block;
+  color: var(--x-ink-4);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.xcart__subtotal strong { color: var(--x-ink); font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+
+.xcart__note {
+  margin: 16px 0;
+  padding: 11px 14px;
+  border-radius: var(--x-r-sm);
+  color: var(--x-ink-3);
+  background: var(--x-bg);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.xcart__actions { display: grid; gap: 10px; }
+
+@media (max-width: 760px) {
+  .xcart__item { padding: 14px; gap: 12px; }
+  .xcart__thumb { width: 64px; height: 64px; }
+  .xcart__top { flex-direction: column; }
+}

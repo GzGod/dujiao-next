@@ -1,0 +1,163 @@
+/* xgai 商品列表页。令牌见 xgai.css；卡片 / 输入 / 面包屑沿用 xgai-checkout.css、xgai-detail.css。 */
+
+.xprod-page { padding-bottom: 80px; }
+
+.xprod__title {
+  margin: 0 0 22px;
+  color: var(--x-ink);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.xprod__layout {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+/* ---------- 侧栏：搜索 + 分类 ---------- */
+.xprod__side {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+.xprod__search { position: relative; }
+.xprod__search > svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--x-ink-4);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.xprod__search .xck__input { padding-inline: 40px; background: #fff; }
+.xprod__search-clear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--x-ink-4);
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.xprod__search-clear:hover { color: var(--x-ink); background: var(--x-bg-alt); }
+.xprod__search-clear svg { width: 14px; height: 14px; }
+
+.xprod__cats { padding: 12px; }
+.xprod__cats h2 {
+  margin: 4px 6px 10px;
+  color: var(--x-ink-4);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.xprod__cat-list { display: grid; gap: 2px; }
+.xprod__cat-row { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.xprod__cat {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--x-r-sm);
+  color: var(--x-ink-2);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.xprod__cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xprod__cat img { width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; object-fit: cover; }
+.xprod__cat:hover { color: var(--x-ink); background: var(--x-bg); }
+.xprod__cat.is-active { color: var(--x-blue); background: var(--x-blue-soft); }
+.xprod__cat--child { padding-left: 34px; font-size: 13.5px; }
+.xprod__cat-toggle {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--x-r-sm);
+  color: var(--x-ink-4);
+  background: transparent;
+  cursor: pointer;
+}
+.xprod__cat-toggle:hover { color: var(--x-ink); background: var(--x-bg); }
+.xprod__cat-toggle svg { width: 16px; height: 16px; transition: transform 160ms var(--x-ease); }
+.xprod__cat-toggle.is-open { color: var(--x-blue); }
+.xprod__cat-toggle.is-open svg { transform: rotate(180deg); }
+
+/* ---------- 商品区（.xprod__grid / .xprod__skeleton 复用 xgai-home.css 的定义时也能独立工作） ---------- */
+.xprod-page .xprod__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.xprod-page .xprod__skeleton {
+  min-height: 300px;
+  border-radius: var(--x-r-lg);
+  background: rgba(255, 255, 255, 0.7);
+  animation: x-pulse 1.4s ease-in-out infinite;
+}
+
+.xprod__pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+}
+.xprod__pager button {
+  min-width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r-pill);
+  color: var(--x-ink-2);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 160ms var(--x-ease), border-color 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.xprod__pager button svg { width: 16px; height: 16px; }
+.xprod__pager button:hover:not(:disabled) { color: var(--x-blue); border-color: rgba(0, 113, 227, 0.4); }
+.xprod__pager button.is-active { color: #fff; border-color: var(--x-blue); background: var(--x-blue); }
+.xprod__pager button:disabled { cursor: not-allowed; opacity: 0.4; }
+
+/* ---------- 响应式：侧栏变横向 chips ---------- */
+@media (max-width: 1024px) {
+  .xprod__layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .xprod__side { position: static; }
+  .xprod__cats { padding: 8px; }
+  .xprod__cats h2 { display: none; }
+  .xprod__cat-list { display: flex; gap: 6px; overflow-x: auto; }
+  .xprod__cat-row { flex-shrink: 0; }
+  .xprod__cat { flex: none; border-radius: var(--x-r-pill); white-space: nowrap; background: var(--x-bg); }
+  .xprod__cat-toggle,
+  .xprod__cat--child { display: none; }
+}
+@media (max-width: 760px) {
+  .xprod__title { font-size: 28px; }
+  .xprod-page .xprod__grid { grid-template-columns: minmax(0, 1fr); }
+}

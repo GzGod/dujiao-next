@@ -1,0 +1,118 @@
+/* xgai 订单查询 / 订单详情页。令牌见 xgai.css；标题 / 卡片 / 输入 / 提示沿用 xgai-checkout.css（.xck__*）。 */
+
+.xord { padding-bottom: 80px; }
+
+.xord__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.xord__back { color: var(--x-ink-3); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.xord__back:hover { color: var(--x-blue); }
+
+/* ---------- 查询 / 验证表单 ---------- */
+.xord__form { margin-bottom: 20px; }
+.xord__form h2 { margin-bottom: 6px; }
+.xord__hint { margin: 0 0 14px; color: var(--x-ink-3); font-size: 13px; }
+.xord__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+}
+.xord__fields--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.xord__tip { margin: 12px 0 0; color: var(--x-ink-4); font-size: 13px; }
+.xord__saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: var(--x-r-sm);
+  color: var(--x-ink-3);
+  background: var(--x-bg);
+  font-size: 13px;
+}
+.xord__text-btn {
+  padding: 0;
+  border: 0;
+  color: var(--x-ink-3);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.xord__text-btn:hover { color: var(--x-blue); }
+.xord__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+/* ---------- 订单列表 ---------- */
+.xord__list { display: grid; gap: 12px; }
+.xord__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  transition: transform 180ms var(--x-ease), box-shadow 180ms var(--x-ease);
+}
+.xord__row:hover { transform: translateY(-2px); box-shadow: var(--x-shadow); }
+.xord__row-info { display: grid; min-width: 0; gap: 5px; }
+.xord__label {
+  color: var(--x-ink-4);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.xord__amount { color: var(--x-ink); font-size: 22px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.xord__date { color: var(--x-ink-3); font-size: 13px; }
+.xord__discounts { display: flex; flex-wrap: wrap; gap: 10px; color: #b91c1c; font-size: 12px; }
+.xord__row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.xord__row-actions .x-btn { min-height: 38px; padding: 0 16px; font-size: 14px; }
+
+.xord__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 8px;
+  color: var(--x-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+.xord__pager .x-btn { width: 42px; min-height: 42px; padding: 0; }
+
+/* ---------- 详情摘要 ---------- */
+.xord__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.xord__summary b { display: block; margin-top: 4px; color: var(--x-ink); font-weight: 600; word-break: break-all; }
+.xord__summary .xord__amount { margin-top: 4px; font-size: 26px; }
+.xord__summary .xord__date { margin-top: 6px; }
+.xord__summary-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.xord__summary-actions .x-btn { min-height: 38px; padding: 0 16px; font-size: 14px; }
+.x-btn.xord__danger { color: #b91c1c; border-color: rgba(185, 28, 28, 0.35); }
+.x-btn.xord__danger:hover:not(:disabled) { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
+
+.xord__loading { display: grid; gap: 16px; }
+.xord__sk { height: 120px; border-radius: var(--x-r-lg); background: rgba(0, 0, 0, 0.05); animation: x-pulse 1.4s ease-in-out infinite; }
+.xord__sk--lg { height: 260px; }
+
+@media (max-width: 1024px) {
+  .xord__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .xord__head { flex-direction: column; align-items: flex-start; }
+  .xord__fields,
+  .xord__fields--two { grid-template-columns: minmax(0, 1fr); }
+  .xord__row { padding: 16px; }
+}

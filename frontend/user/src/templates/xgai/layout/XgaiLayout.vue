@@ -112,6 +112,8 @@ import { getImageUrl } from '../../../utils/image'
 import { getLocalizedText } from '../../../utils/resellerSiteConfig'
 import '../styles/xgai.css'
 import '../styles/xgai-layout.css'
+// 卡片 / 输入框 / 提示条（.xck__*）各页共用，随外壳一起加载，避免直达非结算页时缺样式
+import '../styles/xgai-checkout.css'
 
 const { t } = useI18n()
 const route = useRoute()
