@@ -655,7 +655,11 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 			if lockedCoupon.UsageLimit > 0 && lockedCoupon.UsedCount >= lockedCoupon.UsageLimit {
 				return couponcontract.ErrUsageLimit
 			}
-			if lockedCoupon.PerUserLimit > 0 && input.UserID != 0 {
+			if lockedCoupon.PerUserLimit > 0 {
+				if input.UserID == 0 {
+					// 游客订单无法按用户计数，与 ApplyCoupon 保持一致：限次券仅限会员使用。
+					return couponcontract.ErrPaymentRoleMemberOnly
+				}
 				count, err := usageRepo.CountByUser(lockedCoupon.ID, input.UserID)
 				if err != nil {
 					return err
@@ -691,6 +695,7 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 			couponcontract.ErrNotFound,
 			couponcontract.ErrUsageLimit,
 			couponcontract.ErrPerUserLimit,
+			couponcontract.ErrPaymentRoleMemberOnly,
 		} {
 			if errors.Is(err, couponErr) {
 				return nil, err

@@ -67,7 +67,11 @@ func (s *Service) ApplyCoupon(subtotal money.Amount, code string, userID uint, i
 		return money.Amount{}, coupon, couponcontract.ErrMemberLevelNotAllowed
 	}
 
-	if coupon.PerUserLimit > 0 && userID != 0 {
+	if coupon.PerUserLimit > 0 {
+		if userID == 0 {
+			// 游客订单没有账号 ID，无法按用户计数，视为会员专属限制。
+			return money.Amount{}, coupon, couponcontract.ErrPaymentRoleMemberOnly
+		}
 		count, err := s.usageRepo.CountByUser(coupon.ID, userID)
 		if err != nil {
 			return money.Amount{}, coupon, err
