@@ -1,0 +1,589 @@
+/* xgai 结算页 + 支付页。令牌见 xgai.css；共用组件（自定义表单、渠道选择、金额明细）走 --ui-* 令牌。 */
+
+/* ---------- 面包屑 / 标题 / 步骤 ---------- */
+.xck__crumb,
+.xpay__crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-block: 26px 10px;
+  color: var(--x-ink-4);
+  font-size: 13px;
+}
+.xck__crumb a:hover,
+.xpay__crumb a:hover { color: var(--x-blue); }
+.xck__crumb b,
+.xpay__crumb b { color: var(--x-ink-2); font-weight: 600; }
+
+.xck__head h1,
+.xpay__head h1 {
+  margin: 8px 0 6px;
+  color: var(--x-ink);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.xck__sub,
+.xpay__sub { margin: 0; color: var(--x-ink-3); font-size: 15px; }
+.xpay__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.xpay__back { color: var(--x-ink-3); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.xpay__back:hover { color: var(--x-blue); }
+
+.xck__steps,
+.xpay__steps { padding-block: 22px 26px; }
+.xsteps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.xsteps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--x-ink-4);
+  font-size: 14px;
+  font-weight: 600;
+}
+.xsteps__dot {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--x-line-strong);
+  border-radius: 50%;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.xsteps__dot svg { width: 14px; height: 14px; }
+.xsteps__line { width: 28px; height: 1.5px; margin-left: 4px; border-radius: 2px; background: var(--x-line-strong); }
+.xsteps li.is-on { color: var(--x-ink); }
+.xsteps li.is-on .xsteps__dot { border-color: var(--x-blue); color: #fff; background: var(--x-blue); }
+.xsteps li.is-done { color: var(--x-blue); }
+.xsteps li.is-done .xsteps__dot { border-color: transparent; color: var(--x-blue); background: var(--x-blue-soft); }
+.xsteps li.is-done .xsteps__line { background: rgba(0, 113, 227, 0.35); }
+
+/* ---------- 布局 ---------- */
+.xck__layout,
+.xpay__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 28px;
+  align-items: start;
+  padding-bottom: 80px;
+}
+.xck__main,
+.xpay__main { display: grid; min-width: 0; gap: 18px; }
+.xck__aside,
+.xpay__aside { position: sticky; top: 88px; }
+
+/* ---------- 卡片 ---------- */
+.xck__card,
+.xpay__card {
+  padding: 24px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r-lg);
+  background: #fff;
+  box-shadow: var(--x-shadow-sm);
+}
+.xpay__card.x-container { margin-bottom: 80px; }
+.xck__card h2,
+.xpay__card h2 {
+  margin: 0 0 16px;
+  color: var(--x-ink);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.xpay__card-sub { margin: -8px 0 16px; color: var(--x-ink-3); font-size: 14px; }
+
+/* 共用组件（Tailwind 卡片）在 xgai 下与 xck__card 对齐 */
+.xck__main > .rounded-2xl,
+.xpay__main .rounded-2xl { border-radius: var(--x-r) !important; }
+.xck__main > .rounded-2xl { border-color: var(--x-line); border-radius: var(--x-r-lg) !important; box-shadow: var(--x-shadow-sm); }
+
+/* ---------- 输入 ---------- */
+.xck__input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r);
+  color: var(--x-ink);
+  background: var(--x-bg);
+  font-size: 15px;
+  transition: border-color 160ms var(--x-ease), box-shadow 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.xck__input::placeholder { color: var(--x-ink-4); }
+.xck__input:focus {
+  outline: none;
+  border-color: rgba(0, 113, 227, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
+}
+.xck__field-error { margin: 8px 0 0; color: #dc2626; font-size: 13px; }
+
+/* ---------- 商品 ---------- */
+.xck__items { display: grid; gap: 10px; }
+.xck__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg);
+}
+.xck__item.is-warn { border-color: rgba(180, 83, 9, 0.35); background: #fffbeb; }
+.xck__thumb {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 14px;
+  color: var(--x-ink-4);
+  background: #fff;
+}
+.xck__thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.xck__thumb svg { width: 24px; height: 24px; }
+.xck__item-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.xck__item-info > a { color: var(--x-ink); font-size: 15px; font-weight: 600; }
+.xck__item-info small { color: var(--x-ink-3); font-size: 13px; }
+.xck__item-info small.is-warn { color: #b45309; }
+.xck__item-price { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.xck__item-price strong { color: var(--x-ink); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.xck__item-price.is-active strong { color: var(--x-blue); }
+.xck__item-price small { color: var(--x-ink-4); font-size: 11px; font-weight: 600; }
+.xck__item-price del { color: var(--x-ink-4); font-size: 12px; }
+
+/* ---------- 购买方式 ---------- */
+.xck__mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: var(--x-r-pill);
+  background: var(--x-bg-alt);
+}
+.xck__mode-tabs button,
+.xck__mode-login {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: var(--x-r-pill);
+  color: var(--x-ink-3);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.xck__mode-tabs button.is-active { color: var(--x-ink); background: #fff; box-shadow: var(--x-shadow-sm); }
+.xck__mode-login:hover { color: var(--x-blue); }
+.xck__guest,
+.xpay__guest { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.xck__captcha { margin-top: 14px; }
+.xck__guest-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--x-r);
+  color: var(--x-blue-strong);
+  background: var(--x-blue-tint);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.xck__guest-note p { margin: 0; }
+.xck__guest-note ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* ---------- 汇总 ---------- */
+.xck__summary-hint {
+  margin: -6px 0 16px;
+  color: var(--x-ink-4);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.xck__rows { display: grid; gap: 10px; }
+.xck__rows > div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.xck__rows > div > span:first-child { color: var(--x-ink-3); }
+.xck__rows > div > span:last-child { color: var(--x-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.xck__rows .is-blue { color: var(--x-blue) !important; }
+.xck__rows .is-green { color: var(--x-green) !important; }
+.xck__rows .is-gold { color: #b45309 !important; }
+.xck__rows > div.is-total {
+  align-items: baseline;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--x-line);
+}
+.xck__rows > div.is-total > span:first-child { color: var(--x-ink); font-weight: 600; }
+.xck__rows > div.is-total > span:last-child { color: var(--x-blue); font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+.xck__preview-status { margin-top: 10px; color: var(--x-ink-4); font-size: 12px; }
+
+.xck__alert {
+  margin-top: 14px;
+  padding: 11px 14px;
+  border-radius: var(--x-r-sm);
+  font-size: 13px;
+  font-weight: 500;
+}
+.xck__alert.is-error { color: #b91c1c; background: #fef2f2; }
+.xck__alert.is-warn { color: #92400e; background: #fffbeb; }
+.xck__alert.is-success-box { color: #17834b; background: #e7f6ed; }
+
+/* ---------- 支付方式 ---------- */
+.xck__pay-section { margin: 20px 0; padding-top: 18px; border-top: 1px solid var(--x-line); }
+.xck__pay-section h3 { margin: 0 0 12px; color: var(--x-ink); font-size: 15px; font-weight: 600; }
+.xck__channels { display: grid; gap: 8px; }
+.xck__channels button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--x-line-strong);
+  border-radius: var(--x-r);
+  color: var(--x-ink);
+  background: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.xck__channels button:hover:not(:disabled) { border-color: rgba(0, 113, 227, 0.35); }
+.xck__channels button.is-active {
+  border-color: var(--x-blue);
+  background: var(--x-blue-tint);
+  box-shadow: inset 0 0 0 1px var(--x-blue);
+}
+.xck__channels button.is-disabled { cursor: not-allowed; opacity: 0.5; }
+.xck__channels img { width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px; object-fit: contain; }
+.xck__channels small { width: 100%; font-size: 12px; font-weight: 500; }
+.xck__channels-empty,
+.xpay__loading-text { color: var(--x-ink-3); font-size: 14px; }
+.xck__wallet-covers { color: var(--x-green); font-size: 13px; font-weight: 500; }
+.is-warn { color: #b45309; }
+.is-success { color: var(--x-green); font-size: 13px; }
+
+.xck__wallet {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg);
+  font-size: 13px;
+}
+.xck__wallet > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.xck__wallet small { color: var(--x-ink-4); font-size: 12px; }
+.xck__wallet b { color: var(--x-ink); font-size: 16px; font-weight: 650; }
+.xck__wallet label { display: inline-flex; align-items: center; gap: 6px; color: var(--x-ink-2); cursor: pointer; }
+.xck__wallet input { width: 16px; height: 16px; accent-color: var(--x-blue); }
+.xck__wallet > .is-warn,
+.xck__wallet-detail { grid-column: 1 / -1; }
+.xck__wallet-detail { display: grid; gap: 2px; color: var(--x-ink-3); }
+
+/* ---------- 空车 / 不存在 / 加载 ---------- */
+.xck__empty,
+.xpay__missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-block: 80px 110px;
+  color: var(--x-ink-3);
+  text-align: center;
+}
+.xck__empty > svg,
+.xpay__missing > svg { width: 44px; height: 44px; opacity: 0.55; }
+.xck__empty p,
+.xpay__missing p { margin: 0; font-size: 15px; }
+.xpay__loading { display: grid; gap: 16px; padding-bottom: 80px; }
+.xpay__sk { height: 120px; border-radius: var(--x-r-lg); background: rgba(0, 0, 0, 0.05); animation: x-pulse 1.4s ease-in-out infinite; }
+.xpay__sk--lg { height: 280px; }
+@keyframes x-pulse { 50% { opacity: 0.5; } }
+
+/* ---------- 支付页：订单信息 ---------- */
+.xpay__order-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.xpay__order-info > div:first-child { display: flex; flex-direction: column; gap: 4px; }
+.xpay__order-info small { color: var(--x-ink-4); font-size: 12px; }
+.xpay__order-info > div:first-child b { color: var(--x-ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.xpay__payable {
+  flex: 1;
+  min-width: 260px;
+  max-width: 340px;
+  padding: 18px;
+  border-radius: var(--x-r);
+  background: var(--x-blue-tint);
+}
+.xpay__payable strong {
+  display: block;
+  margin: 4px 0 12px;
+  color: var(--x-blue);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.xpay__payable-rows { display: grid; gap: 6px; font-size: 13px; }
+.xpay__payable-rows > div { display: flex; justify-content: space-between; gap: 12px; }
+.xpay__payable-rows span:first-child { color: var(--x-ink-3); }
+.xpay__payable-rows span:last-child { color: var(--x-ink); font-weight: 600; }
+
+.xpay__stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.xpay__stat-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg);
+}
+.xpay__stat-row small { color: var(--x-ink-4); font-size: 12px; }
+.xpay__stat-row b { color: var(--x-ink); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.xpay__stat-row b.is-red { color: #dc2626; }
+.xpay__stat-row > div.is-teal { border-color: rgba(23, 131, 75, 0.3); }
+.xpay__stat-row > div.is-teal b,
+.xpay__stat-row > div.is-teal small { color: var(--x-green); }
+
+.xpay__expires { margin-top: 12px; color: var(--x-ink-3); font-size: 13px; }
+.xpay__countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 6px 14px;
+  border-radius: var(--x-r-pill);
+  color: var(--x-green);
+  background: var(--x-green-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+.xpay__countdown span { font-variant-numeric: tabular-nums; }
+.xpay__countdown.is-expired { color: #dc2626; background: #fef2f2; }
+.xpay__polling { margin-top: 10px; color: var(--x-ink-4); font-size: 12px; }
+
+.xpay__items { display: grid; gap: 12px; }
+.xpay__item-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--x-line);
+}
+.xpay__item-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.xpay__item-row > div { display: flex; flex-direction: column; gap: 3px; }
+.xpay__item-row b { color: var(--x-ink); font-size: 15px; font-weight: 600; }
+.xpay__item-row small { color: var(--x-ink-3); font-size: 13px; }
+
+.xpay__cached {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border-radius: var(--x-r);
+  color: #92400e;
+  background: #fffbeb;
+  font-size: 13px;
+}
+.xpay__cached p { margin: 0; }
+.xpay__cached small { opacity: 0.8; }
+
+.xpay__info-rows { display: grid; gap: 6px; color: var(--x-ink-3); font-size: 14px; }
+.xpay__copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.xpay__copy-row svg,
+.xpay__link-pay svg,
+.xpay__x402 svg { width: 16px; height: 16px; }
+
+.xpay__countdown-sm { margin-bottom: 12px; color: var(--x-ink-3); font-size: 13px; }
+.xpay__countdown-sm span { color: var(--x-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.xpay__method-tag {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: var(--x-r-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+.xpay__method-tag.is-ok { color: var(--x-blue-strong); background: var(--x-blue-tint); }
+.xpay__method-tag.is-warn { color: #92400e; background: #fffbeb; }
+.xpay__aside .xck__alert { margin: 0 0 14px; }
+
+/* ---------- 支付页：过期 / 取消 ---------- */
+.xpay__status-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.xpay__status-head h2 { margin-bottom: 4px !important; }
+.xpay__status-head p { margin: 0; color: var(--x-ink-3); font-size: 14px; }
+
+/* ---------- 支付页：结果视图（二维码 / 钱包 / 跳转） ---------- */
+.xpay__result {
+  margin-bottom: 80px;
+  padding: 28px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r-xl);
+  background: #fff;
+  box-shadow: var(--x-shadow);
+}
+.xpay__result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--x-line);
+}
+.xpay__result-head h2 { margin: 0; color: var(--x-ink); font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+.xpay__result-head p { margin: 6px 0 0; color: var(--x-ink-3); font-size: 14px; }
+.xpay__result-head small { display: block; margin-top: 6px; color: var(--x-ink-4); font-size: 13px; }
+.xpay__result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.xpay__result-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 24px;
+}
+.xpay__result-right { display: grid; align-content: start; gap: 12px; }
+.xpay__result-right .rounded-2xl { border-color: var(--x-line); background: var(--x-bg); }
+.xpay__order-no {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg);
+}
+.xpay__order-no small { color: var(--x-ink-3); font-size: 12px; }
+.xpay__order-no b { margin-bottom: 6px; color: var(--x-ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.xpay__result-right .xpay__expires {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--x-line);
+  border-radius: var(--x-r);
+  background: var(--x-bg);
+}
+
+.xpay__qr,
+.xpay__x402,
+.xpay__link-pay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px 24px;
+  border-radius: var(--x-r-lg);
+  background:
+    radial-gradient(circle at 70% 10%, rgba(116, 178, 255, 0.22), transparent 45%),
+    linear-gradient(160deg, #eef5ff, #f5f5f2);
+  text-align: center;
+}
+.xpay__qr-label { margin: 0; color: var(--x-ink-2); font-size: 15px; font-weight: 600; }
+.xpay__qr-img {
+  width: 100%;
+  max-width: 248px;
+  aspect-ratio: 1;
+  padding: 12px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(33, 56, 84, 0.12);
+}
+.xpay__qr-img img { width: 100%; height: 100%; object-fit: contain; }
+.xpay__qr-note,
+.xpay__note { margin: 0; color: var(--x-ink-4); font-size: 12px; }
+.xpay__crypto {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 460px;
+  padding: 14px;
+  border-radius: var(--x-r);
+  background: rgba(255, 255, 255, 0.75);
+  text-align: left;
+}
+.xpay__crypto-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--x-line);
+  font-size: 13px;
+}
+.xpay__crypto-row:last-of-type { padding-bottom: 0; border-bottom: 0; }
+.xpay__crypto-row span { flex-shrink: 0; color: var(--x-ink-3); }
+.xpay__crypto-row b { min-width: 0; color: var(--x-ink); font-weight: 600; text-align: right; word-break: break-all; }
+.xpay__crypto-row b span { color: var(--x-ink-4); font-weight: 400; }
+.xpay__crypto-copy { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+.xpay__x402-label { margin: 0; color: var(--x-ink-3); font-size: 14px; }
+.xpay__x402-amount { margin: 0; color: var(--x-ink); font-size: 34px; font-weight: 700; letter-spacing: -0.03em; }
+.xpay__x402 > small { color: var(--x-ink-3); font-size: 13px; }
+.xpay__x402-tip { max-width: 380px; margin: 0; color: var(--x-ink-4); font-size: 12px; line-height: 1.6; }
+.xpay__x402 .xck__alert { width: 100%; max-width: 380px; margin: 0; text-align: left; }
+.xpay__link-pay p { margin: 0; color: var(--x-ink-2); font-size: 14px; }
+.xpay__link-pay .xpay__copy-row { justify-content: center; }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1024px) {
+  .xck__layout,
+  .xpay__layout { grid-template-columns: minmax(0, 1fr); }
+  .xck__aside,
+  .xpay__aside { position: static; }
+  .xpay__result-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .xck__crumb,
+  .xpay__crumb { padding-block: 18px 6px; font-size: 12px; }
+  .xck__head h1,
+  .xpay__head h1 { font-size: 28px; }
+  .xck__steps,
+  .xpay__steps { padding-block: 16px 18px; }
+  .xsteps li { font-size: 13px; }
+  .xsteps__line { width: 16px; }
+  .xck__card,
+  .xpay__card { padding: 18px; border-radius: 20px; }
+  .xck__guest,
+  .xpay__guest { grid-template-columns: 1fr; }
+  .xck__item { flex-wrap: wrap; }
+  .xck__item-price { flex-direction: row; align-items: baseline; gap: 6px; width: 100%; padding-left: 70px; }
+  .xpay__payable { max-width: none; }
+  .xpay__result { padding: 18px; border-radius: 22px; }
+  .xpay__qr,
+  .xpay__x402,
+  .xpay__link-pay { padding: 24px 16px; }
+}
