@@ -542,6 +542,7 @@ const (
 const (
 	StorefrontTemplateClassic = "classic"
 	StorefrontTemplateVault   = "vault"
+	StorefrontTemplateXgai    = "xgai"
 	StorefrontTemplateDefault = StorefrontTemplateClassic
 )
 

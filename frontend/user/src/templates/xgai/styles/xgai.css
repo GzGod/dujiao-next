@@ -1,0 +1,214 @@
+/* =========================================================================
+   雪糕 AI — xgai 模板设计令牌
+   来源: Figma Make 原型（GzGod/AIDCUI），iOS 式清晰 + 暖灰底 + Apple 蓝。
+   作用域: 只作用于 .xgai-scope / body.xgai-tokens，不影响 classic / vault。
+   浅色单主题（与原型一致），浮层 Teleport 到 body 时靠 body.xgai-tokens 拿令牌。
+   ========================================================================= */
+
+.xgai-scope,
+body.xgai-tokens {
+  /* 色板 */
+  --x-bg: #f7f7f5;
+  --x-bg-alt: #efefed;
+  --x-surface: #ffffff;
+  --x-surface-glass: rgba(255, 255, 255, 0.78);
+  --x-ink: #1d1d1f;
+  --x-ink-2: #515154;
+  --x-ink-3: #6e6e73;
+  --x-ink-4: #86868b;
+  --x-line: rgba(0, 0, 0, 0.07);
+  --x-line-strong: rgba(0, 0, 0, 0.12);
+  --x-blue: #0071e3;
+  --x-blue-strong: #0066cc;
+  --x-blue-soft: rgba(0, 113, 227, 0.08);
+  --x-blue-tint: #e6f2ff;
+  --x-green: #1f9d55;
+  --x-green-soft: #e8f6ee;
+  --x-dark: #1d1d1f;
+  --x-dark-accent: #75b7ff;
+
+  /* 圆角 / 阴影 / 动效 */
+  --x-r-sm: 10px;
+  --x-r: 14px;
+  --x-r-lg: 20px;
+  --x-r-xl: 24px;
+  --x-r-pill: 999px;
+  --x-shadow-sm: 0 2px 8px rgba(31, 35, 40, 0.025);
+  --x-shadow: 0 20px 50px rgba(39, 56, 78, 0.1);
+  --x-shadow-lg: 0 28px 80px rgba(42, 61, 84, 0.12);
+  --x-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --x-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+
+  /* 把共享 shadcn --ui-* 令牌映射到 xgai 色板：沿用 classic 组件的页面也会自动换肤 */
+  --ui-bg-page: var(--x-bg);
+  --ui-bg-elevated: var(--x-surface);
+  --ui-bg-soft: var(--x-bg-alt);
+  --ui-bg-muted: var(--x-bg-alt);
+  --ui-text-primary: var(--x-ink);
+  --ui-text-secondary: var(--x-ink-2);
+  --ui-text-muted: var(--x-ink-3);
+  --ui-text-on-accent: #ffffff;
+  --ui-border: var(--x-line);
+  --ui-border-strong: var(--x-line-strong);
+  --ui-accent: var(--x-blue);
+  --ui-accent-hover: var(--x-blue-strong);
+  --ui-accent-soft: var(--x-blue-soft);
+  --ui-success: var(--x-green);
+  --ui-success-soft: var(--x-green-soft);
+  --ui-focus-ring: rgba(0, 113, 227, 0.28);
+  --ui-radius-sm: var(--x-r-sm);
+  --ui-radius-md: var(--x-r);
+  --ui-radius-lg: var(--x-r-lg);
+  --ui-radius-xl: var(--x-r-xl);
+  --ui-shadow-soft: var(--x-shadow-sm);
+  --ui-shadow-card: var(--x-shadow);
+}
+
+.xgai-scope {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--x-ink);
+  background: var(--x-bg);
+  font-family: var(--x-font);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.xgai-scope ::selection {
+  color: #fff;
+  background: var(--x-blue);
+}
+
+/* ---------- 布局 ---------- */
+.x-container {
+  width: min(1180px, calc(100% - 64px));
+  margin-inline: auto;
+}
+
+.x-section {
+  padding-block: 94px;
+}
+
+.x-eyebrow {
+  display: block;
+  color: var(--x-blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.x-h2 {
+  margin: 10px 0 0;
+  color: var(--x-ink);
+  font-size: 38px;
+  font-weight: 650;
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+}
+
+.x-lede {
+  margin: 14px 0 0;
+  max-width: 560px;
+  color: var(--x-ink-3);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+/* ---------- 按钮 ---------- */
+.x-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--x-r-pill);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 180ms var(--x-ease), border-color 180ms var(--x-ease),
+    color 180ms var(--x-ease), transform 180ms var(--x-ease), box-shadow 180ms var(--x-ease);
+}
+.x-btn svg { width: 16px; height: 16px; }
+.x-btn:focus-visible { outline: 3px solid var(--ui-focus-ring); outline-offset: 2px; }
+.x-btn:active:not(:disabled) { transform: translateY(1px); }
+.x-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.x-btn--lg { min-height: 48px; padding: 0 22px; }
+.x-btn--primary {
+  color: #fff;
+  background: var(--x-blue);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 20px rgba(0, 113, 227, 0.18);
+}
+.x-btn--primary:hover:not(:disabled) { background: var(--x-blue-strong); }
+.x-btn--ghost {
+  color: var(--x-ink-2);
+  border-color: var(--x-line-strong);
+  background: rgba(255, 255, 255, 0.6);
+}
+.x-btn--ghost:hover:not(:disabled) { color: var(--x-blue); border-color: rgba(0, 113, 227, 0.4); }
+.x-btn--block { width: 100%; }
+
+.x-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--x-blue);
+  font-size: 14px;
+  font-weight: 600;
+}
+.x-link svg { width: 14px; height: 14px; }
+.x-link:hover { color: var(--x-blue-strong); }
+
+/* ---------- 卡片 ---------- */
+.x-glass {
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: var(--x-r-xl);
+  background: var(--x-surface-glass);
+  box-shadow: var(--x-shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: saturate(150%) blur(24px);
+}
+
+.x-segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--x-line);
+  border-radius: 18px;
+  background: #ececea;
+}
+.x-segment button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  color: var(--x-ink-3);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 160ms var(--x-ease), background-color 160ms var(--x-ease);
+}
+.x-segment button:hover { color: var(--x-ink); }
+.x-segment button.is-active {
+  color: var(--x-ink);
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 1024px) {
+  .x-section { padding-block: 72px; }
+  .x-h2 { font-size: 32px; }
+}
+@media (max-width: 760px) {
+  .x-container { width: calc(100% - 32px); }
+  .x-section { padding-block: 56px; }
+  .x-h2 { font-size: 27px; }
+  .x-lede { font-size: 15px; }
+}

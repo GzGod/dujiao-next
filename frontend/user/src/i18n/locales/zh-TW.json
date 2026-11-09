@@ -2037,5 +2037,122 @@
       "buy": "開通 {name}",
       "again": "重新檢測"
     }
+  },
+  "xgai": {
+    "seo": {
+      "title": "AI 會員代儲"
+    },
+    "nav": {
+      "label": "主導覽",
+      "products": "訂閱商城",
+      "checker": "帳號檢測",
+      "process": "儲值流程",
+      "partner": "代理合作",
+      "orders": "查詢訂單",
+      "buy": "立即購買"
+    },
+    "hero": {
+      "badgeLead": "儲值到你自己的帳號",
+      "badgeTail": "微信 / 支付寶皆可",
+      "titleLead": "開通 AI 會員，",
+      "titleAccent": "不用外幣卡。",
+      "lede": "ChatGPT 與 Grok 會員，直接儲值到你自己的帳號。掃碼付款，系統自動處理，進度在訂單裡隨時可查。",
+      "primary": "看看會員方案",
+      "secondary": "了解怎麼儲值",
+      "proof1": "儲值到自己的號",
+      "proof2": "進度全程可查",
+      "proof3": "價格低於官方"
+    },
+    "rec": {
+      "eyebrow": "QUICK MATCH",
+      "title": "30 秒找到適合你的方案",
+      "question": "你平時使用 AI 的頻率是？",
+      "light": "偶爾用用",
+      "lightDetail": "每週 1–2 次",
+      "daily": "每天都用",
+      "dailyDetail": "學習 / 工作",
+      "pro": "重度使用",
+      "proDetail": "開發 / 創作",
+      "for": "為你推薦",
+      "reason": {
+        "light": "偶爾查資料、翻譯或體驗 AI，先從低成本方案開始。",
+        "daily": "學習、寫作、程式和日常辦公，能力與價格最均衡。",
+        "pro": "每天高頻使用或長時間推理，更高額度能減少中斷。"
+      },
+      "cta": "查看推薦方案",
+      "note": "推薦僅供參考，你可以隨時比較全部方案"
+    },
+    "trust": {
+      "payTitle": "微信 / 支付寶",
+      "payText": "常用支付方式，掃碼即付",
+      "autoTitle": "自動處理",
+      "autoText": "付款成功後系統自動下單",
+      "ownTitle": "你自己的帳號",
+      "ownText": "儲值到你的帳號，不是共享號",
+      "trackTitle": "訂單可查",
+      "trackText": "處理進度與結果都在訂單頁"
+    },
+    "products": {
+      "eyebrow": "會員方案",
+      "title": "價格清楚，選擇不用猜",
+      "lede": "GPT 系列在前，同系列按價格由低到高。所有方案都儲值到你自己的帳號。",
+      "filter": "商品篩選",
+      "all": "全部方案",
+      "other": "其他",
+      "helpTitle": "不確定現在是什麼方案？",
+      "helpText": "先檢測一下你的 ChatGPT 帳號，再決定升級到哪一檔。",
+      "helpCta": "去檢測帳號"
+    },
+    "card": {
+      "popular": "主力推薦",
+      "official": "官方約 ¥{cny}",
+      "save": "比官方省 ¥{amount}",
+      "choose": "選擇這個方案"
+    },
+    "checker": {
+      "eyebrow": "ACCOUNT CHECK",
+      "titleLead": "先看清帳號狀態，",
+      "titleTail": "再決定要不要升級。",
+      "lede": "檢測目前方案、是否欠費和訂閱到期時間，並依結果推薦合適的方案。",
+      "privacyTitle": "我們看不到你的登入資訊",
+      "privacyText": "Session 只在你的瀏覽器裡解析，不會上傳或儲存",
+      "local": "本地解析",
+      "foot": "檢測完成後，輸入內容會自動清除"
+    },
+    "process": {
+      "eyebrow": "HOW IT WORKS",
+      "title": "從付款到到帳，每一步都有數",
+      "lede": "不需要把帳號密碼傳給任何人，依訂單頁面的提示操作即可。",
+      "s1t": "選擇方案",
+      "s1": "依使用頻率選會員，不確定可以先檢測帳號。",
+      "s2t": "提交訂單",
+      "s2": "填寫信箱和查單密碼，用於接收通知和查詢訂單。",
+      "s3t": "掃碼付款",
+      "s3": "微信或支付寶掃碼，付款成功後系統自動開始處理。",
+      "s4t": "完成到帳",
+      "s4": "在訂單頁查看進度，完成後結果直接顯示在訂單裡。"
+    },
+    "guard": {
+      "eyebrow": "購買保障",
+      "title": "第一次購買，也可以放心。",
+      "lede": "付款之後有人負責，比便宜更重要。每一筆訂單都有完整的紀錄，遇到問題可以隨時找到我們。",
+      "payTitle": "正規支付管道",
+      "payText": "微信、支付寶官方管道收款，付款紀錄可查。",
+      "trackTitle": "訂單狀態全程可查",
+      "trackText": "從付款到完成，每個處理節點都會在訂單裡更新。",
+      "localTitle": "隱私資訊不出瀏覽器",
+      "localText": "帳號檢測在本地完成，我們看不到你的登入資訊。"
+    },
+    "footer": {
+      "tagline": "讓每個人都能簡單、安心地使用更好的 AI。",
+      "shop": "購買服務",
+      "allProducts": "全部方案",
+      "checker": "帳號檢測",
+      "help": "幫助與支援",
+      "process": "儲值流程",
+      "partner": "代理合作",
+      "dealer": "代理中心",
+      "apiDocs": "API 文件"
+    }
   }
 }

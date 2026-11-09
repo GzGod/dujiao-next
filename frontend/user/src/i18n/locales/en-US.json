@@ -2037,5 +2037,122 @@
       "buy": "Get {name}",
       "again": "Check another"
     }
+  },
+  "xgai": {
+    "seo": {
+      "title": "AI membership top-ups"
+    },
+    "nav": {
+      "label": "Main navigation",
+      "products": "Plans",
+      "checker": "Account check",
+      "process": "How it works",
+      "partner": "Resellers",
+      "orders": "Find my order",
+      "buy": "Buy now"
+    },
+    "hero": {
+      "badgeLead": "Topped up on your own account",
+      "badgeTail": "WeChat Pay / Alipay",
+      "titleLead": "Get AI memberships",
+      "titleAccent": "without a foreign card.",
+      "lede": "ChatGPT and Grok memberships applied to your own account. Scan to pay, we process it automatically, and you can follow progress in your order.",
+      "primary": "See the plans",
+      "secondary": "How top-ups work",
+      "proof1": "Your own account",
+      "proof2": "Trackable orders",
+      "proof3": "Below official prices"
+    },
+    "rec": {
+      "eyebrow": "QUICK MATCH",
+      "title": "Find your plan in 30 seconds",
+      "question": "How often do you use AI?",
+      "light": "Now and then",
+      "lightDetail": "1–2 times a week",
+      "daily": "Every day",
+      "dailyDetail": "Study / work",
+      "pro": "Heavy use",
+      "proDetail": "Dev / creative",
+      "for": "We suggest",
+      "reason": {
+        "light": "For occasional lookups, translation or trying AI, start with the low-cost plan.",
+        "daily": "Study, writing, coding and office work: the best balance of power and price.",
+        "pro": "For all-day use or long reasoning sessions, higher limits mean fewer interruptions."
+      },
+      "cta": "View suggested plan",
+      "note": "Just a suggestion. You can compare every plan anytime."
+    },
+    "trust": {
+      "payTitle": "WeChat Pay / Alipay",
+      "payText": "Familiar payment, just scan",
+      "autoTitle": "Automatic",
+      "autoText": "Ordered as soon as you pay",
+      "ownTitle": "Your own account",
+      "ownText": "Applied to you, not a shared login",
+      "trackTitle": "Trackable",
+      "trackText": "Progress and result live in your order"
+    },
+    "products": {
+      "eyebrow": "Plans",
+      "title": "Clear prices, no guesswork",
+      "lede": "GPT plans first, each family from lowest price. Every plan is applied to your own account.",
+      "filter": "Filter products",
+      "all": "All plans",
+      "other": "Other",
+      "helpTitle": "Not sure what plan you have?",
+      "helpText": "Check your ChatGPT account first, then decide what to upgrade to.",
+      "helpCta": "Check my account"
+    },
+    "card": {
+      "popular": "Top pick",
+      "official": "Official ≈ ¥{cny}",
+      "save": "Save ¥{amount} vs official",
+      "choose": "Choose this plan"
+    },
+    "checker": {
+      "eyebrow": "ACCOUNT CHECK",
+      "titleLead": "Know your account first,",
+      "titleTail": "then decide whether to upgrade.",
+      "lede": "See your current plan, payment status and renewal date, plus a plan suggestion based on the result.",
+      "privacyTitle": "We never see your login",
+      "privacyText": "Your Session is parsed in your browser and never uploaded or stored",
+      "local": "Local only",
+      "foot": "What you paste is cleared once the check finishes"
+    },
+    "process": {
+      "eyebrow": "HOW IT WORKS",
+      "title": "From payment to done, every step is visible",
+      "lede": "Never send your password to anyone. Just follow the prompts on your order page.",
+      "s1t": "Pick a plan",
+      "s1": "Choose by how much you use AI, or check your account first.",
+      "s2t": "Place the order",
+      "s2": "Enter an email and an order password for updates and lookups.",
+      "s3t": "Scan to pay",
+      "s3": "Pay with WeChat Pay or Alipay and processing starts automatically.",
+      "s4t": "Done",
+      "s4": "Follow progress on the order page; the result appears right there."
+    },
+    "guard": {
+      "eyebrow": "Peace of mind",
+      "title": "Safe to buy, even the first time.",
+      "lede": "Someone answering for your order matters more than a low price. Every order has a full record, and you can reach us whenever something goes wrong.",
+      "payTitle": "Official payment channels",
+      "payText": "Paid through official WeChat Pay and Alipay channels with records you can check.",
+      "trackTitle": "Track every step",
+      "trackText": "Each stage from payment to completion shows up in your order.",
+      "localTitle": "Private data stays local",
+      "localText": "The account check runs in your browser, so we never see your login."
+    },
+    "footer": {
+      "tagline": "Making better AI simple and worry-free for everyone.",
+      "shop": "Shop",
+      "allProducts": "All plans",
+      "checker": "Account check",
+      "help": "Help",
+      "process": "How it works",
+      "partner": "Resellers",
+      "dealer": "Reseller center",
+      "apiDocs": "API docs"
+    }
   }
 }

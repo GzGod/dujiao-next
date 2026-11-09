@@ -2037,5 +2037,122 @@
       "buy": "开通 {name}",
       "again": "重新检测"
     }
+  },
+  "xgai": {
+    "seo": {
+      "title": "AI 会员代充"
+    },
+    "nav": {
+      "label": "主导航",
+      "products": "订阅商城",
+      "checker": "账号检测",
+      "process": "充值流程",
+      "partner": "代理合作",
+      "orders": "查询订单",
+      "buy": "立即购买"
+    },
+    "hero": {
+      "badgeLead": "充到你自己的账号",
+      "badgeTail": "微信 / 支付宝均可",
+      "titleLead": "开通 AI 会员，",
+      "titleAccent": "不用外币卡。",
+      "lede": "ChatGPT 与 Grok 会员，直接充值到你自己的账号。扫码付款，系统自动处理，进度在订单里随时可查。",
+      "primary": "看看会员套餐",
+      "secondary": "了解怎么充值",
+      "proof1": "充到自己的号",
+      "proof2": "进度全程可查",
+      "proof3": "价格低于官方"
+    },
+    "rec": {
+      "eyebrow": "QUICK MATCH",
+      "title": "30 秒找到适合你的套餐",
+      "question": "你平时使用 AI 的频率是？",
+      "light": "偶尔用用",
+      "lightDetail": "每周 1–2 次",
+      "daily": "每天都用",
+      "dailyDetail": "学习 / 工作",
+      "pro": "重度使用",
+      "proDetail": "开发 / 创作",
+      "for": "为你推荐",
+      "reason": {
+        "light": "偶尔查资料、翻译或体验 AI，先从低成本套餐开始。",
+        "daily": "学习、写作、编程和日常办公，能力与价格最均衡。",
+        "pro": "每天高频使用或长时间推理，更高额度能减少中断。"
+      },
+      "cta": "查看推荐套餐",
+      "note": "推荐仅供参考，你可以随时比较全部套餐"
+    },
+    "trust": {
+      "payTitle": "微信 / 支付宝",
+      "payText": "国内常用支付方式，扫码即付",
+      "autoTitle": "自动处理",
+      "autoText": "付款成功后系统自动下单",
+      "ownTitle": "你自己的账号",
+      "ownText": "充值到你的账号，不是共享号",
+      "trackTitle": "订单可查",
+      "trackText": "处理进度与结果都在订单页"
+    },
+    "products": {
+      "eyebrow": "会员套餐",
+      "title": "价格清楚，选择不用猜",
+      "lede": "GPT 系列在前，同系列按价格从低到高。所有套餐都充值到你自己的账号。",
+      "filter": "商品筛选",
+      "all": "全部套餐",
+      "other": "其他",
+      "helpTitle": "不确定现在是什么套餐？",
+      "helpText": "先检测一下你的 ChatGPT 账号，再决定升级到哪一档。",
+      "helpCta": "去检测账号"
+    },
+    "card": {
+      "popular": "主力推荐",
+      "official": "官方约 ¥{cny}",
+      "save": "比官方省 ¥{amount}",
+      "choose": "选择这个套餐"
+    },
+    "checker": {
+      "eyebrow": "ACCOUNT CHECK",
+      "titleLead": "先看清账号状态，",
+      "titleTail": "再决定要不要升级。",
+      "lede": "检测当前套餐、是否欠费和订阅到期时间，并根据结果推荐合适的套餐。",
+      "privacyTitle": "我们看不到你的登录信息",
+      "privacyText": "Session 只在你的浏览器里解析，不会上传或保存",
+      "local": "本地解析",
+      "foot": "检测完成后，输入内容会自动清除"
+    },
+    "process": {
+      "eyebrow": "HOW IT WORKS",
+      "title": "从付款到到账，每一步都有数",
+      "lede": "不需要把账号密码发给任何人，按订单页面的提示操作即可。",
+      "s1t": "选择套餐",
+      "s1": "按使用频率选会员，不确定可以先检测账号。",
+      "s2t": "提交订单",
+      "s2": "填写邮箱和查单密码，用于接收通知和查询订单。",
+      "s3t": "扫码付款",
+      "s3": "微信或支付宝扫码，付款成功后系统自动开始处理。",
+      "s4t": "完成到账",
+      "s4": "在订单页查看进度，完成后结果直接显示在订单里。"
+    },
+    "guard": {
+      "eyebrow": "购买保障",
+      "title": "第一次购买，也可以放心。",
+      "lede": "付款之后有人负责，比便宜更重要。每一笔订单都有完整的记录，遇到问题可以随时找到我们。",
+      "payTitle": "正规支付渠道",
+      "payText": "微信、支付宝官方渠道收款，付款记录可查。",
+      "trackTitle": "订单状态全程可查",
+      "trackText": "从付款到完成，每个处理节点都会在订单里更新。",
+      "localTitle": "隐私信息不出浏览器",
+      "localText": "账号检测在本地完成，我们看不到你的登录信息。"
+    },
+    "footer": {
+      "tagline": "让每个人都能简单、安心地使用更好的 AI。",
+      "shop": "购买服务",
+      "allProducts": "全部套餐",
+      "checker": "账号检测",
+      "help": "帮助与支持",
+      "process": "充值流程",
+      "partner": "代理合作",
+      "dealer": "代理中心",
+      "apiDocs": "API 文档"
+    }
   }
 }

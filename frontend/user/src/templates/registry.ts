@@ -4,13 +4,13 @@ import { useAppStore } from '../stores/app'
  * 店面模板系统（站长全局切换 · 渐进并行迁移）
  *
  * - 当前激活模板优先级：本地预览覆盖(?template=) > 站点全局配置(storefront_template) > 上次访问时的模板 > 默认 classic
- * - classic 沿用现有 ../views/*，vault 落在 ./vault/*；vault 缺页时自动回退 classic，
+ * - classic 沿用现有 ../views/*，vault 落在 ./vault/*，xgai 落在 ./xgai/*；缺页时自动回退 classic，
  *   因此可以一页一页地把新设计搬进 vault，旧站全程可用。
  */
 
-export type StorefrontTemplate = 'classic' | 'vault'
+export type StorefrontTemplate = 'classic' | 'vault' | 'xgai'
 
-export const STOREFRONT_TEMPLATES: StorefrontTemplate[] = ['classic', 'vault']
+export const STOREFRONT_TEMPLATES: StorefrontTemplate[] = ['classic', 'vault', 'xgai']
 export const DEFAULT_TEMPLATE: StorefrontTemplate = 'classic'
 
 const OVERRIDE_KEY = 'dj-storefront-template'
@@ -87,8 +87,9 @@ export const getActiveTemplate = (): StorefrontTemplate => {
     return rememberedTemplate ?? DEFAULT_TEMPLATE
 }
 
-// vault 模板页面（按需动态加载）。key 形如 './vault/Home.vue'
+// vault / xgai 模板页面（按需动态加载）。key 形如 './vault/Home.vue'
 const vaultViews = import.meta.glob('./vault/**/*.vue')
+const xgaiViews = import.meta.glob('./xgai/**/*.vue')
 
 type ViewLoader = () => Promise<unknown>
 
@@ -98,8 +99,13 @@ type ViewLoader = () => Promise<unknown>
  */
 export const templateView = (name: string, classicLoader: ViewLoader): ViewLoader => {
     return () => {
-        if (getActiveTemplate() === 'vault') {
+        const active = getActiveTemplate()
+        if (active === 'vault') {
             const loader = vaultViews[`./vault/${name}.vue`]
+            if (loader) return loader()
+        }
+        if (active === 'xgai') {
+            const loader = xgaiViews[`./xgai/${name}.vue`]
             if (loader) return loader()
         }
         return classicLoader()
