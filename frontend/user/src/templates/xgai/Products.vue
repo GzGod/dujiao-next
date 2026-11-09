@@ -75,7 +75,7 @@
           <template v-else-if="products.length">
             <div class="xprod__grid">
               <XgaiProductCard
-                v-for="product in products"
+                v-for="product in sortedProducts"
                 :key="product.id"
                 :product="product"
                 @open="goToProduct"
@@ -120,6 +120,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown, ChevronLeft, ChevronRight, PackageOpen, Search, SearchX, X } from 'lucide-vue-next'
 import { useProductList } from '../../composables/useProductList'
+import { sortByBrandThenPrice } from '../../utils/aiBrand'
 import { usePageSeo } from '../../composables/usePageSeo'
 import { useLocalized } from '../../composables/useProduct'
 import { getImageUrl } from '../../utils/image'
@@ -159,7 +160,11 @@ const {
   clearSearch,
   initialize,
   cleanup,
-} = useProductList({ pageSize: 12, homeRouteName: 'products' })
+} = useProductList({ pageSize: 60, homeRouteName: 'products' })
+
+// 与首页一致：GPT 放一起、Grok 放一起，同品牌内按价格从低到高。
+// 每页取 60 个，避免同品牌被分页拆开。
+const sortedProducts = computed(() => sortByBrandThenPrice(products.value))
 
 const catName = (cat: PublicCategory) => getLocalizedText(cat.name) || cat.slug || ''
 
