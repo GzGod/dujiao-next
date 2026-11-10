@@ -187,6 +187,12 @@ func mapX402Error(err error) error {
 		return fmt.Errorf("%w: %v", paymentcontract.ErrGatewayRequestFailed, err)
 	case errors.Is(err, x402.ErrPaymentInvalid), errors.Is(err, x402.ErrPaymentRejected):
 		return fmt.Errorf("%w: %v", paymentcontract.ErrGatewaySignatureInvalid, err)
+	case errors.Is(err, x402.ErrOnchainMismatch):
+		// 链上回执与付款要求不符——当作拒付处理，不要重试。
+		return fmt.Errorf("%w: %v", paymentcontract.ErrGatewaySignatureInvalid, err)
+	case errors.Is(err, x402.ErrOnchainUnconfirmed):
+		// 链上交易尚未出块，让调用方知道是暂时性状态。
+		return fmt.Errorf("%w: %v", paymentcontract.ErrGatewayRequestFailed, err)
 	case errors.Is(err, x402.ErrResponseInvalid):
 		return fmt.Errorf("%w: %v", paymentcontract.ErrGatewayResponseInvalid, err)
 	default:

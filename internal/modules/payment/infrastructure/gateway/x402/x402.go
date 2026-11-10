@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -53,7 +54,50 @@ var (
 	ErrResponseInvalid = errors.New("x402 facilitator response invalid")
 	ErrPaymentInvalid  = errors.New("x402 payment payload invalid")
 	ErrPaymentRejected = errors.New("x402 payment rejected")
+	// ErrOnchainUnconfirmed 链上回执查不到或尚未出块；交易可能仍在打包，不能当作已付款。
+	ErrOnchainUnconfirmed = errors.New("x402 onchain transfer not confirmed")
+	// ErrOnchainMismatch 链上回执存在，但没有一笔 USDC 以正确金额转入收款地址。
+	ErrOnchainMismatch = errors.New("x402 onchain transfer mismatch")
 )
+
+const (
+	// erc20TransferTopic = keccak256("Transfer(address,address,uint256)")。
+	erc20TransferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	// authorizationUsedTopic = keccak256("AuthorizationUsed(address,bytes32)")，EIP-3009 消费 nonce 时发出。
+	authorizationUsedTopic = "0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5"
+)
+
+// onchainCheckBudget 链上核验的总时长；Base 约 2 秒出块，公共节点可能落后一两个块。
+// 声明为变量仅为测试可缩短，运行时不修改。
+var (
+	onchainCheckBudget  = 20 * time.Second
+	onchainPollInterval = 2 * time.Second
+)
+
+// defaultRPCURLs 各网络的公共 JSON-RPC，用于在 facilitator 报告成功后独立核对链上回执。
+var defaultRPCURLs = map[string]string{
+	NetworkBaseSepolia: "https://sepolia.base.org",
+	NetworkBase:        "https://mainnet.base.org",
+}
+
+// SetRPCURLForTest 让其他包的测试把某个网络的 RPC 指向本地假服务，并缩短轮询时间；
+// 返回的函数用于恢复原值。只应在测试中调用。
+func SetRPCURLForTest(network, rpcURL string) (restore func()) {
+	prevURL, hadURL := defaultRPCURLs[network]
+	prevBudget, prevInterval := onchainCheckBudget, onchainPollInterval
+	defaultRPCURLs[network] = rpcURL
+	onchainCheckBudget, onchainPollInterval = 300*time.Millisecond, 50*time.Millisecond
+	return func() {
+		if hadURL {
+			defaultRPCURLs[network] = prevURL
+		} else {
+			delete(defaultRPCURLs, network)
+		}
+		onchainCheckBudget, onchainPollInterval = prevBudget, prevInterval
+	}
+}
+
+var txHashPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{64}$`)
 
 var evmAddressPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`)
 
@@ -288,7 +332,156 @@ func VerifyAndSettle(ctx context.Context, cfg *Config, expected *Requirements, p
 	if s.Network != "" && s.Network != expected.Network {
 		return nil, fmt.Errorf("%w: settled on unexpected network %s", ErrResponseInvalid, s.Network)
 	}
+
+	// 链上回执核验：facilitator 声称成功后，独立从公共 RPC 确认 USDC Transfer 事件。
+	// 防止恶意或故障的 facilitator 伪报成功导致发货而未实际到账。
+	if err := verifyOnchainTransfer(ctx, expected.Network, s.Transaction, expected, payload.Payload.Authorization); err != nil {
+		return nil, err
+	}
+
 	return &s, nil
+}
+
+// verifyOnchainTransfer 在 facilitator 报告结算成功后，独立读取链上回执核对两件事：
+//  1. 存在 USDC 合约发出的 Transfer(from=付款人, to=收款地址, value=应付金额)；
+//  2. 存在 USDC 合约发出的 AuthorizationUsed(authorizer=付款人, nonce=本次签名的 nonce)。
+//
+// 第 2 条把回执绑定到本次签名：EIP-3009 的 nonce 在合约里只能用一次，
+// facilitator 无法拿一笔更早的、金额相同的转账冒充本次付款。
+// 未出块时在 onchainCheckBudget 内轮询；仍查不到则返回 ErrOnchainUnconfirmed，订单保持待支付。
+func verifyOnchainTransfer(ctx context.Context, network, txHash string, expected *Requirements, auth Authorization) error {
+	rpcURL, ok := defaultRPCURLs[network]
+	if !ok {
+		// 新增网络时必须同时配置 RPC，不允许静默跳过核验。
+		return fmt.Errorf("%w: no RPC configured for network %s (tx %s)", ErrOnchainUnconfirmed, network, txHash)
+	}
+	if !txHashPattern.MatchString(txHash) {
+		return fmt.Errorf("%w: invalid tx hash %q", ErrOnchainMismatch, txHash)
+	}
+
+	// 独立的时间预算：不受上游 facilitator 调用已消耗时间的影响，
+	// 避免"钱已转走、只因超时而没标记已支付"。
+	checkCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), onchainCheckBudget)
+	defer cancel()
+
+	var receipt *ethReceipt
+	var lastErr error
+	for attempt := 0; ; attempt++ {
+		receipt, lastErr = ethGetTransactionReceipt(checkCtx, rpcURL, txHash)
+		if lastErr == nil && receipt != nil {
+			break
+		}
+		select {
+		case <-checkCtx.Done():
+			if lastErr != nil {
+				return fmt.Errorf("%w: tx %s: %v", ErrOnchainUnconfirmed, txHash, lastErr)
+			}
+			return fmt.Errorf("%w: tx %s not found on %s", ErrOnchainUnconfirmed, txHash, network)
+		case <-time.After(onchainPollInterval):
+		}
+	}
+
+	return matchReceipt(receipt, txHash, expected, auth)
+}
+
+// matchReceipt 是 verifyOnchainTransfer 的纯判定部分，便于单测。
+func matchReceipt(receipt *ethReceipt, txHash string, expected *Requirements, auth Authorization) error {
+	if receipt.Status != "0x1" {
+		return fmt.Errorf("%w: tx %s reverted (status %s)", ErrOnchainMismatch, txHash, receipt.Status)
+	}
+	expectedAmt, ok := new(big.Int).SetString(expected.Amount, 10)
+	if !ok || expectedAmt.Sign() <= 0 {
+		return fmt.Errorf("%w: invalid expected amount %q", ErrOnchainMismatch, expected.Amount)
+	}
+	asset := strings.ToLower(strings.TrimSpace(expected.Asset))
+	payer := addressTopic(auth.From)
+	payTo := addressTopic(expected.PayTo)
+	nonce := strings.ToLower(strings.TrimSpace(auth.Nonce))
+
+	transferOK, authorizationOK := false, false
+	for _, l := range receipt.Logs {
+		if strings.ToLower(l.Address) != asset || len(l.Topics) == 0 {
+			continue
+		}
+		switch strings.ToLower(l.Topics[0]) {
+		case erc20TransferTopic:
+			if len(l.Topics) < 3 || strings.ToLower(l.Topics[1]) != payer || strings.ToLower(l.Topics[2]) != payTo {
+				continue
+			}
+			amt, ok := new(big.Int).SetString(strings.TrimPrefix(l.Data, "0x"), 16)
+			if ok && amt.Cmp(expectedAmt) == 0 {
+				transferOK = true
+			}
+		case authorizationUsedTopic:
+			if len(l.Topics) >= 3 && strings.ToLower(l.Topics[1]) == payer && strings.ToLower(l.Topics[2]) == nonce {
+				authorizationOK = true
+			}
+		}
+	}
+	if !transferOK {
+		return fmt.Errorf("%w: tx %s has no USDC transfer of %s to %s from %s", ErrOnchainMismatch, txHash, expected.Amount, expected.PayTo, auth.From)
+	}
+	if !authorizationOK {
+		return fmt.Errorf("%w: tx %s did not consume authorization nonce %s", ErrOnchainMismatch, txHash, auth.Nonce)
+	}
+	return nil
+}
+
+// addressTopic 把 0x 地址左补零成 32 字节 topic 形式（小写）。
+func addressTopic(addr string) string {
+	a := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(addr), "0x"))
+	return "0x" + strings.Repeat("0", 64-len(a)) + a
+}
+
+type ethReceipt struct {
+	Status string   `json:"status"` // "0x1" 成功，"0x0" 回滚
+	Logs   []ethLog `json:"logs"`
+}
+
+type ethLog struct {
+	Address string   `json:"address"`
+	Topics  []string `json:"topics"`
+	Data    string   `json:"data"`
+}
+
+// ethGetTransactionReceipt 调用 eth_getTransactionReceipt；交易尚未出块时返回 nil, nil。
+func ethGetTransactionReceipt(ctx context.Context, rpcURL, txHash string) (*ethReceipt, error) {
+	payload, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_getTransactionReceipt",
+		"params":  []string{txHash},
+		"id":      1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rpcURL, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, err
+	}
+	var rpcResp struct {
+		Result *ethReceipt `json:"result"`
+		Error  *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return nil, fmt.Errorf("invalid RPC response (status %d): %s", resp.StatusCode, truncate(string(body), 200))
+	}
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("RPC error: %s", rpcResp.Error.Message)
+	}
+	return rpcResp.Result, nil
 }
 
 func postJSON(ctx context.Context, endpoint string, body interface{}, out interface{}) (map[string]interface{}, error) {

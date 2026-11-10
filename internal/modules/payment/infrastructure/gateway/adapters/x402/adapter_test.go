@@ -2,7 +2,10 @@ package x402adapter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -13,6 +16,7 @@ import (
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 
 	"github.com/dujiao-next/internal/constants"
+	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/x402"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 
@@ -92,15 +96,54 @@ func signedPayload(amount string, now time.Time) jsonmap.JSON {
 	}
 }
 
+// fakeChain serves eth_getTransactionReceipt with a receipt proving that payer
+// sent amount (atomic USDC on Base Sepolia) to testPayTo using nonce.
+func fakeChain(t *testing.T, payer, amount, nonce string) {
+	t.Helper()
+	pad := func(hexNoPrefix string) string {
+		return "0x" + strings.Repeat("0", 64-len(hexNoPrefix)) + strings.ToLower(hexNoPrefix)
+	}
+	amt, _ := new(big.Int).SetString(amount, 10)
+	usdc := "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+	receipt := map[string]interface{}{
+		"status": "0x1",
+		"logs": []map[string]interface{}{
+			{
+				"address": usdc,
+				"topics": []string{
+					"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+					pad(strings.TrimPrefix(payer, "0x")), pad(strings.TrimPrefix(testPayTo, "0x")),
+				},
+				"data": "0x" + fmt.Sprintf("%064x", amt),
+			},
+			{
+				"address": usdc,
+				"topics": []string{
+					"0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5",
+					pad(strings.TrimPrefix(payer, "0x")), strings.ToLower(nonce),
+				},
+				"data": "0x",
+			},
+		},
+	}
+	rpc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"jsonrpc": "2.0", "id": 1, "result": receipt})
+	}))
+	restore := x402.SetRPCURLForTest(x402.NetworkBaseSepolia, rpc.URL)
+	t.Cleanup(func() { restore(); rpc.Close() })
+}
+
 func TestSettlePayloadSuccess(t *testing.T) {
+	txHash := "0x" + strings.Repeat("de", 32)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/verify" {
 			_, _ = w.Write([]byte(`{"isValid":true}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"success":true,"transaction":"0xdeadbeef","network":"eip155:84532"}`))
+		_, _ = w.Write([]byte(`{"success":true,"transaction":"` + txHash + `","network":"eip155:84532"}`))
 	}))
 	defer server.Close()
+	fakeChain(t, "0x0000000000000000000000000000000000000001", "4200000", "0x"+strings.Repeat("11", 32))
 
 	created := createPayment(t, server.URL)
 	settler := NewX402Adapter().(paymentcontract.GatewayPayloadSettler)
@@ -108,7 +151,7 @@ func TestSettlePayloadSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != constants.PaymentStatusSuccess || result.ProviderRef != "0xdeadbeef" {
+	if result.Status != constants.PaymentStatusSuccess || result.ProviderRef != txHash {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 	if result.Amount.Decimal.String() != "4.2" || result.Currency != "USDC" {

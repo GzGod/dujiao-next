@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -128,7 +130,7 @@ func TestVerifyAndSettle(t *testing.T) {
 			}
 		case "/settle":
 			settleCalled = true
-			_, _ = w.Write([]byte(`{"success":true,"transaction":"0xabc","network":"eip155:84532","payer":"0x01"}`))
+			_, _ = w.Write([]byte(`{"success":true,"transaction":"0x` + strings.Repeat("ab", 32) + `","network":"eip155:84532","payer":"0x01"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -138,12 +140,13 @@ func TestVerifyAndSettle(t *testing.T) {
 	cfg := testConfig(server.URL)
 	now := time.Now()
 	req, _, _ := BuildRequirements(cfg, decimal.RequireFromString("30"))
+	useFakeRPC(t, NetworkBaseSepolia, matchingReceipt(req, validPayload(req, now).Payload.Authorization))
 
 	result, err := VerifyAndSettle(context.Background(), cfg, req, validPayload(req, now))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !settleCalled || result.Transaction != "0xabc" {
+	if !settleCalled || result.Transaction != "0x"+strings.Repeat("ab", 32) {
 		t.Fatalf("settle not executed: %+v", result)
 	}
 	if gotRequirements.Amount != req.Amount || gotRequirements.PayTo != testPayTo {
@@ -174,5 +177,181 @@ func TestVerifyAndSettleRejectsFailedSettlement(t *testing.T) {
 	req, _, _ := BuildRequirements(cfg, decimal.RequireFromString("30"))
 	if _, err := VerifyAndSettle(context.Background(), cfg, req, validPayload(req, now)); !errors.Is(err, ErrPaymentRejected) {
 		t.Fatalf("expected ErrPaymentRejected, got %v", err)
+	}
+}
+
+// ---- on-chain receipt tests --------------------------------------------------
+
+// makeReceipt builds a successful receipt carrying a USDC Transfer log and an
+// EIP-3009 AuthorizationUsed log, the two events verifyOnchainTransfer requires.
+func makeReceipt(asset, payer, payTo, amountHex, nonce string) *ethReceipt {
+	return &ethReceipt{
+		Status: "0x1",
+		Logs: []ethLog{
+			{
+				Address: strings.ToLower(asset),
+				Topics:  []string{erc20TransferTopic, addressTopic(payer), addressTopic(payTo)},
+				Data:    "0x" + amountHex,
+			},
+			{
+				Address: strings.ToLower(asset),
+				Topics:  []string{authorizationUsedTopic, addressTopic(payer), strings.ToLower(nonce)},
+			},
+		},
+	}
+}
+
+// matchingReceipt returns a receipt that satisfies req for the given authorization.
+func matchingReceipt(req *Requirements, auth Authorization) *ethReceipt {
+	amt, _ := new(big.Int).SetString(req.Amount, 10)
+	return makeReceipt(req.Asset, auth.From, req.PayTo, fmt.Sprintf("%064x", amt), auth.Nonce)
+}
+
+// useFakeRPC points network's RPC at a test server that returns receipt
+// (nil = "not mined yet") and shrinks the polling budget for the test.
+func useFakeRPC(t *testing.T, network string, receipt *ethReceipt) *int {
+	t.Helper()
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var body struct {
+			Method string `json:"method"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Method != "eth_getTransactionReceipt" {
+			http.Error(w, "unexpected method", http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"jsonrpc": "2.0", "id": 1, "result": receipt})
+	}))
+	restore := SetRPCURLForTest(network, srv.URL)
+	t.Cleanup(func() { restore(); srv.Close() })
+	return &calls
+}
+
+func TestMatchReceiptPass(t *testing.T) {
+	req, _, err := BuildRequirements(testConfig(""), decimal.RequireFromString("51"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	payload := validPayload(req, now)
+	auth := payload.Payload.Authorization
+
+	// amountHex must be req.Amount (atomic) in hex, left-padded to 32 bytes
+	atomicBig := new(big.Int)
+	atomicBig.SetString(req.Amount, 10)
+	amountHex := fmt.Sprintf("%064x", atomicBig)
+
+	receipt := makeReceipt(req.Asset, auth.From, req.PayTo, amountHex, auth.Nonce)
+	if err := matchReceipt(receipt, "0x"+strings.Repeat("aa", 32), req, auth); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+}
+
+func TestMatchReceiptRejectsWrongAmount(t *testing.T) {
+	req, _, err := BuildRequirements(testConfig(""), decimal.RequireFromString("51"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := validPayload(req, time.Now())
+	auth := payload.Payload.Authorization
+	// off by one atomic unit
+	wrongAmt := new(big.Int)
+	wrongAmt.SetString(req.Amount, 10)
+	wrongAmt.Sub(wrongAmt, big.NewInt(1))
+	receipt := makeReceipt(req.Asset, auth.From, req.PayTo, fmt.Sprintf("%064x", wrongAmt), auth.Nonce)
+	if err := matchReceipt(receipt, "0x"+strings.Repeat("bb", 32), req, auth); !errors.Is(err, ErrOnchainMismatch) {
+		t.Fatalf("expected ErrOnchainMismatch, got: %v", err)
+	}
+}
+
+func TestMatchReceiptRejectsWrongPayTo(t *testing.T) {
+	req, _, err := BuildRequirements(testConfig(""), decimal.RequireFromString("100"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := validPayload(req, time.Now())
+	auth := payload.Payload.Authorization
+	atomicBig := new(big.Int)
+	atomicBig.SetString(req.Amount, 10)
+	receipt := makeReceipt(req.Asset, auth.From, "0x000000000000000000000000000000000000dead", fmt.Sprintf("%064x", atomicBig), auth.Nonce)
+	if err := matchReceipt(receipt, "0x"+strings.Repeat("cc", 32), req, auth); !errors.Is(err, ErrOnchainMismatch) {
+		t.Fatalf("expected ErrOnchainMismatch (wrong payTo), got: %v", err)
+	}
+}
+
+func TestMatchReceiptRejectsWrongNonce(t *testing.T) {
+	req, _, err := BuildRequirements(testConfig(""), decimal.RequireFromString("100"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := validPayload(req, time.Now())
+	auth := payload.Payload.Authorization
+	atomicBig := new(big.Int)
+	atomicBig.SetString(req.Amount, 10)
+	wrongNonce := "0x" + strings.Repeat("99", 32)
+	receipt := makeReceipt(req.Asset, auth.From, req.PayTo, fmt.Sprintf("%064x", atomicBig), wrongNonce)
+	if err := matchReceipt(receipt, "0x"+strings.Repeat("dd", 32), req, auth); !errors.Is(err, ErrOnchainMismatch) {
+		t.Fatalf("expected ErrOnchainMismatch (wrong nonce), got: %v", err)
+	}
+}
+
+func TestMatchReceiptRejectsRevertedTx(t *testing.T) {
+	req, _, _ := BuildRequirements(testConfig(""), decimal.RequireFromString("1"))
+	receipt := &ethReceipt{Status: "0x0", Logs: nil}
+	auth := Authorization{From: "0x01", Nonce: "0x" + strings.Repeat("00", 32)}
+	if err := matchReceipt(receipt, "0xtx", req, auth); !errors.Is(err, ErrOnchainMismatch) {
+		t.Fatalf("expected ErrOnchainMismatch for reverted tx, got: %v", err)
+	}
+}
+
+func TestVerifyAndSettleRejectsWhenChainDisagrees(t *testing.T) {
+	txHash := "0x" + strings.Repeat("ef", 32)
+	facilitator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/verify" {
+			_, _ = w.Write([]byte(`{"isValid":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":true,"transaction":"` + txHash + `","network":"eip155:84532"}`))
+	}))
+	defer facilitator.Close()
+
+	cfg := testConfig(facilitator.URL)
+	now := time.Now()
+	req, _, _ := BuildRequirements(cfg, decimal.RequireFromString("30"))
+	auth := validPayload(req, now).Payload.Authorization
+
+	// Facilitator claims success but the tx paid someone else.
+	amt, _ := new(big.Int).SetString(req.Amount, 10)
+	wrong := makeReceipt(req.Asset, auth.From, "0x000000000000000000000000000000000000dead", fmt.Sprintf("%064x", amt), auth.Nonce)
+	calls := useFakeRPC(t, NetworkBaseSepolia, wrong)
+	if _, err := VerifyAndSettle(context.Background(), cfg, req, validPayload(req, now)); !errors.Is(err, ErrOnchainMismatch) {
+		t.Fatalf("expected ErrOnchainMismatch, got %v", err)
+	}
+	if *calls == 0 {
+		t.Fatal("on-chain RPC must be consulted after facilitator settle")
+	}
+}
+
+func TestVerifyAndSettleUnconfirmedWhenTxMissing(t *testing.T) {
+	facilitator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/verify" {
+			_, _ = w.Write([]byte(`{"isValid":true}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":true,"transaction":"0x` + strings.Repeat("12", 32) + `","network":"eip155:84532"}`))
+	}))
+	defer facilitator.Close()
+
+	cfg := testConfig(facilitator.URL)
+	now := time.Now()
+	req, _, _ := BuildRequirements(cfg, decimal.RequireFromString("30"))
+	calls := useFakeRPC(t, NetworkBaseSepolia, nil) // never mined
+	if _, err := VerifyAndSettle(context.Background(), cfg, req, validPayload(req, now)); !errors.Is(err, ErrOnchainUnconfirmed) {
+		t.Fatalf("expected ErrOnchainUnconfirmed, got %v", err)
+	}
+	if *calls < 2 {
+		t.Fatalf("expected polling while tx is not mined, got %d calls", *calls)
 	}
 }
