@@ -337,6 +337,7 @@ import { useBuyNowStore } from '../stores/buyNow'
 import { useUserAuthStore } from '../stores/userAuth'
 import { useUserProfileStore } from '../stores/userProfile'
 import { getFirstImageUrl, getImageUrl } from '../utils/image'
+import * as aiBrand from '../utils/aiBrand'
 import { normalizeSkuId, buildSkuDisplayText } from '../utils/sku'
 import { resolveSkuAvailableStock, resolveSkuStockDisplay, type PublicStockDisplay } from '../utils/publicStock'
 import { useLocalized, useProductLabels } from '../composables/useProduct'
@@ -411,7 +412,9 @@ const productImage = computed(() => {
     if (url) return url
   }
   if (p.category?.icon) return getImageUrl(p.category.icon)
-  return ''
+  // 降级：根据标题推断 AI 品牌图标
+  const { detectAiBrand, brandLogoUrl } = aiBrand
+  return brandLogoUrl(detectAiBrand(p))
 })
 
 const activeSkus = computed(() => {
