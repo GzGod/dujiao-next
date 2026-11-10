@@ -8,6 +8,7 @@ import { amountToCents, centsToAmount } from '../utils/money'
 import { buildSkuDisplayTextFromSnapshot } from '../utils/sku'
 import { getImageUrl } from '../utils/image'
 import { copyText } from '../utils/clipboard'
+import * as aiBrand from '../utils/aiBrand'
 
 interface ManualFormSnapshotField {
   key: string
@@ -120,11 +121,22 @@ export function useOrderDisplayHelpers(order: Ref<any>) {
   }
 
   const orderItemImage = (item: any) => {
+    // 优先用 sku_snapshot.image（下单时保存的快照）
     const snapshot = item?.sku_snapshot
-    if (!snapshot || typeof snapshot !== 'object') return ''
-    const rawImage = String(snapshot.image || '').trim()
-    if (!rawImage) return ''
-    return getImageUrl(rawImage)
+    if (snapshot && typeof snapshot === 'object') {
+      const rawImage = String(snapshot.image || '').trim()
+      if (rawImage) return getImageUrl(rawImage)
+    }
+    // 次选 item.images 数组第一张
+    const images = item?.images
+    if (Array.isArray(images) && images.length > 0) {
+      const first = String(images[0] || '').trim()
+      if (first) return getImageUrl(first)
+    }
+    // 最后用商品标题推断 AI 品牌图标（适用于上游直充商品）
+    const { detectAiBrand, brandLogoUrl } = aiBrand
+    const brand = detectAiBrand(item)
+    return brandLogoUrl(brand)
   }
 
   const formatMoney = (amount?: string, currency?: string) => {
