@@ -30,8 +30,10 @@
   letter-spacing: -0.025em;
 }
 .xh__logo-img {
-  height: 30px;
-  max-width: 150px;
+  /* 横版锁定图裁切后约 4.14:1，按高度取宽；64px 顶栏留出 13px 上下呼吸 */
+  height: 38px;
+  width: auto;
+  max-width: 190px;
   object-fit: contain;
 }
 .xh__mark {

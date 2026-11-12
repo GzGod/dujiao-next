@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 8 612 148" role="img" aria-labelledby="title">
+  <title id="title">XUEGAOAI Pixel Buddy detailed horizontal logo</title>
+  <g transform="translate(-10 8) scale(.65)">
+  <g id="ice-shell">
+    <path fill="#2F65F5" d="M 98 24 H 138 V 48 H 170 V 80 H 207 V 148 A 32 32 0 0 1 175 180 H 152 V 208 A 20 20 0 0 1 112 208 V 180 H 86 A 32 32 0 0 1 54 148 V 68 A 44 44 0 0 1 98 24 Z"/>
+    <path fill="#1745C2" d="M 195 80 H 207 V 148 A 32 32 0 0 1 175 180 H 152 V 208
+      A 20 20 0 0 1 132 228 V 173 H 175 A 20 20 0 0 0 195 153 Z"/>
+    <path fill="#A7E8FF" d="M 82 65 C 86 50 97 43 110 43 H 121 V 51 H 110
+      C 100 51 92 57 89 69 Z"/>
+    <rect x="127" y="43" width="7" height="8" rx="1.5" fill="#A7E8FF"/>
+    <rect x="119" y="186" width="5" height="22" rx="2.5" fill="#A7E8FF"/>
+  </g>
+  <g id="screen">
+    <rect x="69" y="82" width="123" height="68" rx="22" fill="#1745C2"/>
+    <rect x="74" y="86" width="113" height="60" rx="18" fill="#E9F8FF"/>
+    <path fill="#A7E8FF" d="M 74 121 C 94 128 111 130 131 130 C 153 130 172 126 187 119
+      V 128 A 18 18 0 0 1 169 146 H 92 A 18 18 0 0 1 74 128 Z"/>
+    <path fill="#FFFFFF" d="M 92 86 H 125 L 114 97 H 75.42 A 18 18 0 0 1 92 86 Z"/>
+    <g fill="#1745C2">
+      <rect x="94" y="103" width="15" height="23" rx="5"/>
+      <rect x="151" y="103" width="15" height="23" rx="5"/>
+      <path d="M 120 123 H 140 C 139 129 135 133 130 133 C 125 133 121 129 120 123 Z"/>
+    </g>
+    <g fill="#FFFFFF">
+      <rect x="97" y="106" width="4" height="5" rx="1.5"/>
+      <rect x="154" y="106" width="4" height="5" rx="1.5"/>
+    </g>
+    <g fill="#2F65F5">
+      <rect x="83" y="123" width="6" height="3" rx="1.5"/>
+      <rect x="172" y="123" width="6" height="3" rx="1.5"/>
+    </g>
+  </g>
+  <g id="status-lights" fill="#A7E8FF">
+    <rect x="145" y="63" width="10" height="5" rx="2.5"/>
+    <rect x="160" y="63" width="5" height="5" rx="1.25"/>
+    <rect x="109" y="158" width="25" height="5" rx="2.5"/>
+    <rect x="140" y="158" width="5" height="5" rx="1.25"/>
+  </g>
+  <g id="flying-pixels">
+    <rect x="183" y="40" width="23" height="23" rx="2.5" fill="#2F65F5"/>
+    <path fill="#1745C2" d="M 201 40 H 203.5 Q 206 40 206 42.5 V 60.5 Q 206 63 203.5 63
+      H 185.5 Q 183 63 183 60.5 V 58 H 198.5 Q 201 58 201 55.5 Z"/>
+    <rect x="187" y="44" width="10" height="3" rx="1" fill="#A7E8FF"/>
+    <rect x="215" y="21" width="13" height="13" rx="2" fill="#2F65F5"/>
+    <path fill="#1745C2" d="M 215 30 H 228 V 32 Q 228 34 226 34 H 217 Q 215 34 215 32 Z"/>
+    <rect x="218" y="24" width="5" height="2" rx="1" fill="#A7E8FF"/>
+  </g>
+  </g>
+  <g id="wordmark" fill="#101828" fill-rule="evenodd" transform="translate(166 57)">
+    <path d="M 0 0 H 14 L 27.5 23.38 L 41 0 H 55 L 35.37 34 L 55 68 H 41 L 27.5 44.62 L 14 68 H 0 L 19.63 34 Z"/>
+    <path transform="translate(66 0)" d="M 0 0 H 12 V 43 C 12 53 17 58 26 58 C 35 58 40 53 40 43 V 0 H 52 V 43 C 52 60 42 69 26 69 C 10 69 0 60 0 43 Z"/>
+    <path transform="translate(131 0)" d="M 0 0 H 45 V 11 H 12 V 28 H 39 V 39 H 12 V 57 H 45 V 68 H 0 Z"/>
+    <path transform="translate(186 0)" d="M 55 14 L 46 21 C 42 14 37 10 29 10 C 17 10 12 19 12 34 C 12 49 18 58 30 58 C 36 58 41 56 44 53 V 41 H 30 V 31 H 55 V 59 C 48 65 40 69 29 69 C 10 69 0 56 0 34 C 0 12 10 -1 29 -1 C 41 -1 50 5 55 14 Z"/>
+    <path transform="translate(251 0)" d="M 23 0 H 36 L 59 68 H 46 L 41 53 H 18 L 13 68 H 0 Z M 22 42 H 37 L 29.5 14 Z"/>
+    <path transform="translate(318 0)" d="M 29 -1 C 48 -1 58 12 58 34 C 58 56 48 69 29 69 C 10 69 0 56 0 34 C 0 12 10 -1 29 -1 Z M 29 10 C 17 10 12 19 12 34 C 12 49 17 58 29 58 C 41 58 46 49 46 34 C 46 19 41 10 29 10 Z"/>
+    <path transform="translate(383 0)" d="M 23 0 H 36 L 59 68 H 46 L 41 53 H 18 L 13 68 H 0 Z M 22 42 H 37 L 29.5 14 Z"/>
+    <path transform="translate(453 0)" d="M 0 0 H 12 V 68 H 0 Z"/>
+  </g>
+</svg>

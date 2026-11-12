@@ -15,12 +15,14 @@ export const useAppStore = defineStore('app', () => {
     const loading = ref(false)
     // 服务器与客户端的时间偏移量（毫秒），serverTime = clientTime + offset
     const serverTimeOffset = ref(0)
-    const siteIconHref = computed(() => {
-        const siteIcon = String(config.value?.brand?.site_icon || '').trim()
-        return siteIcon ? getImageUrl(siteIcon) : '/dj.svg'
-    })
     const isResellerTenant = computed(() => {
         return String(config.value?.tenant?.mode || '').trim().toLowerCase() === 'reseller'
+    })
+    const siteIconHref = computed(() => {
+        const siteIcon = String(config.value?.brand?.site_icon || '').trim()
+        if (siteIcon) return getImageUrl(siteIcon)
+        // 主站未配置 site_icon 时用内置图标；分销子站保持原兜底，避免串用主站品牌。
+        return isResellerTenant.value ? '/dj.svg' : '/favicon.svg'
     })
     const canAccessResellerConsole = computed(() => !!config.value && !isResellerTenant.value)
 

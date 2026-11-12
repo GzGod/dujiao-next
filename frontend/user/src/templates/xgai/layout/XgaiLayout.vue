@@ -128,9 +128,13 @@ const langEl = ref<HTMLElement | null>(null)
 const year = new Date().getFullYear()
 
 const brandName = computed(() => String(appStore.config?.brand?.site_name || '').trim() || '雪糕 AI')
+// 主站默认使用内置的横版锁定图（public/brand）；分销站点位没有自带 Logo 时保持文字兜底，
+// 避免把主站品牌图带到分销商子站。站点配置里的 site_logo 始终优先。
+const DEFAULT_BRAND_LOGO = '/brand/xuegaoai-horizontal.svg'
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : ''
+  if (raw) return getImageUrl(raw)
+  return appStore.isResellerTenant ? '' : DEFAULT_BRAND_LOGO
 })
 const brandDescription = computed(() => getLocalizedText(appStore.config?.brand?.site_description as Record<string, string>, appStore.locale))
 const contact = computed(() => appStore.config?.contact as { telegram?: string; email?: string; support_url?: string } | undefined)
