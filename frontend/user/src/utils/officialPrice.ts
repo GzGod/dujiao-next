@@ -26,9 +26,6 @@ const RULES: OfficialPriceRule[] = [
   { pattern: /grok\s*plus/i, usd: 8 },
 ]
 
-/** 至少省这么多（元）才展示，几块钱的差价不值得占位置 */
-const MIN_SAVING_CNY = 5
-
 export interface OfficialComparison {
   usd: number
   officialCny: number
@@ -40,12 +37,12 @@ export const officialUsdFor = (title: string): number | null => {
   return rule ? rule.usd : null
 }
 
-/** 返回与官方价的对比；识别不出、或不比官方便宜时返回 null */
+/** 返回与官方价的对比；识别不出、或不比官方便宜时返回 null。只要便宜 1 元就展示。 */
 export const compareWithOfficial = (title: string, ourPriceCny: number): OfficialComparison | null => {
   const usd = officialUsdFor(title)
   if (usd === null || !Number.isFinite(ourPriceCny) || ourPriceCny <= 0) return null
   const officialCny = Math.round(usd * USD_CNY_RATE)
   const savingCny = officialCny - Math.round(ourPriceCny)
-  if (savingCny < MIN_SAVING_CNY) return null
+  if (savingCny <= 0) return null
   return { usd, officialCny, savingCny }
 }
