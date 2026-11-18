@@ -74,7 +74,13 @@ func (s *Service) CancelManual(id uint) error {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		if err := connection.CancelOrder(ctx, procOrder.UpstreamOrderID); err != nil {
+		var cancelErr error
+		if byNo, ok := connection.(procurementcontract.OrderNoCanceler); ok {
+			cancelErr = byNo.CancelOrderByNo(ctx, procOrder.UpstreamOrderID, procOrder.UpstreamOrderNo, procOrder.TraceID+"-refund")
+		} else {
+			cancelErr = connection.CancelOrder(ctx, procOrder.UpstreamOrderID)
+		}
+		if err := cancelErr; err != nil {
 			logger.Warnw("procurement_cancel_upstream_failed",
 				"procurement_order_id", procOrder.ID,
 				"upstream_order_id", procOrder.UpstreamOrderID,

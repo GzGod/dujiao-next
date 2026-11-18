@@ -83,3 +83,8 @@ type UseCase interface {
 	RetryManual(id uint) error
 	CancelManual(id uint) error
 }
+
+// OrderNoCanceler is an optional cancellation capability for string-order protocols.
+type OrderNoCanceler interface {
+	CancelOrderByNo(ctx context.Context, orderID uint, orderNo, requestID string) error
+}

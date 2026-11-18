@@ -261,12 +261,15 @@ func (s *Service) Ping(id uint) (*PingResult, error) {
 		return nil, nil
 	}
 	return &PingResult{
-		SiteName:        result.SiteName,
-		ProtocolVersion: result.ProtocolVersion,
-		UserID:          result.UserID,
-		Balance:         result.Balance,
-		Currency:        result.Currency,
-		MemberLevel:     result.MemberLevel,
+		FundingState:              result.FundingState,
+		BusinessOperationsEnabled: result.BusinessOperationsEnabled,
+		AvailableOperations:       result.AvailableOperations,
+		SiteName:                  result.SiteName,
+		ProtocolVersion:           result.ProtocolVersion,
+		UserID:                    result.UserID,
+		Balance:                   result.Balance,
+		Currency:                  result.Currency,
+		MemberLevel:               result.MemberLevel,
 	}, nil
 }
 

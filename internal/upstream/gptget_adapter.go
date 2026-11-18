@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dujiao-next/internal/logger"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -40,43 +40,52 @@ func NewGptgetAdapter(conn *siteconnectiondomain.Connection) *GptgetAdapter {
 		baseURL:   strings.TrimRight(conn.BaseURL, "/"),
 		apiKey:    conn.ApiKey,
 		apiSecret: conn.ApiSecret,
-		client:    &http.Client{Timeout: 30 * time.Second},
+		client:    &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 }
 
 // — gptget API 请求/响应结构 —————————————————————————————————————
 
 type gptgetPingResp struct {
-	OK   bool   `json:"ok"`
-	Msg  string `json:"msg"`
+	OK   bool `json:"ok"`
 	Data struct {
-		CanPurchase bool   `json:"can_purchase"`
-		Balance     string `json:"balance"`
-		Currency    string `json:"currency"`
+		BusinessOperationsEnabled bool     `json:"business_operations_enabled"`
+		AvailableOperations       []string `json:"available_operations"`
+	} `json:"data"`
+}
+type gptgetAccountResp struct {
+	OK   bool `json:"ok"`
+	Data struct {
+		UserID       uint   `json:"user_id"`
+		Balance      string `json:"balance"`
+		Currency     string `json:"currency"`
+		FundingState string `json:"funding_state"`
 	} `json:"data"`
 }
 
 type gptgetProduct struct {
-	SKUID       uint     `json:"sku_id"`
-	SKUCode     string   `json:"sku_code"`
-	SKUName     string   `json:"sku_name"`
-	ProductName string   `json:"product_name"`
-	SupplyPrice string   `json:"supply_price"`
-	Currency    string   `json:"currency"`
-	Available   bool     `json:"available"`
-	ProductID   uint     `json:"product_id"`
-	ProductSlug string   `json:"product_slug"`
-	CategoryID  uint     `json:"category_id"`
-	Images      []string `json:"images"`
-	Description string   `json:"description"`
+	SKUID       uint         `json:"sku_id"`
+	SKUCode     string       `json:"sku_code"`
+	SpecValues  jsonmap.JSON `json:"spec_values"`
+	SKUName     string       `json:"sku_name"`
+	ProductName string       `json:"product_name"`
+	SupplyPrice string       `json:"supply_price"`
+	Currency    string       `json:"currency"`
+	Available   bool         `json:"available"`
+	ProductID   uint         `json:"product_id"`
+	ProductSlug string       `json:"product_slug"`
+	CategoryID  uint         `json:"category_id"`
+	Images      []string     `json:"images"`
+	Description string       `json:"description"`
 }
 
 type gptgetProductsResp struct {
 	OK   bool   `json:"ok"`
 	Msg  string `json:"msg"`
 	Data struct {
-		Total int             `json:"total"`
-		Items []gptgetProduct `json:"items"`
+		Total   int             `json:"total"`
+		HasMore bool            `json:"has_more"`
+		Items   []gptgetProduct `json:"items"`
 	} `json:"data"`
 }
 
@@ -125,14 +134,16 @@ func (a *GptgetAdapter) Ping(ctx context.Context) (*PingResult, error) {
 	if err := a.doRequest(ctx, http.MethodGet, "/capabilities", nil, &resp); err != nil {
 		return nil, err
 	}
-	if !resp.OK {
-		return nil, fmt.Errorf("gptget ping failed: %s", resp.Msg)
+	var account gptgetAccountResp
+	if err := a.doRequest(ctx, http.MethodGet, "/account", nil, &account); err != nil {
+		return nil, err
 	}
 	return &PingResult{
-		SiteName:        "gptget.fun",
-		ProtocolVersion: "gptget-v1",
-		Balance:         resp.Data.Balance,
-		Currency:        resp.Data.Currency,
+		SiteName: "gptget.fun", ProtocolVersion: "gptget-v1", UserID: account.Data.UserID,
+		Balance: account.Data.Balance, Currency: account.Data.Currency,
+		FundingState:              account.Data.FundingState,
+		BusinessOperationsEnabled: &resp.Data.BusinessOperationsEnabled,
+		AvailableOperations:       resp.Data.AvailableOperations,
 	}, nil
 }
 
@@ -143,22 +154,34 @@ func (a *GptgetAdapter) ListCategories(_ context.Context) (*CategoryListResult, 
 
 // ListProducts 拉取 gptget 商品列表（供货价目录）
 func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts) (*ProductListResult, error) {
-	page := opts.Page
+	page, size := opts.Page, opts.PageSize
 	if page < 1 {
 		page = 1
 	}
-	path := fmt.Sprintf("/products?page=%d", page)
-
-	var resp gptgetProductsResp
-	if err := a.doRequest(ctx, http.MethodGet, path, nil, &resp); err != nil {
-		return nil, err
+	if size <= 0 {
+		size = 50
 	}
-	if !resp.OK {
-		return nil, fmt.Errorf("gptget list products failed: %s", resp.Msg)
+	var rows []gptgetProduct
+	for remotePage := 1; ; remotePage++ {
+		if remotePage > 10000 {
+			return nil, fmt.Errorf("gptget catalog pagination exceeds limit")
+		}
+		var resp gptgetProductsResp
+		if err := a.doRequest(ctx, http.MethodGet, fmt.Sprintf("/products?page=%d", remotePage), nil, &resp); err != nil {
+			return nil, err
+		}
+		rows = append(rows, resp.Data.Items...)
+		if !resp.Data.HasMore {
+			break
+		}
+		if len(resp.Data.Items) == 0 {
+			return nil, fmt.Errorf("gptget catalog pagination returned empty page with has_more")
+		}
 	}
 
-	items := make([]UpstreamProduct, 0, len(resp.Data.Items))
-	for _, p := range resp.Data.Items {
+	items := make([]UpstreamProduct, 0, len(rows))
+	positions := make(map[uint]int)
+	for _, p := range rows {
 		cur := p.Currency
 		if cur == "" {
 			cur = "CNY"
@@ -188,6 +211,7 @@ func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts)
 
 		sku := UpstreamSKU{
 			ID:            p.SKUID,
+			SpecValues:    p.SpecValues,
 			SKUCode:       p.SKUCode,
 			PriceAmount:   p.SupplyPrice,
 			StockStatus:   stockStatus,
@@ -208,19 +232,35 @@ func (a *GptgetAdapter) ListProducts(ctx context.Context, opts ListProductsOpts)
 			CategoryID:  p.CategoryID,
 			Images:      p.Images,
 			SKUs:        []UpstreamSKU{sku},
+			Description: jsonmap.JSON{"zh-CN": p.Description, "zh-TW": p.Description, "en-US": p.Description},
 		}
-		items = append(items, product)
+		if index, exists := positions[p.ProductID]; exists {
+			existing := &items[index]
+			existing.SKUs = append(existing.SKUs, sku)
+			existing.IsActive = existing.IsActive || active
+			price, err := decimal.NewFromString(p.SupplyPrice)
+			previous, previousErr := decimal.NewFromString(existing.PriceAmount)
+			if err != nil || previousErr != nil {
+				return nil, fmt.Errorf("gptget invalid catalog price")
+			}
+			if price.LessThan(previous) {
+				existing.PriceAmount = p.SupplyPrice
+			}
+		} else {
+			positions[p.ProductID] = len(items)
+			items = append(items, product)
+		}
 	}
 
-	total := resp.Data.Total
-	if total == 0 {
-		total = len(items)
+	total := len(items)
+	start := (page - 1) * size
+	if start >= total {
+		items = []UpstreamProduct{}
+	} else {
+		end := min(start+size, total)
+		items = items[start:end]
 	}
-
-	return &ProductListResult{
-		Total: total,
-		Items: items,
-	}, nil
+	return &ProductListResult{Total: total, Items: items}, nil
 }
 
 // GetProduct gptget 没有单商品详情接口，从列表里匹配
@@ -246,6 +286,22 @@ func (a *GptgetAdapter) GetProduct(ctx context.Context, productID uint) (*Upstre
 
 // CreateOrder 采购一个核销码
 func (a *GptgetAdapter) CreateOrder(ctx context.Context, req CreateUpstreamOrderReq) (*CreateUpstreamOrderResp, error) {
+	if req.Quantity != 1 || req.TraceID == "" || req.DownstreamOrderNo == "" || req.SKUID == 0 {
+		return &CreateUpstreamOrderResp{OK: false, ErrorCode: "invalid_request", ErrorMessage: "gptget requires quantity=1, sku_id, request_id and external_order_no"}, nil
+	}
+	// Recover the original order before any retry can purchase again.
+	var existing gptgetOrderResp
+	err := a.doRequest(ctx, http.MethodGet, "/orders/by-external/"+url.PathEscape(req.DownstreamOrderNo), nil, &existing)
+	if err == nil {
+		return gptgetCreatedOrder(existing.Data), nil
+	}
+	var lookupErr *upstreamHTTPError
+	if !errors.As(err, &lookupErr) || lookupErr.Status != http.StatusNotFound {
+		if lookupErr != nil && lookupErr.Code != "" {
+			return &CreateUpstreamOrderResp{ErrorCode: lookupErr.Code, ErrorMessage: lookupErr.Message}, nil
+		}
+		return nil, err
+	}
 	// 先从 SKU mapping 中拿到价格——由调用方通过 sku_mappings.upstream_price 提供
 	// req.ManualFormData["expected_unit_price"] 由 submit.go 在 CreateUpstreamOrderReq 之前查好传入
 	expectedPrice := ""
@@ -287,27 +343,8 @@ func (a *GptgetAdapter) CreateOrder(ctx context.Context, req CreateUpstreamOrder
 		}
 		return nil, err
 	}
-	if !resp.OK {
-		return &CreateUpstreamOrderResp{
-			OK:           false,
-			ErrorCode:    "upstream_rejected",
-			ErrorMessage: resp.Msg,
-		}, nil
-	}
 
-	// gptget 直接在采购响应里返回核销码
-	status := "pending"
-	if resp.Data.FinancialStatus == "paid" {
-		status = "completed"
-	}
-
-	return &CreateUpstreamOrderResp{
-		OK:       true,
-		OrderNo:  resp.Data.OrderNo,
-		Status:   status,
-		Amount:   resp.Data.ChargedAmount,
-		Currency: resp.Data.Currency,
-	}, nil
+	return gptgetCreatedOrder(resp.Data), nil
 }
 
 // GetOrder gptget 只认字符串 order_no，按数字 ID 无法查询；调用方应走 GetOrderByNo
@@ -341,7 +378,7 @@ func (a *GptgetAdapter) GetOrderByNo(ctx context.Context, orderNo string) (*Upst
 	}
 
 	var fulfillment *UpstreamFulfillment
-	if d.Code != "" {
+	if d.Code != "" && status == "delivered" {
 		now := time.Now()
 		fulfillment = &UpstreamFulfillment{
 			Type:        "auto",
@@ -360,27 +397,45 @@ func (a *GptgetAdapter) GetOrderByNo(ctx context.Context, orderNo string) (*Upst
 	}, nil
 }
 
-// CancelOrder 退款（gptget 用 refund 接口）
-func (a *GptgetAdapter) CancelOrder(ctx context.Context, orderID uint) error {
-	path := fmt.Sprintf("/orders/%d/refund", orderID)
-	body := map[string]interface{}{
-		"expected_code_revision": 1,
+// Numeric IDs are not valid GPTGET order identifiers.
+func (a *GptgetAdapter) CancelOrder(_ context.Context, _ uint) error {
+	return fmt.Errorf("%w: gptget requires string order_no", ErrUpstreamCancelNotAllowed)
+}
+
+// CancelOrderByNo refunds only the current unused code; never follows revision conflicts automatically.
+func (a *GptgetAdapter) CancelOrderByNo(ctx context.Context, orderNo, requestID string) error {
+	if orderNo == "" || requestID == "" {
+		return fmt.Errorf("%w: missing order_no or request_id", ErrUpstreamCancelNotAllowed)
 	}
-	var resp struct {
-		OK  bool   `json:"ok"`
-		Msg string `json:"msg"`
-	}
-	if err := a.doRequest(ctx, http.MethodPost, path, body, &resp); err != nil {
-		var ue *upstreamHTTPError
-		if errors.As(err, &ue) && (ue.Code == "cancel_not_allowed" || ue.Code == "state_conflict") {
-			return fmt.Errorf("%w: %s", ErrUpstreamCancelNotAllowed, ue.Message)
-		}
+	var current gptgetOrderResp
+	path := "/orders/" + url.PathEscape(orderNo)
+	if err := a.doRequest(ctx, http.MethodGet, path, nil, &current); err != nil {
 		return err
 	}
-	if !resp.OK {
-		return fmt.Errorf("%w: %s", ErrUpstreamCancelNotAllowed, resp.Msg)
+	if current.Data.FinancialStatus == "refunded" {
+		return nil
+	}
+	if !current.Data.CanRefund || current.Data.CodeRevision < 1 {
+		return ErrUpstreamCancelNotAllowed
+	}
+	var refunded gptgetOrderResp
+	err := a.doRequest(ctx, http.MethodPost, path+"/refund", map[string]interface{}{
+		"request_id": requestID, "expected_code_revision": current.Data.CodeRevision,
+	}, &refunded)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrUpstreamCancelNotAllowed, err)
+	}
+	if refunded.Data.FinancialStatus != "refunded" {
+		return fmt.Errorf("gptget refund not confirmed")
 	}
 	return nil
+}
+
+func gptgetCreatedOrder(d gptgetOrderData) *CreateUpstreamOrderResp {
+	if d.OrderNo == "" {
+		return &CreateUpstreamOrderResp{ErrorCode: "invalid_response", ErrorMessage: "gptget response omitted order_no"}
+	}
+	return &CreateUpstreamOrderResp{OK: true, OrderNo: d.OrderNo, Status: "pending", Amount: d.ChargedAmount, Currency: d.Currency}
 }
 
 // DownloadImage gptget 图片允许跨域（来自 CDN），直接返回原 URL
@@ -438,27 +493,26 @@ func (a *GptgetAdapter) doRequest(ctx context.Context, method, resource string, 
 		return fmt.Errorf("read response: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		logger.Warnw("gptget_request_error",
-			"method", method, "resource", resource,
-			"status", resp.StatusCode, "body", string(respBody))
-		var errPayload struct {
-			ErrorCode    string `json:"error_code"`
-			ErrorMessage string `json:"error_message"`
-			Msg          string `json:"msg"`
+	var envelope struct {
+		OK           bool   `json:"ok"`
+		ErrorCode    string `json:"error_code"`
+		ErrorMessage string `json:"error_message"`
+		Msg          string `json:"msg"`
+	}
+	decodeErr := json.Unmarshal(respBody, &envelope)
+	if resp.StatusCode != http.StatusOK || decodeErr != nil || !envelope.OK {
+		message := envelope.ErrorMessage
+		if message == "" {
+			message = envelope.Msg
 		}
-		_ = json.Unmarshal(respBody, &errPayload)
-		code := errPayload.ErrorCode
-		msg := errPayload.ErrorMessage
-		if msg == "" {
-			msg = errPayload.Msg
+		if message == "" {
+			message = fmt.Sprintf("gptget request failed (HTTP %d)", resp.StatusCode)
 		}
-		return &upstreamHTTPError{
-			Status:  resp.StatusCode,
-			Code:    code,
-			Message: msg,
-			Body:    string(respBody),
+		code := envelope.ErrorCode
+		if code == "" {
+			code = fmt.Sprintf("http_%d", resp.StatusCode)
 		}
+		return &upstreamHTTPError{Status: resp.StatusCode, Code: code, Message: message}
 	}
 
 	if result != nil {

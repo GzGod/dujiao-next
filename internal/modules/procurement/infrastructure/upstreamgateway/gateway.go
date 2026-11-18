@@ -105,3 +105,14 @@ func fromUpstreamFulfillment(value *upstream.UpstreamFulfillment) *procurementco
 		DeliveryData: value.DeliveryData, DeliveredAt: value.DeliveredAt,
 	}
 }
+
+func (s *session) CancelOrderByNo(ctx context.Context, orderID uint, orderNo, requestID string) error {
+	if byNo, ok := s.adapter.(upstream.OrderNoCanceler); ok {
+		err := byNo.CancelOrderByNo(ctx, orderNo, requestID)
+		if errors.Is(err, upstream.ErrUpstreamCancelNotAllowed) {
+			return fmt.Errorf("%w: %v", procurementcontract.ErrUpstreamCancelRefused, err)
+		}
+		return err
+	}
+	return s.CancelOrder(ctx, orderID)
+}

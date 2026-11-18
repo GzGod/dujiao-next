@@ -34,10 +34,13 @@ type UpdateInput struct {
 
 // PingResult 连接测试结果。
 type PingResult struct {
-	SiteName        string                 `json:"site_name"`
-	ProtocolVersion string                 `json:"protocol_version"`
-	UserID          uint                   `json:"user_id"`
-	Balance         string                 `json:"balance"`
-	Currency        string                 `json:"currency"`
-	MemberLevel     map[string]interface{} `json:"member_level,omitempty"`
+	FundingState              string                 `json:"funding_state,omitempty"`
+	BusinessOperationsEnabled *bool                  `json:"business_operations_enabled,omitempty"`
+	AvailableOperations       []string               `json:"available_operations,omitempty"`
+	SiteName                  string                 `json:"site_name"`
+	ProtocolVersion           string                 `json:"protocol_version"`
+	UserID                    uint                   `json:"user_id"`
+	Balance                   string                 `json:"balance"`
+	Currency                  string                 `json:"currency"`
+	MemberLevel               map[string]interface{} `json:"member_level,omitempty"`
 }

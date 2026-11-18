@@ -104,7 +104,9 @@ func TestBuildUpstreamRefundRecords_SortsByCreatedAtAscAndRenumbersID(t *testing
 
 func TestIsRetryableErrorCode(t *testing.T) {
 	nonRetryable := []string{
-		"insufficient_balance",
+		"insufficient_balance", "credential_restricted", "agent_disabled", "invalid_api_key",
+		"price_changed", "tier_unavailable", "currency_mismatch", "wallet_setup_required",
+		"idempotency_conflict", "revision_conflict", "state_conflict",
 		"payment_failed",
 		"product_unavailable",
 		"sku_unavailable",
