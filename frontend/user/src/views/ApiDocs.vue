@@ -44,6 +44,7 @@
             <span>{{ t(h.desc) }}</span>
           </div>
         </div>
+        <p class="mt-4">{{ t('apiDocs.auth.compatibility') }}</p>
         <p class="mt-4">{{ t('apiDocs.auth.stringToSign') }}</p>
         <pre class="doc-code">METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + MD5(BODY)
 signature = hex( HMAC_SHA256( secret, string_to_sign ) )</pre>
@@ -180,9 +181,9 @@ const sections = computed(() => [
 ])
 
 const authHeaders = [
-  { name: 'Dujiao-Next-Api-Key', desc: 'apiDocs.auth.headers.key' },
-  { name: 'Dujiao-Next-Timestamp', desc: 'apiDocs.auth.headers.timestamp' },
-  { name: 'Dujiao-Next-Signature', desc: 'apiDocs.auth.headers.signature' },
+  { name: 'XuegaoAI-Api-Key', desc: 'apiDocs.auth.headers.key' },
+  { name: 'XuegaoAI-Timestamp', desc: 'apiDocs.auth.headers.timestamp' },
+  { name: 'XuegaoAI-Signature', desc: 'apiDocs.auth.headers.signature' },
 ]
 
 const endpoints = [
@@ -314,9 +315,9 @@ const orderStatuses = ['pending_payment', 'paid', 'fulfilling', 'delivered', 'co
 
 const callbackExample = `POST {callback_url}
 Content-Type: application/json
-Dujiao-Next-Api-Key: <your api key>
-Dujiao-Next-Timestamp: 1794000000
-Dujiao-Next-Signature: <hmac>
+XuegaoAI-Api-Key: <your api key>
+XuegaoAI-Timestamp: 1794000000
+XuegaoAI-Signature: <hmac>
 
 {
   "event": "order.fulfilled",
@@ -378,9 +379,9 @@ export async function shopRequest(method, path, payload) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Dujiao-Next-Api-Key': API_KEY,
-      'Dujiao-Next-Timestamp': timestamp,
-      'Dujiao-Next-Signature': signature,
+      'XuegaoAI-Api-Key': API_KEY,
+      'XuegaoAI-Timestamp': timestamp,
+      'XuegaoAI-Signature': signature,
     },
     ...(method === 'GET' ? {} : { body }),   // 发送的字节必须和签名时一致
   })

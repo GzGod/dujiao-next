@@ -1777,6 +1777,7 @@
       "dujiaoTip": "如果你也在用 dujiao-next 架站：後台「對接管理 → 連線管理」新增連線，協定選 dujiao-next，Base URL 填本站網域，填入 Key 和 Secret 即可，不需要自己寫程式。"
     },
     "auth": {
+      "compatibility": "新接入請使用 XuegaoAI-* 請求標頭；舊 Dujiao-Next-* 標頭繼續相容。三個驗證標頭須使用完整同一組，同時傳送兩組時值必須一致。簽章演算法不變。",
       "title": "簽名規則",
       "intro": "每個請求都要帶下面三個請求標頭，簽名演算法為 HMAC-SHA256，結果為小寫十六進位。",
       "headers": {

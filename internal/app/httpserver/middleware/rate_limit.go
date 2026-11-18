@@ -12,6 +12,7 @@ import (
 	"github.com/dujiao-next/internal/i18n"
 	"github.com/dujiao-next/internal/logger"
 	"github.com/dujiao-next/internal/platform/http/response"
+	"github.com/dujiao-next/internal/upstream"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -264,7 +265,10 @@ func KeyByIPAndHeader(header string) RateLimitKeyFunc {
 
 // KeyByUpstreamApiKey 使用 "IP|上游 API Key" 作为限流 key
 func KeyByUpstreamApiKey(c *gin.Context) string {
-	return KeyByIPAndHeader("Dujiao-Next-Api-Key")(c)
+	if c.GetHeader(upstream.HeaderXuegaoAPIKey) != "" {
+		return KeyByIPAndHeader(upstream.HeaderXuegaoAPIKey)(c)
+	}
+	return KeyByIPAndHeader(upstream.HeaderApiKey)(c)
 }
 
 // KeyByIPAndJSONField 使用 IP + JSON 字段作为限流 key

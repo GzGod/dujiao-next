@@ -1777,6 +1777,7 @@
       "dujiaoTip": "如果你也在用 dujiao-next 建站：后台「对接管理 → 连接管理」新建连接，协议选 dujiao-next，Base URL 填本站域名，填入 Key 和 Secret 即可，无需自己写代码。"
     },
     "auth": {
+      "compatibility": "新接入请使用 XuegaoAI-* 请求头；旧 Dujiao-Next-* 请求头继续兼容。三个鉴权头须使用完整同一组，同时发送两组时值必须一致。签名算法不变。",
       "title": "签名规则",
       "intro": "每个请求都要带下面三个请求头，签名算法为 HMAC-SHA256，结果为小写十六进制。",
       "headers": {

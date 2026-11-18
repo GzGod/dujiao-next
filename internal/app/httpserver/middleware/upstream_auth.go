@@ -26,9 +26,7 @@ type UpstreamCredentialStore interface {
 // UpstreamAPIAuthMiddleware 上游 API 签名鉴权中间件
 func UpstreamAPIAuthMiddleware(credRepo UpstreamCredentialStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		apiKey := c.GetHeader(upstream.HeaderApiKey)
-		timestampStr := c.GetHeader(upstream.HeaderTimestamp)
-		signature := c.GetHeader(upstream.HeaderSignature)
+		apiKey, timestampStr, signature := upstream.ReadAuthHeaders(c.Request.Header)
 
 		if apiKey == "" || timestampStr == "" || signature == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "error_code": "missing_auth_headers", "error_message": "missing authentication headers"})

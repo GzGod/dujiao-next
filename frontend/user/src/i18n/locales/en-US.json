@@ -1777,6 +1777,7 @@
       "dujiaoTip": "If your own shop also runs dujiao-next, just add a connection under Integrations → Connections, choose the dujiao-next protocol, use this site's domain as the Base URL and enter your Key and Secret. No code needed."
     },
     "auth": {
+      "compatibility": "New integrations should use XuegaoAI-* headers. Legacy Dujiao-Next-* headers remain supported. Send one complete family; if both families are sent, their values must match. The signing algorithm is unchanged.",
       "title": "Signing",
       "intro": "Every request must carry the three headers below. The signature is HMAC-SHA256 in lowercase hex.",
       "headers": {

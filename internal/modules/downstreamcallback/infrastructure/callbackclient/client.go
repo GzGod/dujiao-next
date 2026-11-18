@@ -47,6 +47,9 @@ func (c *Client) Send(ctx context.Context, request downstreamcontract.DeliveryRe
 	httpRequest.Header.Set(upstream.HeaderApiKey, request.APIKey)
 	httpRequest.Header.Set(upstream.HeaderTimestamp, fmt.Sprintf("%d", request.Payload.Timestamp))
 	httpRequest.Header.Set(upstream.HeaderSignature, signature)
+	httpRequest.Header.Set(upstream.HeaderXuegaoAPIKey, request.APIKey)
+	httpRequest.Header.Set(upstream.HeaderXuegaoTimestamp, fmt.Sprintf("%d", request.Payload.Timestamp))
+	httpRequest.Header.Set(upstream.HeaderXuegaoSignature, signature)
 
 	response, err := c.httpClient.Do(httpRequest)
 	if err != nil {

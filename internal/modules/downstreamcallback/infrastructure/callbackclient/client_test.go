@@ -25,6 +25,11 @@ func TestClientSendsSignedCallback(t *testing.T) {
 		if request.Method != http.MethodPost || request.Header.Get(upstream.HeaderApiKey) != "downstream-key" {
 			t.Errorf("unexpected request: method=%s api_key=%q", request.Method, request.Header.Get(upstream.HeaderApiKey))
 		}
+		for _, pair := range [][2]string{{upstream.HeaderXuegaoAPIKey, upstream.HeaderApiKey}, {upstream.HeaderXuegaoTimestamp, upstream.HeaderTimestamp}, {upstream.HeaderXuegaoSignature, upstream.HeaderSignature}} {
+			if request.Header.Get(pair[0]) == "" || request.Header.Get(pair[0]) != request.Header.Get(pair[1]) {
+				t.Error("callback header families must match")
+			}
+		}
 		timestamp, err := strconv.ParseInt(request.Header.Get(upstream.HeaderTimestamp), 10, 64)
 		if err != nil {
 			t.Errorf("parse timestamp: %v", err)
