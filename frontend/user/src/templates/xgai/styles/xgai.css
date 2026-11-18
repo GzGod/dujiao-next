@@ -215,10 +215,10 @@ body.xgai-tokens {
 
 .dark .xgai-scope,
 .dark body.xgai-tokens {
-  --x-bg: #15171c;
-  --x-bg-alt: #20232a;
-  --x-surface: #242830;
-  --x-surface-glass: rgba(36, 40, 48, 0.9);
+  --x-bg: #000;
+  --x-bg-alt: #000;
+  --x-surface: #0a0a0a;
+  --x-surface-glass: #0a0a0a;
   --x-ink: #f1f3f7;
   --x-ink-2: #c7ccd5;
   --x-ink-3: #a7afbd;
@@ -232,10 +232,10 @@ body.xgai-tokens {
   --x-green: #70d69a;
   --x-green-soft: #203e30;
 }
-.dark .xgai-scope .xh { background: rgba(21, 23, 28, 0.9); }
-.dark .xgai-scope :is(.xh__menu, .xh__nav, .xf, .x-btn--ghost, .x-segment, .x-segment button.is-active) { background: var(--x-surface); }
+.dark .xgai-scope .xh { background: #000; }
+.dark .xgai-scope :is(.xh__menu, .xf, .x-btn--ghost, .x-segment, .x-segment button.is-active) { background: var(--x-surface); }
 .dark .xgai-scope :is(.x-glass, .xpc, .xpc--featured) { background: var(--x-surface-glass); border-color: var(--x-line-strong); box-shadow: var(--x-shadow); }
-.dark .xgai-scope .xhero { background: radial-gradient(ellipse at 75% 15%, #203854, transparent 65%), var(--x-bg); }
+.dark .xgai-scope .xhero { background: #000; }
 .dark .xgai-scope :is(.xrec__options button, .xrec__result, .xcheck__panel, .xcheck__step, .xprocess__step, .xpd__visual, .xpd__float, .xpd__badge) { background: var(--x-surface); border-color: var(--x-line-strong); }
 .dark .xgai-scope .xpc__icon { background: #fff; }
 
@@ -243,3 +243,10 @@ body.xgai-tokens {
 .dark .xgai-scope .xrec__options button.is-active { background: var(--x-blue-soft); }
 
 .dark .xgai-scope :is(.xcheck__privacy, .xflow__grid article) { background: var(--x-surface); }
+
+.dark .xgai-scope .xh__nav { background: transparent; }
+.dark .xgai-scope .xhero::before { display: none; }
+.dark .xgai-scope :is(.xcheck, .xflow) { background: #000; }
+@media (max-width: 860px) {
+  .dark .xgai-scope .xh__nav { background: #000; }
+}
