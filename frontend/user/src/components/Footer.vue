@@ -150,7 +150,7 @@ const brandInitial = computed(() => {
 const { theme } = useTheme()
 const brandLogo = computed(() => {
   const raw = String(config.value?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : `/brand/xuegaoai-horizontal${theme.value === 'dark' ? '-dark' : ''}.svg`
+  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
 })
 
 const isListMode = computed(() => config.value?.template_mode === 'list')

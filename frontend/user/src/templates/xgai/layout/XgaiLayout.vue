@@ -12,6 +12,7 @@
 
         <nav class="xh__nav" :class="{ 'is-open': menuOpen }" :aria-label="t('xgai.nav.label')">
           <RouterLink v-for="item in navItems" :key="item.key" :to="item.to" :class="{ 'is-current': item.match(route.path) }" @click="menuOpen = false">{{ item.label }}</RouterLink>
+          <a href="https://redeem.xuegaogx.cc/" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">{{ t('xgai.nav.redeem') }}</a>
           <template v-for="item in customNav" :key="item.key">
             <RouterLink v-if="item.type === 'route'" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink>
             <a v-else :href="item.path" :target="item.target" rel="noopener noreferrer" @click="menuOpen = false">{{ item.label }}</a>
@@ -73,6 +74,7 @@
           <b>{{ t('xgai.footer.shop') }}</b>
           <RouterLink to="/products">{{ t('xgai.footer.allProducts') }}</RouterLink>
           <RouterLink :to="{ path: '/', hash: '#checker' }">{{ t('xgai.footer.checker') }}</RouterLink>
+          <a href="https://redeem.xuegaogx.cc/" target="_blank" rel="noopener noreferrer">{{ t('xgai.nav.redeem') }}</a>
           <RouterLink :to="ordersPath">{{ t('xgai.nav.orders') }}</RouterLink>
         </div>
         <div class="xf__col">
@@ -135,11 +137,11 @@ const year = new Date().getFullYear()
 const brandName = computed(() => String(appStore.config?.brand?.site_name || '').trim() || '雪糕 AI')
 // 主站默认使用内置的横版锁定图（public/brand）；分销站点位没有自带 Logo 时保持文字兜底，
 // 避免把主站品牌图带到分销商子站。站点配置里的 site_logo 始终优先。
-const DEFAULT_BRAND_LOGO = '/brand/xuegaoai-horizontal.svg'
+const DEFAULT_BRAND_LOGO = '/brand/xuegaoai-horizontal-04f33b87fb.svg'
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
   if (raw) return getImageUrl(raw)
-  return appStore.isResellerTenant ? '' : theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark.svg' : DEFAULT_BRAND_LOGO
+  return appStore.isResellerTenant ? '' : theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : DEFAULT_BRAND_LOGO
 })
 const brandDescription = computed(() => getLocalizedText(appStore.config?.brand?.site_description as Record<string, string>, appStore.locale))
 const contact = computed(() => appStore.config?.contact as { telegram?: string; email?: string; support_url?: string } | undefined)

@@ -16,7 +16,7 @@ onMounted(async () => {
   <img v-if="configured" :src="configured" alt="XUEGAOAI" class="h-10 max-w-full object-contain" />
   <img v-else-if="compact" src="/brand/xuegaoai-symbol.svg" alt="XUEGAOAI" class="h-10 w-10 object-contain" />
   <template v-else>
-    <img src="/brand/xuegaoai-horizontal.svg" alt="XUEGAOAI" class="brand-logo-light h-10 max-w-full object-contain" />
-    <img src="/brand/xuegaoai-horizontal-dark.svg" alt="XUEGAOAI" class="brand-logo-dark h-10 max-w-full object-contain" />
+    <img src="/brand/xuegaoai-horizontal-04f33b87fb.svg" alt="XUEGAOAI" class="brand-logo-light h-10 max-w-full object-contain" />
+    <img src="/brand/xuegaoai-horizontal-dark-0333e3dc29.svg" alt="XUEGAOAI" class="brand-logo-dark h-10 max-w-full object-contain" />
   </template>
 </template>

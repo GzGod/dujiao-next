@@ -176,7 +176,7 @@ const year = new Date().getFullYear()
 const brandName = computed(() => String(appStore.config?.brand?.site_name || '').trim() || '雪糕 AI')
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : `/brand/xuegaoai-horizontal${theme.value === 'dark' ? '-dark' : ''}.svg`
+  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
 })
 const brandDescription = computed(() => {
   const desc = appStore.config?.brand?.site_description
