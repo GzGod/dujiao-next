@@ -78,7 +78,7 @@
   width: 245px;
   height: 245px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.64);
+  background: var(--x-surface-glass);
   box-shadow: 0 35px 80px rgba(35, 77, 126, 0.15), inset 0 1px 0 #fff;
   transform: translateX(-50%);
   backdrop-filter: blur(20px);
@@ -112,8 +112,8 @@
   align-items: center;
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 15px;
-  color: #3b4656;
-  background: rgba(255, 255, 255, 0.78);
+  color: var(--x-ink-2);
+  background: var(--x-surface-glass);
   box-shadow: 0 15px 35px rgba(33, 56, 84, 0.12);
   backdrop-filter: blur(18px);
 }
@@ -128,7 +128,7 @@
 }
 .xpd__float--one span { display: flex; flex-direction: column; gap: 2px; }
 .xpd__float--one b { font-size: 14px; font-weight: 600; }
-.xpd__float--one small { color: #9098a3; font-size: 12px; }
+.xpd__float--one small { color: var(--x-ink-3); font-size: 12px; }
 .xpd__float--two {
   bottom: 110px;
   left: 32px;
@@ -150,12 +150,12 @@
   bottom: 34px;
   left: 0;
   margin: 0;
-  color: #7b8491;
+  color: var(--x-ink-3);
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
 }
-.xpd__visual-note b { color: #3b4655; font-weight: 600; }
+.xpd__visual-note b { color: var(--x-ink-2); font-weight: 600; }
 
 /* ---------- 信息区 ---------- */
 .xpd__brand {
@@ -176,8 +176,8 @@
   font-weight: 600;
   letter-spacing: 0;
 }
-.xpd__brand i.is-in { color: #17834b; background: #e7f6ed; }
-.xpd__brand i.is-low { color: #b45309; background: #fffbeb; }
+.xpd__brand i.is-in { color: var(--ui-success); background: var(--ui-success-soft); }
+.xpd__brand i.is-low { color: var(--ui-warning); background: var(--ui-warning-soft); }
 .xpd__brand i.is-out { color: var(--x-ink-3); background: var(--x-bg-alt); }
 .xpd__info h1 {
   margin: 14px 0 10px;
@@ -259,7 +259,7 @@
   padding: 10px 14px;
   border: 1px solid rgba(0, 0, 0, 0.09);
   border-radius: var(--x-r);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--x-surface-glass);
   text-align: left;
   cursor: pointer;
   transition: border-color 180ms var(--x-ease), background-color 180ms var(--x-ease);
@@ -271,7 +271,7 @@
 .xpd__choice button.is-active { border-color: rgba(0, 113, 227, 0.5); background: rgba(230, 242, 255, 0.72); }
 .xpd__choice button.is-active b { color: var(--x-blue-strong); }
 .xpd__choice button:disabled { cursor: not-allowed; opacity: 0.45; }
-.xpd__hint { margin: 8px 0 0; color: #b45309; font-size: 13px; }
+.xpd__hint { margin: 8px 0 0; color: var(--ui-warning); font-size: 13px; }
 
 .xpd__qty > div {
   display: inline-flex;
@@ -325,11 +325,11 @@
   margin: 16px 0 0;
   padding: 11px 14px;
   border-radius: var(--x-r-sm);
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--ui-danger);
+  background: var(--ui-danger-soft);
   font-size: 14px;
 }
-.xpd__alert--warn { color: #92400e; background: #fffbeb; }
+.xpd__alert--warn { color: var(--ui-warning); background: var(--ui-warning-soft); }
 
 .xpd__actions { display: flex; gap: 10px; margin-top: 24px; }
 .xpd__buy { flex: 1; }
@@ -342,7 +342,7 @@
   padding: 14px 16px;
   border: 1px solid var(--x-line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--x-surface-glass);
 }
 .xpd__safe > svg {
   width: 34px;
@@ -443,7 +443,7 @@
   padding: 16px 18px;
   border: 1px solid var(--x-line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--x-surface-glass);
 }
 .xpd__steps i {
   grid-row: 1 / 3;

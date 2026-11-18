@@ -70,7 +70,7 @@
 }
 .xord__amount { color: var(--x-ink); font-size: 22px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .xord__date { color: var(--x-ink-3); font-size: 13px; }
-.xord__discounts { display: flex; flex-wrap: wrap; gap: 10px; color: #b91c1c; font-size: 12px; }
+.xord__discounts { display: flex; flex-wrap: wrap; gap: 10px; color: var(--ui-danger); font-size: 12px; }
 .xord__row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .xord__row-actions .x-btn { min-height: 38px; padding: 0 16px; font-size: 14px; }
 
@@ -100,8 +100,8 @@
 .xord__summary .xord__date { margin-top: 6px; }
 .xord__summary-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .xord__summary-actions .x-btn { min-height: 38px; padding: 0 16px; font-size: 14px; }
-.x-btn.xord__danger { color: #b91c1c; border-color: rgba(185, 28, 28, 0.35); }
-.x-btn.xord__danger:hover:not(:disabled) { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
+.x-btn.xord__danger { color: var(--ui-danger); border-color: rgba(185, 28, 28, 0.35); }
+.x-btn.xord__danger:hover:not(:disabled) { color: var(--ui-danger); border-color: var(--ui-danger); background: var(--ui-danger-soft); }
 
 .xord__loading { display: grid; gap: 16px; }
 .xord__sk { height: 120px; border-radius: var(--x-r-lg); background: rgba(0, 0, 0, 0.05); animation: x-pulse 1.4s ease-in-out infinite; }

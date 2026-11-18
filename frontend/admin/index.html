@@ -2,7 +2,16 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link id="site-favicon" rel="icon" href="/dj.svg" />
+    <script data-cfasync="false">
+      (() => {
+        let saved;
+        try { saved = localStorage.getItem('admin_theme'); } catch {}
+        const dark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <link id="site-favicon" rel="icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>雪糕 AI Admin</title>
   </head>

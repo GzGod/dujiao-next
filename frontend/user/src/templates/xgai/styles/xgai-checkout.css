@@ -131,7 +131,7 @@
   background: var(--x-surface);
   box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
 }
-.xck__field-error { margin: 8px 0 0; color: #dc2626; font-size: 13px; }
+.xck__field-error { margin: 8px 0 0; color: var(--ui-danger); font-size: 13px; }
 
 /* ---------- 商品 ---------- */
 .xck__items { display: grid; gap: 10px; }
@@ -144,7 +144,7 @@
   border-radius: var(--x-r);
   background: var(--x-bg);
 }
-.xck__item.is-warn { border-color: rgba(180, 83, 9, 0.35); background: #fffbeb; }
+.xck__item.is-warn { border-color: rgba(180, 83, 9, 0.35); background: var(--ui-warning-soft); }
 .xck__thumb {
   position: relative;
   width: 56px;
@@ -162,7 +162,7 @@
 .xck__item-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
 .xck__item-info > a { color: var(--x-ink); font-size: 15px; font-weight: 600; }
 .xck__item-info small { color: var(--x-ink-3); font-size: 13px; }
-.xck__item-info small.is-warn { color: #b45309; }
+.xck__item-info small.is-warn { color: var(--ui-warning); }
 .xck__item-price { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
 .xck__item-price strong { color: var(--x-ink); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .xck__item-price.is-active strong { color: var(--x-blue); }
@@ -219,7 +219,7 @@
 .xck__rows > div > span:last-child { color: var(--x-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .xck__rows .is-blue { color: var(--x-blue) !important; }
 .xck__rows .is-green { color: var(--x-green) !important; }
-.xck__rows .is-gold { color: #b45309 !important; }
+.xck__rows .is-gold { color: var(--ui-warning) !important; }
 .xck__rows > div.is-total {
   align-items: baseline;
   margin-top: 4px;
@@ -237,9 +237,9 @@
   font-size: 13px;
   font-weight: 500;
 }
-.xck__alert.is-error { color: #b91c1c; background: #fef2f2; }
-.xck__alert.is-warn { color: #92400e; background: #fffbeb; }
-.xck__alert.is-success-box { color: #17834b; background: #e7f6ed; }
+.xck__alert.is-error { color: var(--ui-danger); background: var(--ui-danger-soft); }
+.xck__alert.is-warn { color: var(--ui-warning); background: var(--ui-warning-soft); }
+.xck__alert.is-success-box { color: var(--ui-success); background: var(--ui-success-soft); }
 
 /* ---------- 支付方式 ---------- */
 .xck__pay-section { margin: 20px 0; padding-top: 18px; border-top: 1px solid var(--x-line); }
@@ -274,7 +274,7 @@
 .xck__channels-empty,
 .xpay__loading-text { color: var(--x-ink-3); font-size: 14px; }
 .xck__wallet-covers { color: var(--x-green); font-size: 13px; font-weight: 500; }
-.is-warn { color: #b45309; }
+.is-warn { color: var(--ui-warning); }
 .is-success { color: var(--x-green); font-size: 13px; }
 
 .xck__wallet {
@@ -368,7 +368,7 @@
 }
 .xpay__stat-row small { color: var(--x-ink-4); font-size: 12px; }
 .xpay__stat-row b { color: var(--x-ink); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.xpay__stat-row b.is-red { color: #dc2626; }
+.xpay__stat-row b.is-red { color: var(--ui-danger); }
 .xpay__stat-row > div.is-teal { border-color: rgba(23, 131, 75, 0.3); }
 .xpay__stat-row > div.is-teal b,
 .xpay__stat-row > div.is-teal small { color: var(--x-green); }
@@ -387,7 +387,7 @@
   font-weight: 600;
 }
 .xpay__countdown span { font-variant-numeric: tabular-nums; }
-.xpay__countdown.is-expired { color: #dc2626; background: #fef2f2; }
+.xpay__countdown.is-expired { color: var(--ui-danger); background: var(--ui-danger-soft); }
 .xpay__polling { margin-top: 10px; color: var(--x-ink-4); font-size: 12px; }
 
 .xpay__items { display: grid; gap: 12px; }
@@ -411,8 +411,8 @@
   margin-bottom: 12px;
   padding: 14px 16px;
   border-radius: var(--x-r);
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--ui-warning);
+  background: var(--ui-warning-soft);
   font-size: 13px;
 }
 .xpay__cached p { margin: 0; }
@@ -434,7 +434,7 @@
   font-weight: 600;
 }
 .xpay__method-tag.is-ok { color: var(--x-blue-strong); background: var(--x-blue-tint); }
-.xpay__method-tag.is-warn { color: #92400e; background: #fffbeb; }
+.xpay__method-tag.is-warn { color: var(--ui-warning); background: var(--ui-warning-soft); }
 .xpay__aside .xck__alert { margin: 0 0 14px; }
 
 /* ---------- 支付页：过期 / 取消 ---------- */

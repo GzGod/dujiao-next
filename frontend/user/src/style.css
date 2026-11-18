@@ -83,7 +83,7 @@
   font-weight: 400;
 
   /*
-   * 雪糕AI 设计系统：科技蓝 + 白。只有浅色主题，所有页面颜色、间距、圆角、阴影都从这里取。
+   * 雪糕AI 设计系统：科技蓝 + 白。深浅主题共享语义令牌，所有页面颜色、间距、圆角、阴影都从这里取。
    * Primary 蓝阶：50 极浅底 / 100 浅底 / 600 主色 #2563EB / 700 深蓝 #1D4ED8 / 900 墨蓝文字强调
    */
   --brand-50: #eff6ff;
@@ -694,4 +694,27 @@ html[data-telegram-mini-app="true"] body {
 .theme-prose p:has(> img) + p:has(> img),
 .theme-prose p:has(> img) + p:has(> img) > img {
   margin-top: 0;
+}
+
+.brand-logo-dark { display: none; }
+.dark .brand-logo-light { display: none; }
+.dark .brand-logo-dark { display: inline-block; }
+
+.dark {
+  --neutral-0: #242830; --neutral-25: #15171c; --neutral-50: #20232a;
+  --neutral-100: #2a3039; --neutral-200: #39414d; --neutral-300: #536071;
+  --neutral-500: #a7afbd; --neutral-700: #c7ccd5; --neutral-900: #f1f3f7;
+  --brand-50: #20354d; --brand-100: #254569; --brand-200: #326599;
+  --brand-600: #409cff; --brand-700: #73b6ff; --brand-900: #c2dfff;
+  --ui-bg-overlay: rgba(21,23,28,.82); --ui-bg-overlay-strong: rgba(21,23,28,.96);
+  --ui-success: #70d69a; --ui-success-soft: #203e30;
+  --ui-warning: #f6c472; --ui-warning-soft: #42351f;
+  --ui-danger: #ff9292; --ui-danger-soft: #48292f;
+  --ui-accent-warm: #f6c472; --ui-accent-warm-hover: #ffda9d; --ui-accent-warm-soft: #42351f;
+}
+
+/* Brand artwork needs a neutral backing on dark product/order surfaces. */
+.dark img[src$="/images/brands/openai.svg"] {
+  background: #fff;
+  border-radius: 8px;
 }

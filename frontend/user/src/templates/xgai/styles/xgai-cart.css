@@ -58,7 +58,7 @@
   transition: color 160ms var(--x-ease), border-color 160ms var(--x-ease), background-color 160ms var(--x-ease);
 }
 .xcart__remove svg { width: 15px; height: 15px; }
-.xcart__remove:hover { color: #b91c1c; border-color: rgba(185, 28, 28, 0.4); background: #fef2f2; }
+.xcart__remove:hover { color: var(--ui-danger); border-color: rgba(185, 28, 28, 0.4); background: var(--ui-danger-soft); }
 
 .xcart__bottom {
   display: flex;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BrandLogo from '@/components/BrandLogo.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterView, RouterLink } from 'vue-router'
 import {
@@ -672,7 +673,8 @@ const applyTheme = (theme: 'light' | 'dark') => {
   } else {
     root.classList.remove('dark')
   }
-  localStorage.setItem('admin_theme', theme)
+  document.documentElement.style.colorScheme = theme
+  try { localStorage.setItem('admin_theme', theme) } catch { /* Keep the current theme. */ }
 }
 
 const toggleTheme = () => {
@@ -757,10 +759,10 @@ onBeforeUnmount(() => {
       >
         <div class="py-6" :class="sidebarCollapsed ? 'px-2' : 'px-6'">
           <div v-if="!sidebarCollapsed" class="text-xl font-semibold tracking-tight">
-            {{ t('admin.brand') }}
+            <BrandLogo />
           </div>
           <div v-if="!sidebarCollapsed" class="text-xs text-muted-foreground mt-1">{{ t('admin.layout.controlRoom') }}</div>
-          <div v-if="sidebarCollapsed" class="text-lg font-semibold tracking-tight text-center">D&J</div>
+          <div v-if="sidebarCollapsed" class="text-lg font-semibold tracking-tight text-center"><BrandLogo compact /></div>
         </div>
         <div v-if="!sidebarCollapsed" class="px-3 pb-2">
           <Input
@@ -867,7 +869,7 @@ onBeforeUnmount(() => {
           <SheetTitle class="sr-only">{{ t('admin.layout.navigation') }}</SheetTitle>
           <div class="px-6 py-6">
             <div class="text-xl font-semibold tracking-tight">
-              {{ t('admin.brand') }}
+              <BrandLogo />
             </div>
             <div class="text-xs text-muted-foreground mt-1">{{ t('admin.layout.controlRoom') }}</div>
           </div>

@@ -15,7 +15,7 @@ body.xgai-tokens {
   --x-ink: #1d1d1f;
   --x-ink-2: #515154;
   --x-ink-3: #6e6e73;
-  --x-ink-4: #86868b;
+  --x-ink-4: #68686f;
   --x-line: rgba(0, 0, 0, 0.07);
   --x-line-strong: rgba(0, 0, 0, 0.12);
   --x-blue: #0071e3;
@@ -181,7 +181,7 @@ body.xgai-tokens {
   padding: 4px;
   border: 1px solid var(--x-line);
   border-radius: 18px;
-  background: #ececea;
+  background: var(--x-bg-alt);
 }
 .x-segment button {
   min-height: 36px;
@@ -198,7 +198,7 @@ body.xgai-tokens {
 .x-segment button:hover { color: var(--x-ink); }
 .x-segment button.is-active {
   color: var(--x-ink);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -237,7 +237,9 @@ body.xgai-tokens {
 .dark .xgai-scope :is(.x-glass, .xpc, .xpc--featured) { background: var(--x-surface-glass); border-color: var(--x-line-strong); box-shadow: var(--x-shadow); }
 .dark .xgai-scope .xhero { background: radial-gradient(ellipse at 75% 15%, #203854, transparent 65%), var(--x-bg); }
 .dark .xgai-scope :is(.xrec__options button, .xrec__result, .xcheck__panel, .xcheck__step, .xprocess__step, .xpd__visual, .xpd__float, .xpd__badge) { background: var(--x-surface); border-color: var(--x-line-strong); }
-.dark .xgai-scope :is(.xpc__icon, .xh__logo-img) { border-radius: 8px; background: #fff; }
+.dark .xgai-scope .xpc__icon { background: #fff; }
 
 .dark .xgai-scope :is(.xtrust, .xhero__badge, .xhero__secondary span, .xprod__skeleton, .xprod__help) { background: var(--x-surface); box-shadow: none; }
 .dark .xgai-scope .xrec__options button.is-active { background: var(--x-blue-soft); }
+
+.dark .xgai-scope :is(.xcheck__privacy, .xflow__grid article) { background: var(--x-surface); }

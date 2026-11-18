@@ -139,7 +139,7 @@ const DEFAULT_BRAND_LOGO = '/brand/xuegaoai-horizontal.svg'
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
   if (raw) return getImageUrl(raw)
-  return appStore.isResellerTenant ? '' : DEFAULT_BRAND_LOGO
+  return appStore.isResellerTenant ? '' : theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark.svg' : DEFAULT_BRAND_LOGO
 })
 const brandDescription = computed(() => getLocalizedText(appStore.config?.brand?.site_description as Record<string, string>, appStore.locale))
 const contact = computed(() => appStore.config?.contact as { telegram?: string; email?: string; support_url?: string } | undefined)

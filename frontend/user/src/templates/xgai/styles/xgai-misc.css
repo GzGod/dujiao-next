@@ -140,7 +140,7 @@
   display: inline-flex;
   padding: 3px 10px;
   border-radius: var(--x-r-pill);
-  color: #92400e;
+  color: var(--ui-warning);
   background: #fef3c7;
   font-size: 12px;
   font-weight: 600;
@@ -249,9 +249,9 @@
 }
 .xrech__cell small { display: block; color: var(--x-ink-3); font-size: 12px; }
 .xrech__cell strong { display: block; margin-top: 6px; color: var(--x-ink); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.xrech__cell.is-warn { border-color: rgba(245,158,11,.4); color: #92400e; }
-.xrech__cell.is-warn small { color: #92400e; }
-.xrech__cell.is-warn strong { color: #92400e; }
+.xrech__cell.is-warn { border-color: rgba(245,158,11,.4); color: var(--ui-warning); }
+.xrech__cell.is-warn small { color: var(--ui-warning); }
+.xrech__cell.is-warn strong { color: var(--ui-warning); }
 .xrech__cell.is-primary { border-color: var(--x-blue); }
 .xrech__cell.is-primary small { color: var(--x-blue); }
 .xrech__cell.is-primary strong { color: var(--x-blue); }

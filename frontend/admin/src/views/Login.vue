@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BrandLogo from '@/components/BrandLogo.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -186,6 +187,7 @@ onUnmounted(() => {
     <div class="w-full max-w-md">
       <Card class="border-border shadow-sm">
         <CardHeader>
+          <BrandLogo class="mb-4" />
           <CardTitle class="text-2xl">
             {{ step === 'password' ? t('admin.login.title') : t('admin.login.totp.title') }}
           </CardTitle>

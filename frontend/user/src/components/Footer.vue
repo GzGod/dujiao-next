@@ -17,7 +17,7 @@
               class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <span class="text-primary-foreground font-black text-sm">{{ brandInitial }}</span>
             </div>
-            <h3 class="text-foreground text-xl font-bold tracking-tight">{{ brandSiteName }}</h3>
+            <h3 v-if="!brandLogo" class="text-foreground text-xl font-bold tracking-tight">{{ brandSiteName }}</h3>
           </div>
           <p class="text-sm leading-relaxed max-w-sm text-muted-foreground">
             {{ brandDescription || t('footer.description') }}
@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTheme } from '@/utils/theme'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Home, LayoutGrid, Newspaper, Info, Mail, Headphones } from 'lucide-vue-next'
@@ -146,9 +147,10 @@ const brandInitial = computed(() => {
   return brandSiteName.value.charAt(0).toUpperCase()
 })
 
+const { theme } = useTheme()
 const brandLogo = computed(() => {
   const raw = String(config.value?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : ''
+  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : `/brand/xuegaoai-horizontal${theme.value === 'dark' ? '-dark' : ''}.svg`
 })
 
 const isListMode = computed(() => config.value?.template_mode === 'list')

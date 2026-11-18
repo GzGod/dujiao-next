@@ -12,7 +12,7 @@
           :alt="brandSiteName"
           class="h-8 max-w-[180px] shrink-0 object-contain"
         />
-        <span class="theme-wordmark-text">{{ brandSiteName }}</span>
+        <span v-if="!brandLogo" class="theme-wordmark-text">{{ brandSiteName }}</span>
       </router-link>
 
       <!-- Desktop Menu -->
@@ -199,6 +199,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTheme } from '@/utils/theme'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '../stores/app'
@@ -248,9 +249,10 @@ const brandSiteName = computed(() => {
   return text !== '' ? text : '雪糕 AI'
 })
 
+const { theme } = useTheme()
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : ''
+  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : `/brand/xuegaoai-horizontal${theme.value === 'dark' ? '-dark' : ''}.svg`
 })
 
 const toggleMobileMenu = () => {

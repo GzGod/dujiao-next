@@ -56,9 +56,9 @@
 .xme__pill img,
 .xme__pill svg { width: 14px; height: 14px; object-fit: contain; }
 .xme__pill.is-ok { color: var(--x-green); background: var(--x-green-soft); }
-.xme__pill.is-warn { color: #92400e; background: #fef3c7; }
+.xme__pill.is-warn { color: var(--ui-warning); background: #fef3c7; }
 .xme__pill.is-blue { color: var(--x-blue); background: var(--x-blue-soft); }
-.xme__pill.is-gold { color: #92400e; background: #fef3c7; }
+.xme__pill.is-gold { color: var(--ui-warning); background: #fef3c7; }
 
 /* ---------- layout ---------- */
 .xme__layout {
@@ -108,9 +108,9 @@
   font-size: 13px;
   font-weight: 600;
 }
-.xme__notice.is-error { color: #b91c1c; background: #fef2f2; }
+.xme__notice.is-error { color: var(--ui-danger); background: var(--ui-danger-soft); }
 .xme__notice.is-success { color: var(--x-green); background: var(--x-green-soft); }
-.xme__notice.is-warn { color: #92400e; background: #fffbeb; }
+.xme__notice.is-warn { color: var(--ui-warning); background: var(--ui-warning-soft); }
 
 /* ---------- stats ---------- */
 .xme__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
@@ -135,7 +135,7 @@
 .xme__stat-icon svg { width: 20px; height: 20px; }
 .xme__stat-icon.is-blue { color: var(--x-blue); background: var(--x-blue-soft); }
 .xme__stat-icon.is-violet { color: #7c3aed; background: #f3e8ff; }
-.xme__stat-icon.is-gold { color: #b45309; background: #fef3c7; }
+.xme__stat-icon.is-gold { color: var(--ui-warning); background: #fef3c7; }
 .xme__stat-icon.is-green { color: var(--x-green); background: var(--x-green-soft); }
 .xme__stat small { display: block; color: var(--x-ink-3); font-size: 12px; }
 .xme__stat strong {

@@ -118,7 +118,7 @@
 .xauth__eye:hover { color: var(--x-blue); }
 .xauth__eye svg { width: 16px; height: 16px; }
 .xauth__hint { margin: 0; color: var(--x-ink-4); font-size: 13px; line-height: 1.5; }
-.xauth__field-err { color: #dc2626; font-size: 13px; }
+.xauth__field-err { color: var(--ui-danger); font-size: 13px; }
 
 /* ---------- input with suffix btn ---------- */
 .xauth__code-row { display: flex; gap: 10px; }
@@ -171,7 +171,7 @@
   background-position: right 12px center;
   padding-right: 32px;
 }
-.xauth__domain-select:focus { outline: none; border-color: rgba(0,113,227,0.5); box-shadow: 0 0 0 4px rgba(0,113,227,0.1); background-color: #fff; }
+.xauth__domain-select:focus { outline: none; border-color: rgba(0,113,227,0.5); box-shadow: 0 0 0 4px rgba(0,113,227,0.1); background-color: var(--x-surface); }
 
 /* ---------- TOTP countdown ---------- */
 .xauth__countdown {
@@ -273,7 +273,7 @@
 /* ---------- input error state ---------- */
 .xauth__domain-select.is-error,
 .xck__input.is-error { border-color: rgba(220,38,38,0.6); }
-.xck__input.is-error:focus { border-color: #dc2626; box-shadow: 0 0 0 4px rgba(220,38,38,0.1); }
+.xck__input.is-error:focus { border-color: var(--ui-danger); box-shadow: 0 0 0 4px rgba(220,38,38,0.1); }
 
 /* ---------- responsive ---------- */
 @media (max-width: 520px) {
@@ -316,5 +316,5 @@
 @media (prefers-reduced-motion: reduce) {
   .xauth__spin { animation-duration: 2.4s; }
 }
-.xauth__err-icon { width: 36px; height: 36px; color: #dc2626; }
+.xauth__err-icon { width: 36px; height: 36px; color: var(--ui-danger); }
 .xauth__form .xck__alert { margin-top: 0; }
