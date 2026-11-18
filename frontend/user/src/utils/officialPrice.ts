@@ -12,8 +12,11 @@ interface OfficialPriceRule {
   usd: number
 }
 
-// 顺序重要：更具体的规则放前面（Pro 25× 要在 Pro 前面匹配）
+// 新档位名按美元月费匹配；兼容旧商品名与历史订单中的倍率写法。
 const RULES: OfficialPriceRule[] = [
+  { pattern: /gpt\s*pro\s*500(?![\d.x×])/i, usd: 500 },
+  { pattern: /gpt\s*pro\s*200(?![\d.x×])/i, usd: 200 },
+  { pattern: /gpt\s*pro\s*100(?![\d.x×])/i, usd: 100 },
   { pattern: /gpt\s*pro\s*25\s*[x×]/i, usd: 500 },
   { pattern: /gpt\s*pro\s*10\s*[x×]/i, usd: 200 },
   { pattern: /gpt\s*pro\s*5\s*[x×]/i, usd: 100 },
