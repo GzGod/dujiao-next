@@ -216,6 +216,7 @@ body.xgai-tokens {
 .dark .xgai-scope,
 .dark body.xgai-tokens {
   --x-bg: #000;
+  --x-dark: #000;
   --x-bg-alt: #000;
   --x-surface: #0a0a0a;
   --x-surface-glass: #0a0a0a;
@@ -245,7 +246,8 @@ body.xgai-tokens {
 .dark .xgai-scope :is(.xcheck__privacy, .xflow__grid article) { background: var(--x-surface); }
 
 .dark .xgai-scope .xh__nav { background: transparent; }
-.dark .xgai-scope .xhero::before { display: none; }
+.dark .xgai-scope .xhero::before,
+.dark .xgai-scope .xhero__glow { display: none; }
 .dark .xgai-scope :is(.xcheck, .xflow) { background: #000; }
 @media (max-width: 860px) {
   .dark .xgai-scope .xh__nav { background: #000; }
