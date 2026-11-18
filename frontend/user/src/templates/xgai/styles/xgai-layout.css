@@ -53,7 +53,7 @@
   width: 5px;
   height: 15px;
   border-radius: 4px;
-  background: #fff;
+  background: var(--x-surface);
   transform: rotate(45deg);
 }
 .xh__mark i:nth-child(2) { transform: rotate(-45deg); }
@@ -129,7 +129,7 @@
   padding: 6px;
   border: 1px solid var(--x-line);
   border-radius: var(--x-r);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: var(--x-shadow);
 }
 .xh__menu button {
@@ -274,7 +274,7 @@
     border: 1px solid var(--x-line);
     border-radius: 12px;
     color: var(--x-ink-2);
-    background: #fff;
+    background: var(--x-surface);
     font-size: 13px;
   }
   .xh__langs button.is-active { color: var(--x-blue); border-color: rgba(0, 113, 227, 0.4); }

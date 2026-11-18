@@ -13,7 +13,7 @@
   padding: 26px 28px;
   border: 1px solid var(--x-line);
   border-radius: var(--x-r-xl);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: var(--x-shadow-sm);
 }
 .xme__who { display: flex; min-width: 0; align-items: center; gap: 16px; }
@@ -77,7 +77,7 @@
   padding: 10px;
   border: 1px solid var(--x-line);
   border-radius: var(--x-r-lg);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: var(--x-shadow-sm);
 }
 .xme__nav button {
@@ -121,7 +121,7 @@
   padding: 16px;
   border: 1px solid var(--x-line);
   border-radius: var(--x-r);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: var(--x-shadow-sm);
 }
 .xme__stat-icon {
@@ -201,7 +201,7 @@
   background: var(--x-bg);
   transition: border-color 160ms var(--x-ease), background-color 160ms var(--x-ease);
 }
-.xme__order:hover { border-color: var(--x-line-strong); background: #fff; }
+.xme__order:hover { border-color: var(--x-line-strong); background: var(--x-surface); }
 .xme__order small { display: block; color: var(--x-ink-3); font-size: 12.5px; }
 .xme__order strong { display: block; margin: 3px 0; color: var(--x-ink); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .xme__order-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

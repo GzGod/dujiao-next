@@ -2039,6 +2039,7 @@
     }
   },
   "xgai": {
+    "theme": { "light": "Switch to light mode", "dark": "Switch to dark mode" },
     "seo": {
       "title": "AI membership top-ups"
     },

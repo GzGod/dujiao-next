@@ -202,7 +202,7 @@
 /* ---------- 信任条 ---------- */
 .xtrust {
   border-block: 1px solid rgba(0, 0, 0, 0.06);
-  background: #fff;
+  background: var(--x-surface);
 }
 .xtrust__row {
   display: grid;

@@ -58,7 +58,7 @@
   overflow: hidden;
   border: 1px solid var(--x-line);
   border-radius: var(--x-r-lg);
-  background: #fff;
+  background: var(--x-surface);
   box-shadow: var(--x-shadow-sm);
   transition: transform 200ms var(--x-ease), box-shadow 200ms var(--x-ease);
 }

@@ -2,7 +2,7 @@
    雪糕 AI — xgai 模板设计令牌
    来源: Figma Make 原型（GzGod/AIDCUI），iOS 式清晰 + 暖灰底 + Apple 蓝。
    作用域: 只作用于 .xgai-scope / body.xgai-tokens，不影响 classic / vault。
-   浅色单主题（与原型一致），浮层 Teleport 到 body 时靠 body.xgai-tokens 拿令牌。
+   支持浅色与暗色主题，浮层 Teleport 到 body 时靠 body.xgai-tokens 拿令牌。
    ========================================================================= */
 
 .xgai-scope,
@@ -212,3 +212,32 @@ body.xgai-tokens {
   .x-h2 { font-size: 27px; }
   .x-lede { font-size: 15px; }
 }
+
+.dark .xgai-scope,
+.dark body.xgai-tokens {
+  --x-bg: #15171c;
+  --x-bg-alt: #20232a;
+  --x-surface: #242830;
+  --x-surface-glass: rgba(36, 40, 48, 0.9);
+  --x-ink: #f1f3f7;
+  --x-ink-2: #c7ccd5;
+  --x-ink-3: #a7afbd;
+  --x-ink-4: #939dab;
+  --x-line: rgba(255, 255, 255, 0.1);
+  --x-line-strong: rgba(255, 255, 255, 0.2);
+  --x-blue: #409cff;
+  --x-blue-strong: #2388ec;
+  --x-blue-soft: rgba(64, 156, 255, 0.14);
+  --x-blue-tint: #20354d;
+  --x-green: #70d69a;
+  --x-green-soft: #203e30;
+}
+.dark .xgai-scope .xh { background: rgba(21, 23, 28, 0.9); }
+.dark .xgai-scope :is(.xh__menu, .xh__nav, .xf, .x-btn--ghost, .x-segment, .x-segment button.is-active) { background: var(--x-surface); }
+.dark .xgai-scope :is(.x-glass, .xpc, .xpc--featured) { background: var(--x-surface-glass); border-color: var(--x-line-strong); box-shadow: var(--x-shadow); }
+.dark .xgai-scope .xhero { background: radial-gradient(ellipse at 75% 15%, #203854, transparent 65%), var(--x-bg); }
+.dark .xgai-scope :is(.xrec__options button, .xrec__result, .xcheck__panel, .xcheck__step, .xprocess__step, .xpd__visual, .xpd__float, .xpd__badge) { background: var(--x-surface); border-color: var(--x-line-strong); }
+.dark .xgai-scope :is(.xpc__icon, .xh__logo-img) { border-radius: 8px; background: #fff; }
+
+.dark .xgai-scope :is(.xtrust, .xhero__badge, .xhero__secondary span, .xprod__skeleton, .xprod__help) { background: var(--x-surface); box-shadow: none; }
+.dark .xgai-scope .xrec__options button.is-active { background: var(--x-blue-soft); }

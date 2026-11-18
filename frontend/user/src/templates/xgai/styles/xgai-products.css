@@ -36,7 +36,7 @@
   transform: translateY(-50%);
   pointer-events: none;
 }
-.xprod__search .xck__input { padding-inline: 40px; background: #fff; }
+.xprod__search .xck__input { padding-inline: 40px; background: var(--x-surface); }
 .xprod__search-clear {
   position: absolute;
   top: 50%;
@@ -134,7 +134,7 @@
   border: 1px solid var(--x-line-strong);
   border-radius: var(--x-r-pill);
   color: var(--x-ink-2);
-  background: #fff;
+  background: var(--x-surface);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

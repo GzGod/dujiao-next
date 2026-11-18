@@ -51,7 +51,7 @@
   border: 1px solid var(--x-line-strong);
   border-radius: var(--x-r-pill);
   color: var(--x-ink-3);
-  background: #fff;
+  background: var(--x-surface);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -76,7 +76,7 @@
   overflow: hidden;
   border: 1px solid var(--x-line-strong);
   border-radius: var(--x-r-pill);
-  background: #fff;
+  background: var(--x-surface);
 }
 .xcart__qty button {
   width: 38px;
