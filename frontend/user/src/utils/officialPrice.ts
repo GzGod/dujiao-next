@@ -1,8 +1,7 @@
 /**
  * 官方订阅价（美区月付，美元），用于商品卡片上的「比官方省多少」。
  *
- * 价格来源：OpenAI 定价页（Go $8 / Plus $20 / Pro $100·$200·$500）与 xAI X Subscription
- * （Plus $8 / Premium $30 / Super $100 / Ultra $200），2026-11 核对。官方调价时改这里。
+ * 价格来源：OpenAI 定价页（Go $8 / Plus $20 / Pro $100·$200·$500）。官方调价时改这里。
  * 只在我们确实比官方便宜时展示，避免对用户做误导性对比。
  */
 
@@ -20,10 +19,6 @@ const RULES: OfficialPriceRule[] = [
   { pattern: /gpt\s*pro\s*5\s*[x×]/i, usd: 100 },
   { pattern: /gpt\s*plus/i, usd: 20 },
   { pattern: /gpt\s*go/i, usd: 8 },
-  { pattern: /grok\s*ultra/i, usd: 200 },
-  { pattern: /grok\s*super/i, usd: 100 },
-  { pattern: /grok\s*premium/i, usd: 30 },
-  { pattern: /grok\s*plus/i, usd: 8 },
 ]
 
 export interface OfficialComparison {

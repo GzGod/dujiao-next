@@ -1912,7 +1912,7 @@
   "xg": {
     "hero": {
       "title": "Top up your own account. No shared logins.",
-      "lede": "ChatGPT, Grok and other AI plans charged straight to your account. Delivered automatically after payment, with every order trackable.",
+      "lede": "ChatGPT plans charged straight to your account. Delivered automatically after payment, with every order trackable.",
       "primary": "Shop now",
       "secondary": "How it works",
       "factProducts": "plans on sale",
@@ -2056,7 +2056,7 @@
       "badgeTail": "WeChat Pay / Alipay",
       "titleLead": "Get AI memberships",
       "titleAccent": "without a foreign card.",
-      "lede": "ChatGPT and Grok memberships applied to your own account. Scan to pay, we process it automatically, and you can follow progress in your order.",
+      "lede": "ChatGPT memberships applied to your own account. Scan to pay, we process it automatically, and you can follow progress in your order.",
       "primary": "See the plans",
       "secondary": "How top-ups work",
       "proof1": "Your own account",
@@ -2193,7 +2193,7 @@
       "faq2q": "How soon do I get it?",
       "faq2a": "The order is placed automatically once you pay, and the code usually shows up in your order within minutes. It can take a bit longer if the supplier is busy; progress is always on your order page.",
       "faq3q": "How do I use the code?",
-      "faq3a": "Your order page explains how to redeem it. Follow the steps on your own ChatGPT or Grok account and the membership starts right away.",
+      "faq3a": "Your order page explains how to redeem it. Follow the steps on your own ChatGPT account and the membership starts right away.",
       "faq4q": "Who do I contact if something goes wrong?",
       "faq4a": "Every order has a full record. Reach us through the contact links at the bottom of the page; including your order number speeds things up."
     }

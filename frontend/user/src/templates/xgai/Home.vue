@@ -277,7 +277,6 @@ const brandsPresent = computed(() => new Set(products.value.map((p) => detectAiB
 const filters = computed(() => {
   const list: { value: Filter; label: string }[] = [{ value: 'all', label: t('xgai.products.all') }]
   if (brandsPresent.value.has('openai')) list.push({ value: 'openai', label: 'ChatGPT' })
-  if (brandsPresent.value.has('grok')) list.push({ value: 'grok', label: 'Grok' })
   if (brandsPresent.value.has('other')) list.push({ value: 'other', label: t('xgai.products.other') })
   return list
 })

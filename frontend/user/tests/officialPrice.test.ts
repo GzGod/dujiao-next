@@ -8,7 +8,7 @@ test('matches official tiers by product title', () => {
   assert.equal(officialUsdFor('GPT Pro 10×（直充）'), 200)
   assert.equal(officialUsdFor('GPT Pro 25×（订阅升级）'), 500)
   assert.equal(officialUsdFor('GPT Go（月付）'), 8)
-  assert.equal(officialUsdFor('Grok Premium · 月卡'), 30)
+  assert.equal(officialUsdFor('Grok Premium · 月卡'), null)
   assert.equal(officialUsdFor('Spotify 会员'), null)
 })
 
