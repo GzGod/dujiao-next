@@ -2354,6 +2354,7 @@ const messages = {
         },
         actions: {
           detail: '详情',
+          rechargeBalance: '充值余额',
           edit: '编辑',
         },
         modal: {
@@ -6934,6 +6935,7 @@ const messages = {
         },
         actions: {
           detail: '詳情',
+          rechargeBalance: '儲值餘額',
           edit: '編輯',
         },
         modal: {
@@ -11514,6 +11516,7 @@ const messages = {
         },
         actions: {
           detail: 'Detail',
+          rechargeBalance: 'Top up balance',
           edit: 'Edit',
         },
         modal: {

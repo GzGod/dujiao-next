@@ -465,7 +465,13 @@ onMounted(() => {
   fetchUser()
   fetchOrders()
   fetchMemberLevels()
+  if (route.query.tab === 'wallet') changeTab('wallet')
 })
+
+watch(
+  () => route.query.tab,
+  (tab) => { if (tab === 'wallet') changeTab('wallet') }
+)
 
 watch(
   () => route.params.id,

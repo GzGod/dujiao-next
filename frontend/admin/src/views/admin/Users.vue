@@ -444,6 +444,9 @@ onMounted(() => {
                 <Button as-child size="sm" variant="outline">
                   <router-link :to="userDetailLink(user.id)">{{ t('admin.users.actions.detail') }}</router-link>
                 </Button>
+                <Button as-child size="sm" variant="outline">
+                  <router-link :to="{ path: userDetailLink(user.id), query: { tab: 'wallet' } }">{{ t('admin.users.actions.rechargeBalance') }}</router-link>
+                </Button>
                 <Button size="sm" variant="outline" @click="openEditModal(user)">
                   {{ t('admin.users.actions.edit') }}
                 </Button>
