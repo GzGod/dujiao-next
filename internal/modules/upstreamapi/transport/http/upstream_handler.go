@@ -1,6 +1,7 @@
 package upstreamhttp
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -145,7 +146,14 @@ type SecretDecrypter interface {
 	DecryptSecret(encrypted string) (string, error)
 }
 
+type AfterSales interface {
+	ReviewRefund(context.Context, uint, bool, uint, string) error
+	Inspect(context.Context, uint) (*procurementcontract.RedemptionState, error)
+	Replace(context.Context, uint, string, int) (*procurementcontract.RedemptionState, error)
+	RequestRefund(context.Context, uint, string, string) error
+}
 type Dependencies struct {
+	AfterSales        AfterSales
 	Categories        CategoryRepository
 	Products          ProductService
 	Users             UserRepository

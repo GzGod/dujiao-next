@@ -3,6 +3,8 @@ package procurement_test
 import (
 	"encoding/json"
 	"errors"
+	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
+	procurementgormstore "github.com/dujiao-next/internal/modules/procurement/infrastructure/gormstore"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -434,5 +436,63 @@ func TestProcurement_GetByID_WithoutUpstreamRefundOmitsRefundFields(t *testing.T
 	}
 	if _, ok := decoded["upstream_order_id"]; ok {
 		t.Fatalf("expected upstream_order_id to be omitted from procurement payload, payload=%s", string(payload))
+	}
+}
+
+func TestAfterSaleReservationAndDeliveryAreAtomic(t *testing.T) {
+	db := setupProcurementTestDB(t)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	order := createProcTestOrder(t, db, "REPLACE-ATOMIC", "delivered", "upstream")
+	proc := createTestProcurementOrder(t, db, 1, order.ID, order.OrderNo, "fulfilled")
+	delivery := fulfillmentdomain.Fulfillment{OrderID: order.ID, Type: "upstream", Status: "delivered", Payload: "old-code"}
+	if err := db.Create(&delivery).Error; err != nil {
+		t.Fatal(err)
+	}
+	store := procurementgormstore.New(db)
+	ok, err := store.BeginAfterSale(proc.ID, "replace", "fixed", "", 1)
+	if err != nil || !ok {
+		t.Fatalf("reserve: %v %v", ok, err)
+	}
+	ok, err = store.BeginAfterSale(proc.ID, "replace", "other", "", 1)
+	if err != nil || ok {
+		t.Fatal("concurrent operation accepted")
+	}
+	if err := store.CompleteReplacement(proc.ID, "other", "wrong-code", 2); err == nil {
+		t.Fatal("wrong operation changed delivery")
+	}
+	if err := store.CompleteReplacement(proc.ID, "fixed", "new-code", 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&delivery, delivery.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if delivery.Payload != "new-code" {
+		t.Fatal("replacement not delivered")
+	}
+	ok, err = store.BeginAfterSale(proc.ID, "replace", "stale", "", 1)
+	if err != nil || ok {
+		t.Fatal("stale revision reserved")
+	}
+	ok, err = store.BeginAfterSale(proc.ID, "refund", "refund", "reason", 2)
+	if err != nil || !ok {
+		t.Fatalf("refund reserve: %v %v", ok, err)
+	}
+	ok, err = store.ReviewAfterSale(proc.ID, "pending_review", "refund_processing", 7, "approve")
+	if err != nil || !ok {
+		t.Fatal(err)
+	}
+	ok, err = store.ReviewAfterSale(proc.ID, "refund_processing", "refunded", 7, "confirmed")
+	if err != nil || !ok {
+		t.Fatal(err)
+	}
+	if err := db.First(&delivery, delivery.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if delivery.Payload != "" || delivery.Status != "refunded" {
+		t.Fatal("refunded code still delivered")
 	}
 }

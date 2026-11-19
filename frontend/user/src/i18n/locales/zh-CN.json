@@ -1853,6 +1853,30 @@
         "notes": {
           "onlyUnpaid": "只有待支付（pending_payment）的订单可以取消；已付款的订单返回 409 cancel_not_allowed，需要退款请联系站长。"
         }
+      },
+      "capabilities": {
+        "desc": "查询当前支持的能力及核销入口。"
+      },
+      "account": {
+        "desc": "查询当前代理钱包余额和币种；读取失败返回错误，不当作零余额。"
+      },
+      "transactions": {
+        "desc": "查询当前代理的钱包流水，分页大小上限 100。"
+      },
+      "orders": {
+        "desc": "分页查询当前凭证创建的采购订单。"
+      },
+      "external": {
+        "desc": "按当前凭证的 downstream_order_no 查原单；结果不明时优先使用此接口，不能换号重买。"
+      },
+      "redemption": {
+        "desc": "读取原单当前核销状态及 code_revision，换码前必须重新读取。"
+      },
+      "replace": {
+        "desc": "严格未使用时同单换码，不再次扣采购款。固定 request_id 和 expected_code_revision；结果不明时仅沿用原参数重试或查询原单。换码成功后旧码失效，请同步更新交付内容。"
+      },
+      "refundRequest": {
+        "desc": "提交退款申请，等待人工审核，不立即退款。通过后原码作废，按代理实际支付的剩余可退金额退回余额。"
       }
     },
     "status": {
@@ -1908,6 +1932,13 @@
     "sample": {
       "title": "服务端示例代码",
       "intro": "Node.js 示例，复制后把 Key 和 Secret 放到服务器的环境变量里即可使用。"
+    },
+    "customer": {
+      "title": "8. 客户核销与权限边界",
+      "intro": "客户可通过雪糕 AI 自助核销页办理，也可在代理自有页面完成验码、资料提交和进度查询。",
+      "integration": "接入自有页面前，请提供完整 HTTPS Origin 登记。只允许已登记域名；使用 JSON POST、credentials: omit，不发送采购 Key、签名或 Cookie。以下示例复制到已登记页面后使用。",
+      "boundaries": "仅当 can_submit=true、状态为 inactive 或 unused、destroyed 不为 true 且 version 为正整数时展示提交表单。首次提交携带当次验码返回的 version、完整 Session 字符串、对应邮箱和 consent=true；须由客户核对账号并明确同意。submitted=true 仅表示资料已受理。超时或结果不明时查询原码进度，不自动重复提交。资料仅用于本次办理，代理应向客户说明资料处理用途及服务方处理范围，不记录 Session。",
+      "aftersales": "未使用码可通过采购 API 申请同单换码，使用固定 request_id 和当前 code_revision。退款需提交申请并由雪糕 AI 审核；审核通过后作废原码，将代理实际支付的剩余可退金额退回钱包。不要把取消未支付订单当成退款。"
     }
   },
   "xg": {
@@ -2040,7 +2071,10 @@
     }
   },
   "xgai": {
-    "theme": { "light": "切换到日间模式", "dark": "切换到夜间模式" },
+    "theme": {
+      "light": "切换到日间模式",
+      "dark": "切换到夜间模式"
+    },
     "seo": {
       "title": "AI 会员代充"
     },

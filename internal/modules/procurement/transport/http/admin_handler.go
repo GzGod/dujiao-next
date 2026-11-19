@@ -37,7 +37,7 @@ func NewAdminHandler(service Service) *AdminHandler {
 func (h *AdminHandler) GetProcurementOrders(c *gin.Context) {
 	page, pageSize := ginutil.ParsePagination(c)
 
-	filter := procurementcontract.ListFilter{Page: page, PageSize: pageSize}
+	filter := procurementcontract.ListFilter{Page: page, PageSize: pageSize, AfterSaleState: strings.TrimSpace(c.Query("after_sale_state"))}
 	if connID := strings.TrimSpace(c.Query("connection_id")); connID != "" {
 		if id, err := ginutil.ParseQueryUint(connID, false); err == nil {
 			filter.ConnectionID = id
@@ -77,7 +77,7 @@ func (h *AdminHandler) GetProcurementOrderStats(c *gin.Context) {
 		return
 	}
 
-	filter := procurementcontract.ListFilter{}
+	filter := procurementcontract.ListFilter{AfterSaleState: strings.TrimSpace(c.Query("after_sale_state"))}
 	if connID := strings.TrimSpace(c.Query("connection_id")); connID != "" {
 		if id, err := ginutil.ParseQueryUint(connID, false); err == nil {
 			filter.ConnectionID = id

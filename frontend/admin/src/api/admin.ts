@@ -622,6 +622,7 @@ export const adminAPI = {
   getProcurementOrderStats: (params?: Record<string, unknown>) => api.get('/admin/procurement-orders/stats', { params }),
   getProcurementOrder: (id: number) => api.get(`/admin/procurement-orders/${id}`),
   downloadProcurementUpstreamPayload: (id: number) => api.get(`/admin/procurement-orders/${id}/upstream-payload/download`, { blob: true }),
+  reviewProcurementRefund: (id: number, data: { approve: boolean; remark: string }) => api.post(`/admin/procurement-orders/${id}/refund-review`, data),
   retryProcurementOrder: (id: number) => api.post(`/admin/procurement-orders/${id}/retry`),
   cancelProcurementOrder: (id: number) => api.post(`/admin/procurement-orders/${id}/cancel`),
 

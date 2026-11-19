@@ -9,6 +9,7 @@ import (
 )
 
 type ListFilter struct {
+	AfterSaleState  string
 	ConnectionID    uint
 	Status          string
 	LocalOrderNo    string
@@ -87,4 +88,14 @@ type UseCase interface {
 // OrderNoCanceler is an optional cancellation capability for string-order protocols.
 type OrderNoCanceler interface {
 	CancelOrderByNo(ctx context.Context, orderID uint, orderNo, requestID string) error
+}
+
+// RedemptionState separates customer redemption from financial settlement.
+type RedemptionState struct {
+	Code       string `json:"-"`
+	Revision   int    `json:"code_revision"`
+	CanReplace bool   `json:"can_replace"`
+	CanRefund  bool   `json:"can_refund"`
+	Progress   string `json:"progress_status"`
+	Financial  string `json:"financial_status"`
 }

@@ -44,6 +44,10 @@ type ProcurementOrderWithRelations = AdminProcurementOrder & {
   connection?: { name?: string; id?: number; exchange_rate?: number }
   local_order?: LocalOrder
   currency?: string
+  after_sale_kind?: string
+  after_sale_state?: string
+  after_sale_reason?: string
+  after_sale_review_remark?: string
   upstream_currency?: string
 }
 
@@ -60,6 +64,7 @@ const pagination = reactive({
 })
 const filters = reactive({
   status: '__all__',
+  after_sale_state: '__all__',
   connection_id: '__all__',
   order_no: '',
   upstream_order_no: '',
@@ -73,6 +78,21 @@ const detailLoading = ref(false)
 const retryingId = ref<number | null>(null)
 const cancelingId = ref<number | null>(null)
 const procurementDownloading = ref(false)
+const reviewingRefund = ref(false)
+const reviewRemark = ref('')
+const handleRefundReview = async (approve: boolean) => {
+  if (!detailOrder.value || reviewingRefund.value) return
+  const confirmed = await confirmAction({ description: t(approve ? 'procurement.aftersales.approveConfirm' : 'procurement.aftersales.rejectConfirm'), confirmText: t(approve ? 'procurement.aftersales.approve' : 'procurement.aftersales.reject'), variant: 'destructive' })
+  if (!confirmed) return
+  reviewingRefund.value = true
+  try {
+    await adminAPI.reviewProcurementRefund(detailOrder.value.id, { approve, remark: reviewRemark.value })
+    notifySuccess(t('procurement.aftersales.reviewed'))
+    await openDetail(detailOrder.value)
+    await fetchOrders(pagination.page)
+  } catch (err: any) { notifyError(err?.response?.data?.message || err?.message) }
+  finally { reviewingRefund.value = false }
+}
 
 const handleDownloadUpstreamPayload = async (orderId: number) => {
   if (procurementDownloading.value) return
@@ -115,6 +135,7 @@ const stats = reactive({
 
 const buildStatsParams = () => {
   const params: Record<string, unknown> = {}
+  if (filters.after_sale_state !== '__all__') params.after_sale_state = filters.after_sale_state
   if (filters.connection_id && filters.connection_id !== '__all__') params.connection_id = filters.connection_id
   if (filters.order_no) params.order_no = filters.order_no
   if (filters.upstream_order_no) params.upstream_order_no = filters.upstream_order_no
@@ -161,6 +182,7 @@ const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
       page_size: pagination.page_size,
     }
     if (filters.status && filters.status !== '__all__') params.status = filters.status
+    if (filters.after_sale_state !== '__all__') params.after_sale_state = filters.after_sale_state
     if (filters.connection_id && filters.connection_id !== '__all__') params.connection_id = filters.connection_id
     if (filters.order_no) params.order_no = filters.order_no
     if (filters.upstream_order_no) params.upstream_order_no = filters.upstream_order_no
@@ -221,6 +243,7 @@ const openDetail = async (order: ProcurementOrderWithRelations) => {
   detailLoading.value = true
   showDetail.value = true
   detailOrder.value = order
+  reviewRemark.value = ''
   try {
     const res = await adminAPI.getProcurementOrder(order.id)
     detailOrder.value = (res.data.data as ProcurementOrderWithRelations) || order
@@ -506,6 +529,10 @@ onMounted(() => {
         </Select>
       </div>
       <div class="w-full sm:w-auto">
+        <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('procurement.aftersales.title') }}</label>
+        <Select v-model="filters.after_sale_state" @update:model-value="handleSearch"><SelectTrigger class="h-9 w-full sm:w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">{{ t('procurement.filters.allStatus') }}</SelectItem><SelectItem v-for="state in ['pending_review','refund_processing','refunded','rejected']" :key="state" :value="state">{{ t('procurement.aftersales.' + state) }}</SelectItem></SelectContent></Select>
+      </div>
+      <div class="w-full sm:w-auto">
         <label class="mb-1.5 block text-xs font-medium text-muted-foreground">{{ t('procurement.columns.connection') }}</label>
         <Select v-model="filters.connection_id" @update:model-value="handleSearch">
           <SelectTrigger class="h-9 w-full sm:w-44">
@@ -644,6 +671,7 @@ onMounted(() => {
             </div>
           </div>
 
+          <div v-if="order.after_sale_state" class="mt-3 text-sm text-primary">{{ t('procurement.aftersales.title') }} · {{ t('procurement.aftersales.' + order.after_sale_state) }}</div>
           <!-- Error message -->
           <div
             v-if="order.error_message"
@@ -698,6 +726,19 @@ onMounted(() => {
             </div>
           </div>
 
+          <section v-if="detailOrder.after_sale_kind" class="rounded-lg border border-border p-4 space-y-3">
+            <h3 class="font-semibold">{{ t('procurement.aftersales.title') }}</h3>
+            <p>{{ t('procurement.aftersales.' + detailOrder.after_sale_state) }}</p>
+            <p v-if="detailOrder.after_sale_reason" class="break-words">{{ detailOrder.after_sale_reason }}</p>
+            <p v-if="detailOrder.after_sale_review_remark" class="break-words">{{ detailOrder.after_sale_review_remark }}</p>
+            <template v-if="detailOrder.after_sale_kind === 'refund' && ['pending_review', 'refund_processing'].includes(detailOrder.after_sale_state || '')">
+              <Input v-model="reviewRemark" :placeholder="t('procurement.aftersales.remark')" maxlength="1000" />
+              <div class="flex gap-2">
+                <Button :disabled="reviewingRefund" @click="handleRefundReview(true)">{{ t('procurement.aftersales.approve') }}</Button>
+                <Button v-if="detailOrder.after_sale_state === 'pending_review'" variant="outline" :disabled="reviewingRefund" @click="handleRefundReview(false)">{{ t('procurement.aftersales.reject') }}</Button>
+              </div>
+            </template>
+          </section>
           <!-- Order info -->
           <div class="rounded-lg border border-border">
             <div class="border-b border-border bg-muted/30 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">

@@ -217,11 +217,16 @@ func (h *Handler) GetOrder(c *gin.Context) {
 
 	status := strings.ToLower(strings.TrimSpace(order.Status))
 	localRefundRecords := make([]jsonmap.JSON, 0)
+	hideDelivery := false
 
 	// 优先使用采购单视角的上游退款信息，避免订单状态与上游退款状态不一致。
 	if h.Procurements != nil {
 		procOrder, procErr := h.Procurements.GetByLocalOrderNo(order.OrderNo)
+		if procOrder == nil && len(order.Children) == 1 {
+			procOrder, procErr = h.Procurements.GetByLocalOrderNo(order.Children[0].OrderNo)
+		}
 		if procErr == nil && procOrder != nil {
+			hideDelivery = procOrder.AfterSaleState == "processing" || procOrder.AfterSaleState == "refund_processing" || procOrder.AfterSaleState == "refunded"
 			switch strings.ToLower(strings.TrimSpace(procOrder.Status)) {
 			case constants.ProcurementStatusPartiallyRefunded, constants.ProcurementStatusRefunded:
 				status = strings.ToLower(strings.TrimSpace(procOrder.Status))
@@ -257,7 +262,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 			}
 		}
 	}
-	if sourceFulfillment != nil && sourceFulfillment.Status == constants.FulfillmentStatusDelivered {
+	if !hideDelivery && sourceFulfillment != nil && sourceFulfillment.Status == constants.FulfillmentStatusDelivered {
 		resp["fulfillment"] = gin.H{
 			"type":          sourceFulfillment.Type,
 			"status":        sourceFulfillment.Status,

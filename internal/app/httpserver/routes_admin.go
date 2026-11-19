@@ -5,6 +5,7 @@ import (
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	affiliatebootstrap "github.com/dujiao-next/internal/bootstrap/affiliate"
 	settingsbootstrap "github.com/dujiao-next/internal/bootstrap/settingshttp"
+	upstreamwiring "github.com/dujiao-next/internal/bootstrap/upstreamapi"
 	"github.com/dujiao-next/internal/config"
 	adproxytransport "github.com/dujiao-next/internal/modules/adproxy/transport/http"
 	affiliatetransport "github.com/dujiao-next/internal/modules/affiliate/transport/http"
@@ -189,6 +190,7 @@ func registerAdminRoutes(
 
 	// 采购单管理
 	procurementtransport.RegisterAdminRoutes(authorized, adminProcurementHandler)
+	paymentProtected.POST("/procurement-orders/:id/refund-review", upstreamwiring.NewHandler(c).ReviewAfterSale)
 
 	// 对账管理
 	reconciliationtransport.RegisterAdminRoutes(paymentProtected, reconciliationtransport.NewAdminHandler(c.ReconciliationService))

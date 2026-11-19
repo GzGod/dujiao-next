@@ -190,6 +190,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 			Role:     "finance",
 			Inherits: []string{"readonly_auditor"},
 			Policies: []Policy{
+				{Object: "/admin/procurement-orders/:id/refund-review", Action: "POST"},
 				{Object: "/admin/payments", Action: "GET"},
 				{Object: "/admin/payments/:id", Action: "GET"},
 				{Object: "/admin/payments/export", Action: "GET"},

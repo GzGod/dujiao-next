@@ -240,3 +240,39 @@ func TestGptgetNeverFollowsCredentialRedirect(t *testing.T) {
 		t.Fatal("redirect followed or accepted")
 	}
 }
+
+func TestRedemptionAfterSaleSignsExactRevisionAndStableIdentity(t *testing.T) {
+	calls := 0
+	a := gptgetTestAdapter(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Fatal("unexpected method")
+		}
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["request_id"] != "fixed-id" || body["expected_code_revision"] != float64(3) {
+			t.Fatalf("wrong operation identity: %v", body)
+		}
+		switch r.URL.Path {
+		case gptgetBasePath + "/orders/AP-ONE/replace":
+			io.WriteString(w, `{"ok":true,"data":{"code":"new-code","code_revision":4,"financial_status":"paid","progress_status":"unused"}}`)
+		case gptgetBasePath + "/orders/AP-ONE/refund":
+			io.WriteString(w, `{"ok":true,"data":{"code_revision":3,"financial_status":"refunded","progress_status":"destroyed"}}`)
+		default:
+			t.Fatal("unexpected route")
+		}
+		calls++
+	})
+	state, err := a.ReplaceRedemption(context.Background(), "AP-ONE", "fixed-id", 3)
+	if err != nil || state.Revision != 4 || state.Code != "new-code" {
+		t.Fatalf("replace: %v %v", state, err)
+	}
+	state, err = a.RefundRedemption(context.Background(), "AP-ONE", "fixed-id", 3)
+	if err != nil || state.Financial != "refunded" || state.Progress != "destroyed" {
+		t.Fatalf("refund: %v %v", state, err)
+	}
+	if calls != 2 {
+		t.Fatal("adapter retried mutation")
+	}
+}

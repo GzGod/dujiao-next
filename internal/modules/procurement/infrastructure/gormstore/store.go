@@ -135,6 +135,9 @@ func preloadProcurement(query *gorm.DB) *gorm.DB {
 }
 
 func applyFilter(query *gorm.DB, filter procurementcontract.ListFilter) *gorm.DB {
+	if filter.AfterSaleState != "" {
+		query = query.Where("after_sale_state = ?", filter.AfterSaleState)
+	}
 	if filter.ConnectionID > 0 {
 		query = query.Where("connection_id = ?", filter.ConnectionID)
 	}
@@ -206,4 +209,68 @@ func (s *Store) attachLocalOrders(orders []procurementdomain.Order) error {
 		}
 	}
 	return nil
+}
+
+// BeginAfterSale uses a database compare-and-set so multiple workers cannot
+// start different remote operations for the same delivery concurrently.
+func (s *Store) BeginAfterSale(id uint, kind, requestID, reason string, revision int) (bool, error) {
+	state := "processing"
+	if kind == "refund" {
+		state = "pending_review"
+	}
+	result := s.active().Model(&procurementdomain.Order{}).Where("id = ? AND status IN ? AND after_sale_state IN ?", id, []string{"fulfilled", "completed"}, []string{"", "completed", "rejected"}).Where("code_revision = 0 OR code_revision = ?", revision).Updates(map[string]interface{}{"after_sale_kind": kind, "after_sale_request_id": requestID, "after_sale_state": state, "after_sale_reason": reason, "after_sale_expected_revision": revision, "updated_at": time.Now()})
+	return result.RowsAffected == 1, result.Error
+}
+func (s *Store) CompleteReplacement(id uint, requestID, code string, revision int) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var order procurementdomain.Order
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, id).Error; err != nil {
+			return err
+		}
+		if order.AfterSaleKind != "replace" || order.AfterSaleRequestID != requestID {
+			return errors.New("replacement operation conflict")
+		}
+		if order.AfterSaleState == "completed" {
+			return nil
+		}
+		if order.AfterSaleState != "processing" {
+			return errors.New("replacement state conflict")
+		}
+		result := tx.Model(&lifecycleFulfillmentRecord{}).Where("order_id = ?", order.LocalOrderID).Updates(map[string]interface{}{"payload": code, "updated_at": time.Now()})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return errors.New("delivery missing")
+		}
+		return tx.Model(&order).Updates(map[string]interface{}{"after_sale_state": "completed", "upstream_payload": code, "code_revision": revision, "updated_at": time.Now()}).Error
+	})
+}
+
+func (s *Store) ReviewAfterSale(id uint, from, to string, adminID uint, remark string) (bool, error) {
+	changed := false
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		updates := map[string]interface{}{"after_sale_state": to, "after_sale_admin_id": adminID, "after_sale_review_remark": remark, "updated_at": time.Now()}
+		if to == "refunded" {
+			updates["status"] = "refunded"
+			updates["upstream_payload"] = ""
+		}
+		result := tx.Model(&procurementdomain.Order{}).Where("id = ? AND deleted_at IS NULL AND after_sale_kind = ? AND after_sale_state = ?", id, "refund", from).Updates(updates)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return nil
+		}
+		changed = true
+		if to == "refunded" {
+			var order procurementdomain.Order
+			if err := tx.First(&order, id).Error; err != nil {
+				return err
+			}
+			return tx.Model(&lifecycleFulfillmentRecord{}).Where("order_id = ?", order.LocalOrderID).Updates(map[string]interface{}{"status": "refunded", "payload": "", "updated_at": time.Now()}).Error
+		}
+		return nil
+	})
+	return changed, err
 }

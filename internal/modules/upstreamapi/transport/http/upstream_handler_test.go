@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
+	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -235,5 +238,80 @@ func TestCreateOrderRecreatesWhenSameDownstreamNoWasCanceled(t *testing.T) {
 	}
 	if orders.received.Items == nil {
 		t.Fatalf("expected a new order to be created, body=%s", recorder.Body.String())
+	}
+}
+
+type scopedWallet struct {
+	Wallet
+	filter walletcontract.TransactionListFilter
+	calls  int
+}
+
+func (s *scopedWallet) ListTransactions(filter walletcontract.TransactionListFilter) ([]walletdomain.Transaction, int64, error) {
+	s.filter = filter
+	s.calls++
+	return []walletdomain.Transaction{{ID: 8, UserID: filter.UserID, Reference: "private-internal-reference", Remark: "private-admin-note"}}, 1, nil
+}
+
+type scopedRefs struct {
+	DownstreamOrderReferences
+	credential uint
+	external   string
+	ref        *downstreamcallbackdomain.OrderRef
+}
+
+func (s *scopedRefs) GetByCredentialAndDownstreamNo(id uint, no string) (*downstreamcallbackdomain.OrderRef, error) {
+	s.credential = id
+	s.external = no
+	return s.ref, nil
+}
+func (s *scopedRefs) GetByOrderID(uint) (*downstreamcallbackdomain.OrderRef, error) {
+	return s.ref, nil
+}
+func TestAccountTransactionsForceAuthenticatedUserAndLimit(t *testing.T) {
+	wallet := &scopedWallet{}
+	handler := &Handler{Dependencies: Dependencies{Wallet: wallet}}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/account/transactions?user_id=999&page_size=10000", nil)
+	c.Set(upstreamUserIDKey, uint(42))
+	handler.AccountTransactions(c)
+	if w.Code != 200 || wallet.filter.UserID != 42 || wallet.filter.PageSize != 100 {
+		t.Fatalf("wrong account scope: %v %v", wallet.filter, w.Code)
+	}
+	if strings.Contains(w.Body.String(), "private-") {
+		t.Fatal("private ledger metadata exposed")
+	}
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/account/transactions", nil)
+	handler.AccountTransactions(c)
+	if w.Code != 401 || wallet.calls != 1 {
+		t.Fatal("unauthenticated request reached ledger")
+	}
+}
+func TestExternalLookupAndAfterSaleRespectCredential(t *testing.T) {
+	refs := &scopedRefs{}
+	handler := &Handler{Dependencies: Dependencies{DownstreamRefs: refs}}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/orders/by-external/EXTERNAL", nil)
+	c.Params = gin.Params{{Key: "external", Value: "EXTERNAL"}}
+	c.Set(upstreamUserIDKey, uint(42))
+	c.Set(upstreamCredentialIDKey, uint(7))
+	handler.GetOrderByExternal(c)
+	if w.Code != 404 || refs.credential != 7 || refs.external != "EXTERNAL" {
+		t.Fatal("lookup did not scope external number to credential")
+	}
+	refs.ref = &downstreamcallbackdomain.OrderRef{OrderID: 12, ApiCredentialID: 8}
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/orders/12/replace", nil)
+	c.Params = gin.Params{{Key: "id", Value: "12"}}
+	c.Set(upstreamUserIDKey, uint(42))
+	c.Set(upstreamCredentialIDKey, uint(7))
+	handler.ReplaceCode(c)
+	if w.Code != 404 {
+		t.Fatal("foreign credential order reached after-sale operation")
 	}
 }

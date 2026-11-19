@@ -31,6 +31,7 @@ const messages = {
       },
     },
     procurement: {
+      aftersales: { title: '下游售后', pending_review: '退款待审核', refund_processing: '退款处理中，可使用原操作继续核对', refunded: '已退款', rejected: '已驳回', processing: '换码处理中', completed: '换码完成', remark: '审核备注', approve: '批准并退款', reject: '驳回申请', approveConfirm: '确认作废原核销码，并将代理实际支付的剩余可退金额退回余额？结果不明时请继续原操作，不要另行退款。', rejectConfirm: '确认驳回这笔退款申请？', reviewed: '审核操作已完成' },
       title: '采购单管理',
       subtitle: '管理上游采购单，查看采购状态与利润',
       status: {
@@ -4612,6 +4613,7 @@ const messages = {
       },
     },
     procurement: {
+      aftersales: { title: '下游售後', pending_review: '退款待審核', refund_processing: '退款處理中，可使用原操作繼續核對', refunded: '已退款', rejected: '已駁回', processing: '換碼處理中', completed: '換碼完成', remark: '審核備註', approve: '批准並退款', reject: '駁回申請', approveConfirm: '確認作廢原核銷碼，並將代理實際支付的剩餘可退金額退回餘額？結果不明時請繼續原操作，不要另行退款。', rejectConfirm: '確認駁回這筆退款申請？', reviewed: '審核操作已完成' },
       title: '採購單管理',
       subtitle: '管理上游採購單，查看採購狀態與利潤',
       status: {
@@ -9193,6 +9195,7 @@ const messages = {
       },
     },
     procurement: {
+      aftersales: { title: 'Downstream after-sales', pending_review: 'Refund awaiting review', refund_processing: 'Refund in progress; continue the original operation to reconcile', refunded: 'Refunded', rejected: 'Rejected', processing: 'Replacement in progress', completed: 'Replacement completed', remark: 'Review note', approve: 'Approve and refund', reject: 'Reject request', approveConfirm: 'Destroy the original code and return the remaining refundable amount actually paid by the reseller to their wallet? If the outcome is unknown, continue this operation without issuing another refund.', rejectConfirm: 'Reject this refund request?', reviewed: 'Review operation completed' },
       title: 'Procurement Orders',
       subtitle: 'Manage upstream procurement orders, track status and profit',
       status: {

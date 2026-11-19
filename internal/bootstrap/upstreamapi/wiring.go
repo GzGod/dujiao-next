@@ -3,6 +3,7 @@ package upstreamwiring
 import (
 	"errors"
 	"fmt"
+	aftersales "github.com/dujiao-next/internal/modules/procurement/application/aftersales"
 	"time"
 
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
@@ -25,6 +26,7 @@ import (
 // transport without leaking concrete implementations into transport.
 func NewHandler(c *container.Container) *upstreamtransport.Handler {
 	return upstreamtransport.New(upstreamtransport.Dependencies{
+		AfterSales:        &aftersales.Service{Store: c.ProcurementOrderRepo, Connections: afterSaleConnections{container: c}, Credit: afterSaleCredit(c), Notify: c.DownstreamCallbackService.EnqueueCallback},
 		Categories:        c.CategoryRepo,
 		Products:          productServiceAdapter{products: c.ProductReadService},
 		Users:             c.UserStore,

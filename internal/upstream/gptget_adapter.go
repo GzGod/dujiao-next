@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/shopspring/decimal"
@@ -521,4 +522,31 @@ func (a *GptgetAdapter) doRequest(ctx context.Context, method, resource string, 
 		}
 	}
 	return nil
+}
+
+// InspectRedemption returns the current revision without performing an operation.
+func (a *GptgetAdapter) InspectRedemption(ctx context.Context, orderNo string) (*procurementcontract.RedemptionState, error) {
+	var response gptgetOrderResp
+	if err := a.doRequest(ctx, http.MethodGet, "/orders/"+url.PathEscape(orderNo), nil, &response); err != nil {
+		return nil, err
+	}
+	return redemptionState(response.Data), nil
+}
+func (a *GptgetAdapter) ReplaceRedemption(ctx context.Context, orderNo, requestID string, revision int) (*procurementcontract.RedemptionState, error) {
+	var response gptgetOrderResp
+	if err := a.doRequest(ctx, http.MethodPost, "/orders/"+url.PathEscape(orderNo)+"/replace", map[string]interface{}{"request_id": requestID, "expected_code_revision": revision}, &response); err != nil {
+		return nil, err
+	}
+	return redemptionState(response.Data), nil
+}
+func redemptionState(d gptgetOrderData) *procurementcontract.RedemptionState {
+	return &procurementcontract.RedemptionState{Code: d.Code, Revision: d.CodeRevision, CanReplace: d.CanReplace, CanRefund: d.CanRefund, Progress: d.ProgressStatus, Financial: d.FinancialStatus}
+}
+
+func (a *GptgetAdapter) RefundRedemption(ctx context.Context, orderNo, requestID string, revision int) (*procurementcontract.RedemptionState, error) {
+	var response gptgetOrderResp
+	if err := a.doRequest(ctx, http.MethodPost, "/orders/"+url.PathEscape(orderNo)+"/refund", map[string]interface{}{"request_id": requestID, "expected_code_revision": revision, "reason": "雪糕AI管理员审核退款"}, &response); err != nil {
+		return nil, err
+	}
+	return redemptionState(response.Data), nil
 }

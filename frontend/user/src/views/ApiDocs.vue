@@ -148,6 +148,17 @@ signature = hex( HMAC_SHA256( secret, string_to_sign ) )</pre>
           <pre class="doc-code pt-12">{{ nodeSample }}</pre>
         </div>
       </section>
+      <section id="customer" class="doc-section">
+        <h2>{{ t('apiDocs.customer.title') }}</h2>
+        <p>{{ t('apiDocs.customer.intro') }}</p>
+        <a href="https://redeem.xuegaogx.cc/" class="text-primary underline">https://redeem.xuegaogx.cc/</a>
+        <p class="mt-4">{{ t('apiDocs.customer.integration') }}</p>
+        <code class="block mt-4 break-all">https://redeem.xuegaogx.cc/api/v1/redemptions</code>
+        <pre class="doc-code">{{ customerSample }}</pre>
+        <div class="doc-callout">{{ t('apiDocs.customer.boundaries') }}</div>
+        <p class="mt-4">{{ t('apiDocs.customer.aftersales') }}</p>
+      </section>
+
     </div>
   </div>
 </template>
@@ -178,6 +189,7 @@ const sections = computed(() => [
   { id: 'callback', label: t('apiDocs.callback.title') },
   { id: 'errors', label: t('apiDocs.errors.title') },
   { id: 'sample', label: t('apiDocs.sample.title') },
+  { id: 'customer', label: t('apiDocs.customer.title') },
 ])
 
 const authHeaders = [
@@ -186,7 +198,32 @@ const authHeaders = [
   { name: 'XuegaoAI-Signature', desc: 'apiDocs.auth.headers.signature' },
 ]
 
+const customerSample = `const ROOT = 'https://redeem.xuegaogx.cc/api/v1/redemptions';
+async function redeem(operation, payload) {
+  const response = await fetch(ROOT + '/' + operation, {
+    method: 'POST', credentials: 'omit',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  if (!response.ok || result.status_code !== 0) throw new Error(result.msg);
+  return result.data;
+}
+// Verify: { code }
+// Submit only after customer confirmation:
+// { code, version, session, email, consent: true }
+// Progress: { code }
+// Do not retry submit automatically.`
+
 const endpoints = [
+  { id: 'capabilities', method: 'GET', path: '/api/v1/upstream/capabilities', response: '{ "ok": true, "api_version": "1.1", "available_operations": ["create_order", "replace_code", "request_refund"] }' },
+  { id: 'account', method: 'GET', path: '/api/v1/upstream/account', response: '{ "ok": true, "balance": "1000.00", "currency": "CNY" }' },
+  { id: 'transactions', method: 'GET', path: '/api/v1/upstream/account/transactions?page=1&page_size=20', response: '{ "ok": true, "items": [], "total": 0, "page": 1, "page_size": 20 }' },
+  { id: 'orders', method: 'GET', path: '/api/v1/upstream/orders?page=1&page_size=20', response: '{ "ok": true, "items": [], "total": 0, "page": 1, "page_size": 20 }' },
+  { id: 'external', method: 'GET', path: '/api/v1/upstream/orders/by-external/:downstream_order_no', response: '{ "ok": true, "order_id": 123, "order_no": "DEMO-ORDER", "status": "delivered" }' },
+  { id: 'redemption', method: 'GET', path: '/api/v1/upstream/orders/:id/redemption', response: '{ "ok": true, "redemption": { "code_revision": 1, "can_replace": true, "can_refund": true, "progress_status": "unused", "financial_status": "paid" } }' },
+  { id: 'replace', method: 'POST', path: '/api/v1/upstream/orders/:id/replace', request: '{ "request_id": "fixed-replacement-001", "expected_code_revision": 1 }', response: '{ "ok": true, "code": "DEMO-NOT-VALID", "code_revision": 2, "financial_status": "paid", "progress_status": "unused" }' },
+  { id: 'refundRequest', method: 'POST', path: '/api/v1/upstream/orders/:id/refund-requests', request: '{ "request_id": "fixed-refund-001", "reason": "Customer request" }', response: '{ "ok": true, "status": "pending_review", "refunded": false }' },
   {
     id: 'ping', method: 'POST', path: '/api/v1/upstream/ping',
     response: `{

@@ -1853,6 +1853,30 @@
         "notes": {
           "onlyUnpaid": "Only pending_payment orders can be canceled; paid orders return 409 cancel_not_allowed. Contact the site owner for refunds."
         }
+      },
+      "capabilities": {
+        "desc": "Read supported operations and the customer redemption endpoint."
+      },
+      "account": {
+        "desc": "Read the current reseller wallet balance and currency. Read failures return errors, not a zero balance."
+      },
+      "transactions": {
+        "desc": "Read the current reseller wallet transactions. Maximum page size is 100."
+      },
+      "orders": {
+        "desc": "List procurement orders created with the current credential."
+      },
+      "external": {
+        "desc": "Find the original order by downstream_order_no under the current credential. Use this after an uncertain purchase instead of purchasing with a new number."
+      },
+      "redemption": {
+        "desc": "Read the current redemption state and code_revision before requesting replacement."
+      },
+      "replace": {
+        "desc": "Replace a strictly unused code on the same order without another purchase charge. Keep request_id and expected_code_revision fixed on retries. The original code becomes invalid; update your delivered content."
+      },
+      "refundRequest": {
+        "desc": "Request a manually reviewed refund; no immediate credit. Approval destroys the original code and returns the remaining refundable amount actually paid by the reseller to their wallet."
       }
     },
     "status": {
@@ -1908,6 +1932,13 @@
     "sample": {
       "title": "Server-side sample",
       "intro": "Node.js example. Put your Key and Secret in server environment variables and use it as-is."
+    },
+    "customer": {
+      "title": "8. Customer redemption and access boundaries",
+      "intro": "Customers can use the Xuegao AI redemption site or verify codes, submit details and track progress on an integrated reseller page.",
+      "integration": "Register the exact HTTPS Origin before integrating your page. Only registered origins are allowed. Use JSON POST with credentials: omit, without procurement keys, signatures or cookies. Use this example on the registered page.",
+      "boundaries": "Show the submission form only when can_submit=true, status is inactive or unused, destroyed is not true, and version is a positive integer. Submit the version from verification, the complete Session string, its account email and consent=true only after the customer checks the account and explicitly agrees. submitted=true means receipt, not fulfillment. After an uncertain result, query progress using the original code instead of automatically retrying submission. Explain the purpose and service-provider processing scope to customers; do not log Sessions.",
+      "aftersales": "Unused codes support replacement on the same order using a fixed request_id and current code_revision. Refund requests require Xuegao AI review. Approval destroys the original code and returns the remaining refundable amount actually paid by the reseller to their wallet. Canceling an unpaid order is separate from a refund."
     }
   },
   "xg": {
@@ -2040,7 +2071,10 @@
     }
   },
   "xgai": {
-    "theme": { "light": "Switch to light mode", "dark": "Switch to dark mode" },
+    "theme": {
+      "light": "Switch to light mode",
+      "dark": "Switch to dark mode"
+    },
     "seo": {
       "title": "AI membership top-ups"
     },
