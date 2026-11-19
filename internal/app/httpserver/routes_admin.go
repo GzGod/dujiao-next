@@ -190,6 +190,7 @@ func registerAdminRoutes(
 
 	// 采购单管理
 	procurementtransport.RegisterAdminRoutes(authorized, adminProcurementHandler)
+	authorized.GET("/procurement-orders/:id/redemption", upstreamwiring.NewHandler(c).InspectAdminRedemption)
 	paymentProtected.POST("/procurement-orders/:id/refund-review", upstreamwiring.NewHandler(c).ReviewAfterSale)
 
 	// 对账管理

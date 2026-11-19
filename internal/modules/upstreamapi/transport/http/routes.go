@@ -311,3 +311,25 @@ func (h *Handler) Account(c *gin.Context) {
 	}
 	successResponse(c, gin.H{"ok": true, "balance": account.Balance.StringFixed(2), "currency": currency})
 }
+
+// InspectAdminRedemption is read-only and never returns the credential itself.
+func (h *Handler) InspectAdminRedemption(c *gin.Context) {
+	if _, ok := ginutil.GetAdminID(c); !ok {
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	if h.AfterSales == nil {
+		ginutil.RespondError(c, response.CodeInternal, "error.downstream.state_unavailable", nil)
+		return
+	}
+	result, err := h.AfterSales.Inspect(c.Request.Context(), id)
+	if err != nil || result == nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.downstream.state_unavailable", nil)
+		return
+	}
+	response.Success(c, result)
+}

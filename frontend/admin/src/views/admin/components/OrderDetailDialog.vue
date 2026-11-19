@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import OrderRedemptionProgress from './OrderRedemptionProgress.vue'
 import { Package } from 'lucide-vue-next'
 import { adminAPI } from '@/api/admin'
 import type { AdminOrder, AdminOrderItem, AdminFulfillment, AdminProcurementOrder, AdminPayment } from '@/api/types'
@@ -846,7 +847,7 @@ watch(
                   <div class="text-xs text-muted-foreground">{{ t('orderDetail.amountDiscount') }}</div>
                   <div
                     class="font-mono mt-1"
-                    :class="hasPositiveAmount(selectedOrder.discount_amount) ? 'text-red-600' : 'text-foreground'"
+                    :class="hasPositiveAmount(selectedOrder.discount_amount) ? 'text-red-600 dark:text-red-300' : 'text-foreground'"
                   >
                     {{ formatDiscountMoney(selectedOrder.discount_amount, selectedOrder.currency) }}
                   </div>
@@ -893,7 +894,7 @@ watch(
                   <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailCouponDiscount') }}</div>
                   <div
                     class="font-mono mt-1"
-                    :class="hasPositiveAmount(selectedOrder.discount_amount) ? 'text-red-600' : 'text-foreground'"
+                    :class="hasPositiveAmount(selectedOrder.discount_amount) ? 'text-red-600 dark:text-red-300' : 'text-foreground'"
                   >
                     {{ formatDiscountMoney(selectedOrder.discount_amount, selectedOrder.currency) }}
                   </div>
@@ -904,22 +905,22 @@ watch(
                   <div class="text-xs text-muted-foreground">{{ t('admin.orders.detailPromotionDiscount') }}</div>
                   <div
                     class="font-mono mt-1"
-                    :class="hasPositiveAmount(selectedOrder.promotion_discount_amount) ? 'text-red-600' : 'text-foreground'"
+                    :class="hasPositiveAmount(selectedOrder.promotion_discount_amount) ? 'text-red-600 dark:text-red-300' : 'text-foreground'"
                   >
                     {{ formatDiscountMoney(selectedOrder.promotion_discount_amount, selectedOrder.currency) }}
                   </div>
                 </CardContent>
               </Card>
-              <Card v-if="hasPositiveAmount(selectedOrder.member_discount_amount)" class="min-w-0 rounded-lg border-amber-200 bg-amber-50/50 shadow-none">
+              <Card v-if="hasPositiveAmount(selectedOrder.member_discount_amount)" class="min-w-0 rounded-lg border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/40 shadow-none">
                 <CardContent class="p-3">
-                  <div class="text-xs text-amber-700">{{ t('admin.orders.detailMemberDiscount') }}</div>
-                  <div class="text-amber-700 font-mono mt-1">{{ formatDiscountMoney(selectedOrder.member_discount_amount, selectedOrder.currency) }}</div>
+                  <div class="text-xs text-amber-700 dark:text-amber-300">{{ t('admin.orders.detailMemberDiscount') }}</div>
+                  <div class="text-amber-700 dark:text-amber-300 font-mono mt-1">{{ formatDiscountMoney(selectedOrder.member_discount_amount, selectedOrder.currency) }}</div>
                 </CardContent>
               </Card>
-              <Card v-if="hasPositiveAmount(selectedOrder.wholesale_discount_amount)" class="min-w-0 rounded-lg border-emerald-200 bg-emerald-50/50 shadow-none">
+              <Card v-if="hasPositiveAmount(selectedOrder.wholesale_discount_amount)" class="min-w-0 rounded-lg border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/40 shadow-none">
                 <CardContent class="p-3">
-                  <div class="text-xs text-emerald-700">{{ t('admin.orders.detailWholesaleDiscount') }}</div>
-                  <div class="text-emerald-700 font-mono mt-1">{{ formatDiscountMoney(selectedOrder.wholesale_discount_amount, selectedOrder.currency) }}</div>
+                  <div class="text-xs text-emerald-700 dark:text-emerald-300">{{ t('admin.orders.detailWholesaleDiscount') }}</div>
+                  <div class="text-emerald-700 dark:text-emerald-300 font-mono mt-1">{{ formatDiscountMoney(selectedOrder.wholesale_discount_amount, selectedOrder.currency) }}</div>
                 </CardContent>
               </Card>
             </div>
@@ -938,7 +939,7 @@ watch(
                     <div class="text-xs text-muted-foreground">{{ t('orderDetail.quantityLabel') }}：{{ item.quantity }}</div>
                     <div class="mt-2 rounded-lg border border-border/70 bg-background/90 px-3 py-2">
                       <div class="flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
                           <Package class="h-3.5 w-3.5" />
                           {{ t('admin.orders.itemSkuLabel') }}
                         </span>
@@ -994,16 +995,16 @@ watch(
                     <div v-if="hasPositiveAmount(item.member_discount_amount)">
                       {{ t('orderDetail.memberDiscountLabel') }}：{{ formatDiscountMoney(item.member_discount_amount, selectedOrder.currency) }}
                     </div>
-                    <div v-if="hasItemDiscount(item)" class="font-medium text-red-600">
+                    <div v-if="hasItemDiscount(item)" class="font-medium text-red-600 dark:text-red-300">
                       {{ t('orderDetail.itemDiscountTotalLabel') }}：{{ formatItemDiscountTotal(item, selectedOrder.currency) }}
                     </div>
                     <div class="font-medium text-foreground">
                       {{ t('orderDetail.itemPaidAmountLabel') }}：{{ formatItemPaidAmount(item, selectedOrder.currency) }}
                     </div>
-                    <div v-if="hasPositiveAmount(itemRefundAmount(selectedOrder, item))" class="text-blue-700">
+                    <div v-if="hasPositiveAmount(itemRefundAmount(selectedOrder, item))" class="text-blue-700 dark:text-blue-300">
                       {{ t('admin.orders.itemRefund') }}：{{ formatMoney(itemRefundAmount(selectedOrder, item).toFixed(2), selectedOrder.currency) }}
                     </div>
-                    <div class="font-medium text-emerald-700">
+                    <div class="font-medium text-emerald-700 dark:text-emerald-300">
                       {{ t('admin.orders.itemProfit') }}：{{ formatMoney(itemProfit(selectedOrder, item).toFixed(2), selectedOrder.currency) }}
                     </div>
                   </div>
@@ -1011,13 +1012,13 @@ watch(
               </div>
             </div>
             <div v-if="selectedOrder.items && selectedOrder.items.length" class="mt-3 flex flex-wrap justify-end gap-2">
-              <div v-if="hasPositiveAmount(selectedOrder.refunded_amount)" class="rounded-lg border border-blue-200 bg-blue-50/60 px-4 py-2 text-sm font-semibold text-blue-700">
+              <div v-if="hasPositiveAmount(selectedOrder.refunded_amount)" class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
                 {{ t('admin.orders.itemRefund') }}：{{ formatMoney(selectedOrder.refunded_amount, selectedOrder.currency) }}
               </div>
-              <div v-if="hasPositiveAmount(orderPaymentFee(selectedOrder))" class="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm font-semibold text-amber-700">
+              <div v-if="hasPositiveAmount(orderPaymentFee(selectedOrder))" class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 px-4 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
                 {{ t('admin.payments.table.feeAmount') }}：{{ formatMoney(orderPaymentFee(selectedOrder).toFixed(2), selectedOrder.currency) }}
               </div>
-              <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-2 text-sm font-semibold text-emerald-700">
+              <div class="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/40 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                 {{ t('admin.orders.orderProfit') }}：{{ formatMoney(orderProfit(selectedOrder).toFixed(2), selectedOrder.currency) }}
               </div>
             </div>
@@ -1054,7 +1055,7 @@ watch(
                         <div class="text-xs text-muted-foreground">{{ t('orderDetail.quantityLabel') }}：{{ item.quantity }}</div>
                         <div class="mt-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
                           <div class="flex flex-wrap items-center gap-2">
-                            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
                               <Package class="h-3.5 w-3.5" />
                               {{ t('admin.orders.itemSkuLabel') }}
                             </span>
@@ -1084,16 +1085,16 @@ watch(
                         <div v-if="hasPositiveAmount(item.member_discount_amount)">
                           {{ t('orderDetail.memberDiscountLabel') }}：{{ formatDiscountMoney(item.member_discount_amount, selectedOrder.currency) }}
                         </div>
-                        <div v-if="hasItemDiscount(item)" class="font-medium text-red-600">
+                        <div v-if="hasItemDiscount(item)" class="font-medium text-red-600 dark:text-red-300">
                           {{ t('orderDetail.itemDiscountTotalLabel') }}：{{ formatItemDiscountTotal(item, selectedOrder.currency) }}
                         </div>
                         <div class="font-medium text-foreground">
                           {{ t('orderDetail.itemPaidAmountLabel') }}：{{ formatItemPaidAmount(item, selectedOrder.currency) }}
                         </div>
-                        <div v-if="hasPositiveAmount(itemRefundAmount(child, item))" class="text-blue-700">
+                        <div v-if="hasPositiveAmount(itemRefundAmount(child, item))" class="text-blue-700 dark:text-blue-300">
                           {{ t('admin.orders.itemRefund') }}：{{ formatMoney(itemRefundAmount(child, item).toFixed(2), selectedOrder.currency) }}
                         </div>
-                        <div class="font-medium text-emerald-700">
+                        <div class="font-medium text-emerald-700 dark:text-emerald-300">
                           {{ t('admin.orders.itemProfit') }}：{{ formatMoney(itemProfit(child, item).toFixed(2), selectedOrder.currency) }}
                         </div>
                       </div>
@@ -1113,7 +1114,7 @@ watch(
                           {{ fulfillmentDownloading ? t('admin.orders.fulfillmentDownloading') : t('admin.orders.fulfillmentDownload') }}
                         </Button>
                       </div>
-                      <div class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+                      <div class="mb-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
                         {{ t('admin.orders.fulfillmentTruncatedHint') }}
                       </div>
                       <div class="rounded-lg border border-border bg-muted/30 p-3 text-xs text-foreground whitespace-pre-wrap break-all max-h-48 overflow-y-auto">{{ child.fulfillment.payload }}</div>
@@ -1142,7 +1143,7 @@ watch(
             <div class="text-sm text-muted-foreground">{{ t('admin.orders.detailFulfillmentStatus') }}：{{ fulfillmentStatusLabel(selectedOrder.fulfillment.status) }}</div>
             <div v-if="isFulfillmentTruncated(selectedOrder.fulfillment)" class="mt-3">
               <div class="text-xs text-muted-foreground mb-2">{{ t('admin.orders.fulfillmentTotalLines', { count: selectedOrder.fulfillment.payload_line_count }) }}</div>
-              <div class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+              <div class="mb-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
                 {{ t('admin.orders.fulfillmentTruncatedHint') }}
               </div>
               <div class="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground whitespace-pre-wrap break-all max-h-64 overflow-y-auto">{{ selectedOrder.fulfillment.payload }}</div>
@@ -1155,8 +1156,10 @@ watch(
             </div>
           </div>
 
-          <div v-if="procurementOrder" class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-            <h3 class="text-sm font-semibold text-indigo-800 mb-3">{{ t('orderDetail.procurementTitle') }}</h3>
+          <OrderRedemptionProgress v-if="selectedOrder" :key="selectedOrder.id" :order="selectedOrder" />
+
+          <div v-if="procurementOrder" class="rounded-xl border border-border bg-accent/30 p-4">
+            <h3 class="text-sm font-semibold text-primary mb-3">{{ t('orderDetail.procurementTitle') }}</h3>
             <div class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span class="text-xs text-muted-foreground">{{ t('procurement.columns.id') }}:</span>
@@ -1167,11 +1170,11 @@ watch(
                 <span
                   class="ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs"
                   :class="{
-                    'text-yellow-700 border-yellow-200 bg-yellow-50': procurementOrder.status === 'pending',
-                    'text-blue-700 border-blue-200 bg-blue-50': ['submitted', 'accepted', 'refunded'].includes(procurementOrder.status),
-                    'text-emerald-700 border-emerald-200 bg-emerald-50': ['fulfilled', 'completed'].includes(procurementOrder.status),
-                    'text-orange-700 border-orange-200 bg-orange-50': procurementOrder.status === 'partially_refunded',
-                    'text-red-700 border-red-200 bg-red-50': ['failed', 'rejected'].includes(procurementOrder.status),
+                    'text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/40': procurementOrder.status === 'pending',
+                    'text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40': ['submitted', 'accepted', 'refunded'].includes(procurementOrder.status),
+                    'text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40': ['fulfilled', 'completed'].includes(procurementOrder.status),
+                    'text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40': procurementOrder.status === 'partially_refunded',
+                    'text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40': ['failed', 'rejected'].includes(procurementOrder.status),
                     'text-muted-foreground border-border bg-muted/30': procurementOrder.status === 'canceled',
                   }"
                 >
@@ -1192,7 +1195,7 @@ watch(
               </div>
               <div v-if="procurementOrder.error_message">
                 <span class="text-xs text-muted-foreground">{{ t('procurement.columns.errorMessage') }}:</span>
-                <span class="ml-1 break-words text-xs text-red-600">{{ procurementOrder.error_message }}</span>
+                <span class="ml-1 break-words text-xs text-red-600 dark:text-red-300">{{ procurementOrder.error_message }}</span>
               </div>
             </div>
           </div>
@@ -1201,7 +1204,7 @@ watch(
             <h3 class="text-sm font-semibold text-foreground mb-3">{{ t('admin.orders.detailPayments') }}</h3>
             <div
               v-if="hasWalletPayment(selectedOrder) && (!selectedOrder.payments || selectedOrder.payments.length === 0)"
-              class="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700"
+              class="mb-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-700 dark:text-amber-300"
             >
               {{ t('admin.orders.detailWalletOnlyNoOnlinePayments') }}
             </div>
@@ -1339,7 +1342,7 @@ watch(
             </div>
             <div
               v-if="manualConfirmSuccess"
-              class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+              class="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-sm text-emerald-700 dark:text-emerald-300"
             >
               {{ manualConfirmSuccess }}
             </div>
@@ -1453,7 +1456,7 @@ watch(
             </div>
             <div
               v-if="refundTab === 'wallet' && canSelectWalletRefundTab(selectedOrder) && refundSuccess"
-              class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+              class="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-sm text-emerald-700 dark:text-emerald-300"
             >
               {{ refundSuccess }}
             </div>
@@ -1465,7 +1468,7 @@ watch(
             </div>
             <div
               v-if="(refundTab !== 'wallet' || !canSelectWalletRefundTab(selectedOrder)) && manualRefundSuccess"
-              class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+              class="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-sm text-emerald-700 dark:text-emerald-300"
             >
               {{ manualRefundSuccess }}
             </div>

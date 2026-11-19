@@ -102,6 +102,8 @@ func BuiltinRoleSeeds() []RoleSeed {
 			Role:     "support",
 			Inherits: []string{"readonly_auditor"},
 			Policies: []Policy{
+				{Object: "/admin/procurement-orders", Action: "GET"},
+				{Object: "/admin/procurement-orders/:id/redemption", Action: "GET"},
 				{Object: "/admin/orders", Action: "GET"},
 				{Object: "/admin/orders/:id", Action: "GET"},
 				{Object: "/admin/orders/:id/fulfillment/download", Action: "GET"},
@@ -148,6 +150,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/product-mappings/batch-delete", Action: "POST"},
 				{Object: "/admin/procurement-orders", Action: "GET"},
 				{Object: "/admin/procurement-orders/stats", Action: "GET"},
+				{Object: "/admin/procurement-orders/:id/redemption", Action: "GET"},
 				{Object: "/admin/procurement-orders/:id", Action: "GET"},
 				{Object: "/admin/procurement-orders/:id/upstream-payload/download", Action: "GET"},
 				{Object: "/admin/procurement-orders/:id/retry", Action: "POST"},

@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 const messages = {
   'zh-CN': {
+    redemption: {"title": "客户核销进度", "hint": "发卡与套餐开通分别计状态。此处自动刷新，无需前往核销站查询。", "refresh": "刷新进度", "error": "暂时无法获取，请稍后刷新", "checked": "查询时间", "unused": "未使用", "inactive": "未使用", "processing": "办理中", "submitted": "已提交，等待办理", "completed": "办理完成", "success": "办理完成", "succeeded": "办理完成", "failed": "办理失败，请跟进", "destroyed": "已销毁", "pending": "等待处理", "unknown": "待确认", "needs_action": "待补充资料", "notApplicable": "无核销记录"},
     common: {
       api: {
         responseMissing: '响应内容为空',
@@ -4584,6 +4585,7 @@ const messages = {
     },
   },
   'zh-TW': {
+    redemption: {"title": "客戶核銷進度", "hint": "發卡與套餐開通分別計狀態。此處自動重新整理，無需前往核銷站查詢。", "refresh": "重新整理進度", "error": "暫時無法取得，請稍後重試", "checked": "查詢時間", "unused": "未使用", "inactive": "未使用", "processing": "辦理中", "submitted": "已提交，等待辦理", "completed": "辦理完成", "success": "辦理完成", "succeeded": "辦理完成", "failed": "辦理失敗，請跟進", "destroyed": "已銷毀", "pending": "等待處理", "unknown": "待確認", "needs_action": "待補充資料", "notApplicable": "無核銷紀錄"},
     common: {
       api: {
         responseMissing: '回應內容為空',
@@ -9166,6 +9168,7 @@ const messages = {
     },
   },
   'en-US': {
+    redemption: {"title": "Customer redemption", "hint": "Code delivery and plan activation have separate states. Progress refreshes automatically here.", "refresh": "Refresh progress", "error": "Progress unavailable. Please refresh later.", "checked": "Checked at", "unused": "Unused", "inactive": "Unused", "processing": "Processing", "submitted": "Submitted, awaiting activation", "completed": "Completed", "success": "Completed", "succeeded": "Completed", "failed": "Failed — follow up required", "destroyed": "Destroyed", "pending": "Pending", "unknown": "Unconfirmed", "needs_action": "More information required", "notApplicable": "No redemption records"},
     common: {
       api: {
         responseMissing: 'Empty response',

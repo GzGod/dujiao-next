@@ -351,7 +351,7 @@ watch(
     </div>
 
     <div class="rounded-xl border border-border bg-card overflow-x-auto relative">
-      <Table class="min-w-[880px]">
+      <Table class="min-w-[1120px]">
         <TableHeader class="bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>
             <TableHead class="px-4 py-3">{{ t('admin.orders.table.id') }}</TableHead>
@@ -413,7 +413,7 @@ watch(
             </TableCell>
             <TableCell class="px-4 py-3 text-xs text-muted-foreground hidden xl:table-cell">{{ order.client_ip || '-' }}</TableCell>
             <TableCell class="px-4 py-3 font-mono text-xs text-foreground">{{ formatMoney(order.total_amount, order.currency) }}</TableCell>
-            <TableCell class="px-4 py-3">
+            <TableCell class="px-4 py-3 whitespace-nowrap">
               <span class="inline-flex rounded-full border px-2 py-0.5 text-xs" :class="statusClass(order.status)">
                 {{ statusLabel(order.status) }}
               </span>

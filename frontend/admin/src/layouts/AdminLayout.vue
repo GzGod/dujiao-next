@@ -750,11 +750,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
+  <div class="admin-shell min-h-screen bg-background text-foreground">
     <div class="flex min-h-screen">
       <!-- Desktop sidebar -->
       <aside
-        class="hidden md:flex border-r border-border bg-card flex-col sticky top-0 h-screen overflow-y-auto transition-all duration-300"
+        class="admin-sidebar hidden md:flex border-r border-border bg-card flex-col sticky top-0 h-screen overflow-y-auto transition-all duration-300"
         :class="sidebarCollapsed ? 'w-16' : 'w-64'"
       >
         <div class="py-6" :class="sidebarCollapsed ? 'px-2' : 'px-6'">
@@ -933,7 +933,7 @@ onBeforeUnmount(() => {
       </Sheet>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="flex items-center justify-between border-b border-border bg-background px-4 md:px-8 py-3 md:py-4 gap-2">
+        <header class="admin-topbar flex items-center justify-between border-b border-border bg-background px-4 md:px-8 py-3 md:py-4 gap-2">
           <div class="flex items-center gap-3">
             <Button size="icon-sm" variant="ghost" class="md:hidden" @click="mobileNavOpen = true">
               <Menu class="h-5 w-5" />
@@ -987,7 +987,7 @@ onBeforeUnmount(() => {
             </Button>
           </div>
         </header>
-        <main class="min-w-0 flex-1 overflow-x-hidden px-4 py-4 md:px-8 md:py-6">
+        <main class="admin-content min-w-0 flex-1 overflow-x-hidden px-4 py-4 md:px-8 md:py-6">
           <div class="min-w-0">
             <RouterView />
           </div>

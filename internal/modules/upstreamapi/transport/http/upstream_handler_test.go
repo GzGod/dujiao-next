@@ -2,6 +2,7 @@ package upstreamhttp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
@@ -313,5 +314,44 @@ func TestExternalLookupAndAfterSaleRespectCredential(t *testing.T) {
 	handler.ReplaceCode(c)
 	if w.Code != 404 {
 		t.Fatal("foreign credential order reached after-sale operation")
+	}
+}
+
+type adminRedemptionProbe struct{ inspected uint }
+
+func (p *adminRedemptionProbe) Inspect(_ context.Context, id uint) (*procurementcontract.RedemptionState, error) {
+	p.inspected = id
+	return &procurementcontract.RedemptionState{Code: "private-test-code", Progress: "unused", Revision: 2}, nil
+}
+func (*adminRedemptionProbe) ReviewRefund(context.Context, uint, bool, uint, string) error {
+	panic("unexpected mutation")
+}
+func (*adminRedemptionProbe) Replace(context.Context, uint, string, int) (*procurementcontract.RedemptionState, error) {
+	panic("unexpected mutation")
+}
+func (*adminRedemptionProbe) RequestRefund(context.Context, uint, string, string) error {
+	panic("unexpected mutation")
+}
+func TestAdminRedemptionReadOnlyAndNoCodeLeak(t *testing.T) {
+	probe := &adminRedemptionProbe{}
+	handler := &Handler{Dependencies: Dependencies{AfterSales: probe}}
+	for _, authenticated := range []bool{false, true} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("GET", "/admin/procurement-orders/3/redemption", nil)
+		c.Params = gin.Params{{Key: "id", Value: "3"}}
+		if authenticated {
+			c.Set("admin_id", uint(1))
+		}
+		handler.InspectAdminRedemption(c)
+		if !authenticated && probe.inspected != 0 {
+			t.Fatal("unauthenticated inspection reached upstream")
+		}
+		if authenticated && (w.Code != 200 || probe.inspected != 3 || !strings.Contains(w.Body.String(), `"progress_status":"unused"`)) {
+			t.Fatalf("missing status: %s", w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "private-test-code") {
+			t.Fatal("redemption code leaked")
+		}
 	}
 }
