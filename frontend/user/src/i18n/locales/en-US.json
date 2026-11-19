@@ -2234,5 +2234,11 @@
       "faq4q": "Who do I contact if something goes wrong?",
       "faq4a": "Every order has a full record. Reach us through the contact links at the bottom of the page; including your order number speeds things up."
     }
+  },
+  "paidSupport": {
+    "title": "Payment successful",
+    "prompt": "Need help using or redeeming your purchase? Contact our support team.",
+    "contact": "Contact support",
+    "dismiss": "Got it"
   }
 }

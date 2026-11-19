@@ -1,4 +1,5 @@
 <template>
+  <PaidOrderSupport :order="order" />
   <div class="min-h-screen bg-background text-foreground pt-24 pb-16">
     <div class="container mx-auto px-4">
       <BreadcrumbNav
@@ -436,6 +437,7 @@
 </template>
 
 <script setup lang="ts">
+import PaidOrderSupport from '../components/PaidOrderSupport.vue'
 import PaymentProof from '../components/payment/PaymentProof.vue'
 import { Copy, Check, Download, Info } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
