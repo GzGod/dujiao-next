@@ -31,6 +31,7 @@ var (
 
 // OrderListFilter 管理端订单列表过滤。
 type OrderListFilter struct {
+	IssuedOnly     bool
 	Page           int
 	PageSize       int
 	UserID         uint
@@ -156,6 +157,7 @@ func (h *AdminHandler) AdminListOrders(c *gin.Context) {
 	sortOrder := strings.TrimSpace(c.Query("sort_order"))
 
 	orders, total, err := h.orders.ListOrdersForAdmin(OrderListFilter{
+		IssuedOnly:     c.Query("issued_only") == "true",
 		Page:           page,
 		PageSize:       pageSize,
 		UserID:         userID,

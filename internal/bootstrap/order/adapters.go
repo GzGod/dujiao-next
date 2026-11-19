@@ -45,6 +45,7 @@ type orderAdminQueryAdapter struct {
 
 func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderListFilter) ([]orderdomain.Order, int64, error) {
 	return a.orders.ListOrdersForAdmin(ordercontract.ListFilter{
+		IssuedOnly:     filter.IssuedOnly,
 		Page:           filter.Page,
 		PageSize:       filter.PageSize,
 		UserID:         filter.UserID,

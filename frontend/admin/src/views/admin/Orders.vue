@@ -21,10 +21,12 @@ import {
 } from '@/utils/status'
 import { formatDate, formatMoney, getLocalizedText, toRFC3339 } from '@/utils/format'
 import { formatSkuDisplayLabel } from '@/utils/sku'
+import IssuedCardsTable from './components/IssuedCardsTable.vue'
 import OrderDetailDialog from './components/OrderDetailDialog.vue'
 import OrderFulfillmentModal from './components/OrderFulfillmentModal.vue'
 import { adminUrl } from '@/utils/adminBase'
 
+const view = ref<'orders' | 'issued'>('orders')
 const loading = ref(true)
 const { refreshing, refreshList } = useListRefresh()
 const orders = ref<AdminOrder[]>([])
@@ -90,12 +92,15 @@ const toQueryText = (value: unknown) => {
   return String(value).trim()
 }
 
+let ordersRequest = 0
 const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
+  const request = ++ordersRequest
   if (!options.preserveRows) loading.value = true
   try {
     const response = await adminAPI.getOrders({
       page,
       page_size: pagination.value.page_size,
+      issued_only: view.value === 'issued' ? true : undefined,
       status: normalizeFilterValue(filters.status) || undefined,
       user_id: filters.userId || undefined,
       user_keyword: filters.userKeyword || undefined,
@@ -106,18 +111,20 @@ const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
       created_to: toRFC3339(filters.createdTo),
       ...parseSortValue(normalizeFilterValue(filters.sortBy)),
     })
+    if (request !== ordersRequest) return
     orders.value = response.data.data || []
     pagination.value = response.data.pagination || pagination.value
     orders.value.forEach((order) => {
       statusEdits[order.id] = order.status
     })
   } catch (error) {
+    if (request !== ordersRequest) return
     if (!options.preserveRows) {
       orders.value = []
       pagination.value = { page: 1, page_size: pagination.value.page_size, total: 0, total_page: 0 }
     }
   } finally {
-    if (!options.preserveRows) loading.value = false
+    if (request === ordersRequest) loading.value = false
   }
 }
 
@@ -128,6 +135,13 @@ const fetchRefundConfig = async () => {
   } catch {
     maxRefundDays.value = 30
   }
+}
+
+const switchView = (next: 'orders' | 'issued') => {
+  if (view.value === next) return
+  view.value = next
+  orders.value = []
+  fetchOrders(1)
 }
 
 const handleSearch = () => {
@@ -275,6 +289,11 @@ watch(
       </div>
     </div>
 
+    <div class="inline-flex gap-1 rounded-full border border-border bg-muted p-1" role="group" :aria-label="t('admin.orders.title')">
+      <Button size="sm" :variant="view === 'orders' ? 'default' : 'ghost'" :aria-pressed="view === 'orders'" @click="switchView('orders')">{{ t('issuedCards.orders') }}</Button>
+      <Button size="sm" :variant="view === 'issued' ? 'default' : 'ghost'" :aria-pressed="view === 'issued'" @click="switchView('issued')">{{ t('issuedCards.title') }}</Button>
+    </div>
+
     <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div class="w-full md:w-32">
@@ -351,7 +370,8 @@ watch(
     </div>
 
     <div class="rounded-xl border border-border bg-card overflow-x-auto relative">
-      <Table class="min-w-[1120px]">
+      <IssuedCardsTable v-if="view === 'issued'" :orders="orders" :loading="loading" @view="openDetail" />
+      <Table v-else class="min-w-[1120px]">
         <TableHeader class="bg-muted/40 text-xs uppercase text-muted-foreground">
           <TableRow>
             <TableHead class="px-4 py-3">{{ t('admin.orders.table.id') }}</TableHead>

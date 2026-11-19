@@ -139,6 +139,7 @@ export interface AdminOrderItem {
 }
 
 export interface AdminFulfillment {
+  delivered_at?: string
   id: number
   order_id: number
   type: string

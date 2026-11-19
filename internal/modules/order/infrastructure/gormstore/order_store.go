@@ -426,6 +426,14 @@ func (r *Store) ListChildren(parentID uint) ([]orderdomain.Order, error) {
 func (r *Store) ListAdmin(filter ordercontract.ListFilter) ([]orderdomain.Order, int64, error) {
 	var orders []orderdomain.Order
 	query := r.db.Model(&orderdomain.Order{}).Where("orders.deleted_at IS NULL AND parent_id IS NULL")
+	if filter.IssuedOnly {
+		// Select parent orders once even when several children have been delivered.
+		query = query.Where(`EXISTS (
+   SELECT 1 FROM fulfillments f JOIN orders issued ON issued.id = f.order_id
+   WHERE f.deleted_at IS NULL AND f.status = ? AND issued.deleted_at IS NULL
+    AND (issued.id = orders.id OR issued.parent_id = orders.id)
+  )`, constants.FulfillmentStatusDelivered)
+	}
 
 	if filter.UserID != 0 {
 		query = query.Where("user_id = ?", filter.UserID)

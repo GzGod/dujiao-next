@@ -122,3 +122,69 @@ func TestOrderRepositoryListAdminSupportsUserKeyword(t *testing.T) {
 		t.Fatalf("unexpected result by provider user id: total=%d rows=%+v", total, rows)
 	}
 }
+
+func TestListAdminIssuedOnlyIncludesDeliveredChildrenWithoutDuplicates(t *testing.T) {
+	_, repo, db := setupAdminSearchRepositoryTest(t)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	create := func(no string, parent *uint) orderdomain.Order {
+		o := orderdomain.Order{OrderNo: no, ParentID: parent, Status: "fulfilling", Currency: "CNY", GuestEmail: no + "@example.test"}
+		if err := db.Create(&o).Error; err != nil {
+			t.Fatal(err)
+		}
+		return o
+	}
+	direct := create("DIRECT", nil)
+	split := create("SPLIT", nil)
+	pending := create("PENDING", nil)
+	deleted := create("DELETED", nil)
+	deletedChildParent := create("DELETED-CHILD-PARENT", nil)
+	_ = create("NO-DELIVERY", nil)
+	child1 := create("SPLIT-1", &split.ID)
+	child2 := create("SPLIT-2", &split.ID)
+	deletedChild := create("DELETED-CHILD", &deletedChildParent.ID)
+	now := time.Now()
+	for _, f := range []fulfillmentdomain.Fulfillment{
+		{OrderID: direct.ID, Status: "delivered", Type: "auto", Payload: "fixture-direct"},
+		{OrderID: child1.ID, Status: "delivered", Type: "upstream", Payload: "fixture-child-1"},
+		{OrderID: child2.ID, Status: "delivered", Type: "manual", Payload: "fixture-child-2"},
+		{OrderID: pending.ID, Status: "pending", Type: "auto"},
+		{OrderID: deleted.ID, Status: "delivered", Type: "auto", DeletedAt: &now},
+		{OrderID: deletedChild.ID, Status: "delivered", Type: "auto"},
+	} {
+		if err := db.Create(&f).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Model(&deletedChild).Update("deleted_at", now).Error; err != nil {
+		t.Fatal(err)
+	}
+	rows, total, err := repo.ListAdmin(ordercontract.ListFilter{IssuedOnly: true, Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(rows) != 2 {
+		t.Fatalf("expected two parent orders; total=%d rows=%d", total, len(rows))
+	}
+	for _, row := range rows {
+		if row.ID == direct.ID && (row.Fulfillment == nil || row.Fulfillment.Payload != "fixture-direct") {
+			t.Fatal("missing direct delivery")
+		}
+		if row.ID == split.ID && (len(row.Children) != 2 || row.Children[0].Fulfillment == nil || row.Children[1].Fulfillment == nil) {
+			t.Fatal("missing child deliveries")
+		}
+	}
+	rows, total, err = repo.ListAdmin(ordercontract.ListFilter{IssuedOnly: true, Page: 2, PageSize: 1})
+	if err != nil || total != 2 || len(rows) != 1 {
+		t.Fatalf("pagination failed total=%d len=%d err=%v", total, len(rows), err)
+	}
+	rows, total, err = repo.ListAdmin(ordercontract.ListFilter{IssuedOnly: true, GuestEmail: split.GuestEmail, Page: 1, PageSize: 20})
+	if err != nil || total != 1 || len(rows) != 1 || rows[0].ID != split.ID {
+		t.Fatal("buyer filter was not retained")
+	}
+	_, total, err = repo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20})
+	if err != nil || total != 6 {
+		t.Fatal("ordinary order listing changed")
+	}
+}

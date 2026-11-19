@@ -4,6 +4,7 @@ import "time"
 
 // ListFilter 查询订单列表的过滤条件。
 type ListFilter struct {
+	IssuedOnly     bool
 	Page           int
 	PageSize       int
 	UserID         uint
