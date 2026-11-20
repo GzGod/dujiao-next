@@ -2236,6 +2236,8 @@
     }
   },
   "paidSupport": {
+    "claudeTitle": "Claude 付款成功，请联系 TG 领取",
+    "claudePrompt": "请通过 Telegram 联系 {'@'}xuegaozhanshen，提供订单号，我们会人工安排 Claude 账号交付。无需前往核销站，付款不代表已发货。",
     "title": "付款成功",
     "prompt": "不会使用或核销？联系客服，我们帮你处理。",
     "contact": "联系客服",

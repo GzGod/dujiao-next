@@ -1,5 +1,6 @@
 <template>
   <div class="grid gap-[18px]">
+    <PaidOrderSupport :order="order" />
     <!-- 子订单（含卡密） -->
     <section v-if="order.children && order.children.length > 0" class="rounded-xl border bg-card p-[22px]">
       <h2 class="mb-4 text-lg font-bold">{{ t('orderDetail.childOrdersTitle') }}</h2>
@@ -143,6 +144,7 @@
 
 <script setup lang="ts">
 import { toRef } from 'vue'
+import PaidOrderSupport from '@/components/PaidOrderSupport.vue'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
 import VaultOrderItem from './VaultOrderItem.vue'
