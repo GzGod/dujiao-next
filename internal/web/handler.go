@@ -142,6 +142,7 @@ func RegisterAdmin(r *gin.Engine, prefix string, fsys fs.FS) error {
 	fileServer := http.StripPrefix(prefix, http.FileServer(http.FS(fsys)))
 
 	r.GET(prefix+"/*filepath", func(c *gin.Context) {
+		c.Header("X-Robots-Tag", "noindex, nofollow, noarchive")
 		fp := strings.TrimPrefix(c.Param("filepath"), "/")
 		if fp == "" || fp == "index.html" {
 			serveIndex(c, cached)

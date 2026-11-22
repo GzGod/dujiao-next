@@ -16,6 +16,8 @@ type Page struct {
 	JSONLD                                           string
 	Status                                           int
 	Standalone                                       bool
+	NoIndex                                          bool
+	Redirect                                         string
 }
 
 type PageRenderer func(*gin.Context) (*Page, error)
@@ -31,7 +33,7 @@ func renderPage(index []byte, page *Page) []byte {
 	body := titleElement.ReplaceAllLiteral(index, []byte("<title>"+html.EscapeString(page.Title)+"</title>"))
 	body = languageAttribute.ReplaceAllLiteral(body, []byte(`<html lang="`+html.EscapeString(page.Language)+`">`))
 	meta := `<meta name="description" content="` + html.EscapeString(page.Description) + `"><link rel="canonical" href="` + html.EscapeString(page.Canonical) + `"><meta property="og:title" content="` + html.EscapeString(page.Title) + `"><meta property="og:description" content="` + html.EscapeString(page.Description) + `"><meta property="og:url" content="` + html.EscapeString(page.Canonical) + `">`
-	if page.Status == http.StatusNotFound {
+	if page.Status == http.StatusNotFound || page.NoIndex {
 		meta += `<meta name="robots" content="noindex">`
 	}
 	if page.JSONLD != "" {
@@ -47,6 +49,9 @@ func renderPage(index []byte, page *Page) []byte {
 }
 
 func serveUserIndex(c *gin.Context, index []byte, renderer PageRenderer) {
+	if privatePage(c.Request.URL.Path) || c.Query("code") != "" || c.Query("session") != "" || c.Query("password") != "" || c.Query("token") != "" || c.Query("email") != "" {
+		c.Header("X-Robots-Tag", "noindex, nofollow, noarchive")
+	}
 	if renderer == nil {
 		serveIndex(c, index)
 		return
@@ -61,10 +66,24 @@ func serveUserIndex(c *gin.Context, index []byte, renderer PageRenderer) {
 		serveIndex(c, index)
 		return
 	}
+	if page.Redirect != "" {
+		c.Header("Cache-Control", "no-cache")
+		c.Redirect(http.StatusMovedPermanently, page.Redirect)
+		return
+	}
 	status := page.Status
 	if status == 0 {
 		status = http.StatusOK
 	}
 	c.Header("Cache-Control", "no-store")
 	c.Data(status, "text/html; charset=utf-8", renderPage(index, page))
+}
+
+func privatePage(path string) bool {
+	for _, prefix := range []string{"/me", "/auth", "/guest", "/orders", "/recharge-orders", "/cart", "/checkout", "/pay"} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }

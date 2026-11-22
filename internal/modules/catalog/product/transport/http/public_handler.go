@@ -20,6 +20,7 @@ import (
 	"github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
 	"github.com/dujiao-next/internal/shared/money"
+	"github.com/dujiao-next/internal/shared/productguide"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -155,7 +156,7 @@ func (h *PublicHandler) GetProducts(c *gin.Context) {
 
 // GetProductBySlug 根据 slug 获取商品详情
 func (h *PublicHandler) GetProductBySlug(c *gin.Context) {
-	slug := c.Param("slug")
+	slug := productguide.SourceSlug(c.Param("slug"))
 	tenant := tenantFromRequest(c)
 
 	product, err := h.products.GetPublicBySlugForTenant(tenant, slug)

@@ -107,6 +107,12 @@ export function usePageSeo(options: PageSeoOptions = {}) {
       if (!fullCanonical.value) return []
       return [{ key: 'canonical', rel: 'canonical', href: fullCanonical.value }]
     },
+    script: () => {
+      if (options.noindex?.() || !fullCanonical.value || !siteName.value) return []
+      const items: Record<string, unknown>[] = [{ '@type': 'ListItem', position: 1, name: siteName.value, item: baseUrl.value + '/' }]
+      if (fullCanonical.value !== baseUrl.value + '/') items.push({ '@type': 'ListItem', position: 2, name: pageTitle.value || siteName.value, item: fullCanonical.value })
+      return [{ key: 'page-breadcrumb', type: 'application/ld+json', innerHTML: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: items }).replace(/</g, '\\u003c') }]
+    },
     meta: () => {
       const tags: Array<{ name?: string; property?: string; content: string }> = []
 

@@ -74,3 +74,86 @@ func TestProjectionFailureIsNotAnEmptyIndexablePage(t *testing.T) {
 		t.Fatal("public read failure swallowed")
 	}
 }
+
+func TestCategoryProjectionFiltersAndMissingCategoryIs404(t *testing.T) {
+	config := func(c *gin.Context) {
+		c.JSON(200, gin.H{"status_code": 0, "data": gin.H{"brand": gin.H{"site_name": "Shop", "site_url": "https://shop.test"}}})
+	}
+	cats := func(c *gin.Context) {
+		c.JSON(200, gin.H{"status_code": 0, "data": []gin.H{{"id": 12, "slug": "gpt", "name": gin.H{"zh-CN": "GPT"}}}})
+	}
+	products := func(c *gin.Context) {
+		if c.Query("category_id") != "12" {
+			t.Error("category scope missing")
+		}
+		c.JSON(200, gin.H{"status_code": 0, "data": []gin.H{}})
+	}
+	posts := func(c *gin.Context) {
+		if c.Query("type") != "notice" {
+			t.Error("post type missing")
+		}
+		c.JSON(200, gin.H{"status_code": 0, "data": []gin.H{}})
+	}
+	renderer := New(config, products, products, posts, cats, posts)
+	for _, path := range []string{"/categories/gpt", "/categories/missing", "/notice"} {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("GET", path, nil)
+		page, err := renderer(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if path == "/categories/missing" && page.Status != 404 {
+			t.Error("missing category soft 404")
+		}
+		if path != "/categories/missing" && !strings.Contains(page.JSONLD, "BreadcrumbList") {
+			t.Error("breadcrumb schema missing")
+		}
+	}
+}
+
+func TestLegacyURLRedirectsOnlyAfterPublicAvailabilityCheck(t *testing.T) {
+	config := func(c *gin.Context) {
+		c.JSON(200, gin.H{"status_code": 0, "data": gin.H{"brand": gin.H{"site_name": "Shop", "site_url": "https://shop.test"}}})
+	}
+	available := true
+	detail := func(c *gin.Context) {
+		if !available {
+			c.JSON(200, gin.H{"status_code": 404})
+			return
+		}
+		c.JSON(200, gin.H{"status_code": 0, "data": gin.H{"title": gin.H{"zh-CN": "GPT Plus"}}})
+	}
+	renderer := New(config, detail, detail, detail)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("GET", "/products/upstream-1-3-1793979782658?aff=example", nil)
+	page, err := renderer(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Redirect != "/products/gpt-plus-top-up?aff=example" {
+		t.Fatalf("tracking lost: %s", page.Redirect)
+	}
+	available = false
+	page, err = renderer(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Status != 404 || page.Redirect != "" {
+		t.Fatal("unavailable product redirected")
+	}
+}
+
+func TestPublicProjectionSupportsHeadWithoutForwardingBody(t *testing.T) {
+	handler := func(c *gin.Context) {
+		if c.Request.Method != "GET" || c.Request.Body != nil {
+			t.Error("not an anonymous public read")
+		}
+		c.JSON(200, gin.H{"status_code": 0, "data": gin.H{}})
+	}
+	read := newReader(handler)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("HEAD", "/", nil)
+	if _, status, err := read(c, ""); err != nil || status != 200 {
+		t.Fatalf("HEAD projection failed %d %v", status, err)
+	}
+}

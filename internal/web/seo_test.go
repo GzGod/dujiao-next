@@ -48,3 +48,26 @@ func TestPublicHTMLProjectionAndMissingStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestPrivateHTMLResponsesNeverAdvertiseIndexing(t *testing.T) {
+	r := gin.New()
+	fsys := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(`<html><title></title><div id="app"></div></html>`)}}
+	if err := RegisterUser(r, fsys); err != nil {
+		t.Fatal(err)
+	}
+	if err := RegisterAdmin(r, "/secret-panel", fsys); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/orders/one", "/pay", "/auth/login", "/guest/orders", "/me/api", "/secret-panel/orders", "/?code=example"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if !strings.Contains(w.Header().Get("X-Robots-Tag"), "noindex") {
+			t.Errorf("indexable private page: %s", path)
+		}
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/products", nil))
+	if w.Header().Get("X-Robots-Tag") != "" {
+		t.Error("public catalog blocked")
+	}
+}

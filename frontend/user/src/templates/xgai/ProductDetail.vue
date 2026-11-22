@@ -51,14 +51,14 @@
             <div class="xpd__float xpd__float--one">
               <Check />
               <span>
-                <b>{{ t('xgai.detail.floatAutoTitle') }}</b>
-                <small>{{ t('xgai.detail.floatAutoText') }}</small>
+                <b>{{ decisionGuide ? guideLabels.delivery : t('xgai.detail.floatAutoTitle') }}</b>
+                <small>{{ decisionGuide ? guideLabels[`${decisionGuide.kind}Note`] : t('xgai.detail.floatAutoText') }}</small>
               </span>
             </div>
             <div class="xpd__float xpd__float--two"><i /> {{ t('xgai.detail.floatPay') }}</div>
             <p class="xpd__visual-note">
-              {{ t('xgai.detail.visualLead') }}<br />
-              <b>{{ t('xgai.detail.visualTail') }}</b>
+              {{ decisionGuide ? guideLabels[decisionGuide.kind] : t('xgai.detail.visualLead') }}<br />
+              <b>{{ decisionGuide ? guideLabels[`${decisionGuide.kind}Note`] : t('xgai.detail.visualTail') }}</b>
             </p>
           </template>
         </div>
@@ -168,7 +168,11 @@
         </div>
 
         <!-- 商品说明：后台填写的详情；没有就给出通用说明 -->
-        <div v-if="activeTab === 'details'" class="xpd__grid">
+        <div v-if="activeTab === 'details' && decisionGuide">
+          <ProductDecisionGuide :guide="decisionGuide" :labels="guideLabels" />
+          <div v-if="hasRichContent" class="xpd__prose prose max-w-none" v-html="processHtmlForDisplay(getLocalizedText(product.content))" />
+        </div>
+        <div v-else-if="activeTab === 'details'" class="xpd__grid">
           <article>
             <small>{{ t('xgai.detail.beforeBuy') }}</small>
             <h2>{{ t('xgai.detail.notShared') }}</h2>
@@ -257,8 +261,10 @@ import { useProductDetail } from '../../composables/useProductDetail'
 import { brandLogoUrl, detectAiBrand } from '../../utils/aiBrand'
 import { compareWithOfficial } from '../../utils/officialPrice'
 import './styles/xgai-detail.css'
+import ProductDecisionGuide from './components/ProductDecisionGuide.vue'
+import { getProductGuide, productGuideLabels } from '../../utils/productGuide'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 // 移动端固定购买条：桌面购买区离开视口时显示
 const purchaseActionsRef = ref<HTMLElement | null>(null)
@@ -303,6 +309,8 @@ const {
   addToCart, buyNow, goLogin, loadProduct,
 } = useProductDetail({ onLoaded: () => setupMobileBarObserver() })
 
+const decisionGuide = computed(() => getProductGuide(product.value?.slug, locale.value))
+const guideLabels = computed(() => productGuideLabels(locale.value))
 const title = computed(() => getLocalizedText(product.value?.title) || '')
 const brand = computed(() => detectAiBrand(product.value))
 const brandLogo = computed(() => brandLogoUrl(brand.value))
@@ -313,7 +321,7 @@ const brandLine = computed(() => {
 })
 // 品牌商品默认用 logo 视觉（上游图片常常无法访问）；非品牌商品才用商品图
 const showPhoto = computed(() => brand.value === 'other' && Boolean(currentImage.value))
-const lede = computed(() => getLocalizedText(product.value?.description) || t('xgai.detail.defaultLede'))
+const lede = computed(() => decisionGuide.value?.summary || getLocalizedText(product.value?.description) || t('xgai.detail.defaultLede'))
 const hasRichContent = computed(() => Boolean(getLocalizedText(product.value?.content)?.trim()))
 
 const stockTone = computed(() => {
@@ -369,13 +377,15 @@ const official = computed(() => (currencySymbol.value === '¥' && !priceTag.valu
 const showQuantity = computed(() => quantityEffectiveLimit.value === null || quantityEffectiveLimit.value > 1)
 
 const features = computed(() => {
-  const list = [t('xgai.detail.featOwn'), t('xgai.detail.featTrack')]
+  const list = decisionGuide.value
+    ? [guideLabels.value[decisionGuide.value.kind], guideLabels.value[`${decisionGuide.value.kind}Note`]]
+    : [t('xgai.detail.featOwn'), t('xgai.detail.featTrack')]
   if (product.value?.purchase_type === 'guest') list.push(t('xgai.detail.featGuest'))
   else list.push(t('xgai.detail.featMember'))
   return list
 })
 
-const steps = computed(() => [
+const steps = computed(() => decisionGuide.value?.steps || [
   { title: t('xgai.detail.step1t'), text: t('xgai.detail.step1') },
   { title: t('xgai.detail.step2t'), text: t('xgai.detail.step2') },
   { title: t('xgai.detail.step3t'), text: t('xgai.detail.step3') },
@@ -389,7 +399,7 @@ const tabs = computed(() => [
   { key: 'process' as const, label: t('xgai.detail.tabProcess') },
   { key: 'faq' as const, label: t('xgai.detail.tabFaq') },
 ])
-const faqs = computed(() => [1, 2, 3, 4].map((n) => ({ q: t(`xgai.detail.faq${n}q`), a: t(`xgai.detail.faq${n}a`) })))
+const faqs = computed(() => decisionGuide.value?.faqs || [1, 2, 3, 4].map((n) => ({ q: t(`xgai.detail.faq${n}q`), a: t(`xgai.detail.faq${n}a`) })))
 
 onUnmounted(() => {
   observer?.disconnect()

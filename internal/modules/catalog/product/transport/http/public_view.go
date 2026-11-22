@@ -2,6 +2,7 @@ package producthttp
 
 import (
 	"errors"
+	"github.com/dujiao-next/internal/shared/productguide"
 	"strings"
 
 	promotiondomain "github.com/dujiao-next/internal/modules/promotion/domain"
@@ -76,7 +77,7 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 	resp := productpresenter.Product{
 		ID:                   v.Product.ID,
 		CategoryID:           v.Product.CategoryID,
-		Slug:                 v.Product.Slug,
+		Slug:                 productguide.CanonicalSlug(v.Product.Slug),
 		SeoMeta:              v.Product.SeoMetaJSON,
 		Title:                v.Product.TitleJSON,
 		Description:          v.Product.DescriptionJSON,

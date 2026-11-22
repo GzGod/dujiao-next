@@ -51,6 +51,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useAppStore } from './stores/app'
 import { getActiveTemplate, hasTemplateHint, rememberTemplate } from './templates/registry'
 import Navbar from './components/Navbar.vue'
@@ -69,6 +70,26 @@ const XgaiLayout = defineAsyncComponent(() => import('./templates/xgai/layout/Xg
 // config 由 router.beforeEach 统一加载，无需在此重复调用
 const appStore = useAppStore()
 const route = useRoute()
+useHead({ script: () => {
+  const brand = appStore.config?.brand
+  const base = String(brand?.site_url || '').replace(/\/$/, '')
+  if (!base || !brand?.site_name || ['/me', '/auth', '/guest', '/orders', '/cart', '/checkout', '/pay'].some((p) => route.path === p || route.path.startsWith(p + '/'))) return []
+  return [{ key: 'site-identity', type: 'application/ld+json', innerHTML: JSON.stringify({
+    '@context': 'https://schema.org', '@graph': [
+      { '@type': 'Organization', '@id': base + '/#organization', name: brand.site_name, url: base + '/' },
+      { '@type': 'WebSite', '@id': base + '/#website', name: brand.site_name, url: base + '/', publisher: { '@id': base + '/#organization' } },
+    ],
+  }).replace(/</g, '\\u003c') }]
+} })
+
+useHead({ meta: () => {
+  const privatePath = ['/me', '/auth', '/guest', '/orders', '/recharge-orders', '/cart', '/checkout', '/pay']
+    .some((prefix) => route.path === prefix || route.path.startsWith(prefix + '/'))
+  const sensitiveQuery = ['code', 'session', 'password', 'token', 'email'].some((key) => key in route.query)
+  return privatePath || sensitiveQuery || route.name === 'not-found'
+    ? [{ name: 'robots', content: 'noindex, nofollow, noarchive' }] : []
+} })
+
 const isResellerConsole = computed(() => route.meta.resellerConsole === true)
 // getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
 const isVault = computed(() => getActiveTemplate() === 'vault')

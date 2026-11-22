@@ -2,6 +2,8 @@ package sitemaphttp
 
 import (
 	"context"
+	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
+	"html"
 	"strings"
 
 	"github.com/dujiao-next/internal/logger"
@@ -38,6 +40,15 @@ func (h *Handler) GetSitemap(c *gin.Context) {
 	}
 
 	baseURL := h.resolveBaseURL(c)
+	tenant := reseller.TenantOrMain(c.Request.Context())
+	if !tenant.IsMain {
+		// The generic sitemap catalog is main-site scoped. Do not expose its product
+		// URLs on a reseller domain; its public catalog remains discoverable by links.
+		body := `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>` + html.EscapeString(baseURL+"/") + `</loc></url><url><loc>` + html.EscapeString(baseURL+"/products") + `</loc></url></urlset>`
+		c.Header("Cache-Control", "no-store")
+		c.Data(200, "application/xml; charset=utf-8", []byte(body))
+		return
+	}
 	xmlStr, err := h.sitemap.Generate(c.Request.Context(), baseURL)
 	if err != nil {
 		logger.Errorw("sitemap_generate_failed", "error", err)
@@ -64,6 +75,10 @@ func (h *Handler) GetRobots(c *gin.Context) {
 
 // resolveBaseURL 站点 URL 优先取后台 brand.site_url，否则回落到当前请求 Host。
 func (h *Handler) resolveBaseURL(c *gin.Context) string {
+	tenant := reseller.TenantOrMain(c.Request.Context())
+	if !tenant.IsMain && tenant.PrimaryDomain != "" {
+		return "https://" + tenant.PrimaryDomain
+	}
 	if h != nil && h.brand != nil {
 		if siteURL, err := h.brand.GetSiteURL(); err == nil {
 			if u := strings.TrimRight(strings.TrimSpace(siteURL), "/"); u != "" {

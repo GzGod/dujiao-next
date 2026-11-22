@@ -4,6 +4,7 @@ import (
 	categorycontract "github.com/dujiao-next/internal/modules/catalog/category/contract"
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 	"github.com/dujiao-next/internal/modules/sitemap/contract"
+	"github.com/dujiao-next/internal/shared/productguide"
 )
 
 // Reader 将 Catalog 的仓储契约收窄为 Sitemap 投影。
@@ -47,7 +48,7 @@ func (r *Reader) ListActiveProducts(limit int) ([]contract.Product, error) {
 	}
 	result := make([]contract.Product, 0, len(rows))
 	for _, row := range rows {
-		result = append(result, contract.Product{Slug: row.Slug, UpdatedAt: row.UpdatedAt})
+		result = append(result, contract.Product{Slug: productguide.CanonicalSlug(row.Slug), UpdatedAt: row.UpdatedAt})
 	}
 	return result, nil
 }

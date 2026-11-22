@@ -16,7 +16,12 @@
     "redeem": "前往核销",
     "progress": "查询核销进度",
     "homeTitle": "ChatGPT 充值与 Claude 成品号",
-    "homeDescription": "雪糕 AI 提供 GPT 会员充值及 Claude 成品号。查看商品价格、交付方式、核销教程和售后处理说明。"
+    "homeDescription": "雪糕 AI 提供 GPT 会员充值及 Claude 成品号。查看商品价格、交付方式、核销教程和售后处理说明。",
+    "about": "关于我们",
+    "terms": "服务条款",
+    "privacy": "隐私政策",
+    "blog": "文章与教程",
+    "notice": "公告"
   },
   "zh-TW": {
     "m0": "頁面不存在",
@@ -35,7 +40,12 @@
     "redeem": "前往核銷",
     "progress": "查詢核銷進度",
     "homeTitle": "ChatGPT 儲值與 Claude 成品帳號",
-    "homeDescription": "雪糕 AI 提供 GPT 會員儲值及 Claude 成品帳號。查看商品價格、交付方式、核銷教學與售後處理說明。"
+    "homeDescription": "雪糕 AI 提供 GPT 會員儲值及 Claude 成品帳號。查看商品價格、交付方式、核銷教學與售後處理說明。",
+    "about": "關於我們",
+    "terms": "服務條款",
+    "privacy": "隱私政策",
+    "blog": "文章與教學",
+    "notice": "公告"
   },
   "en-US": {
     "m0": "Page not found",
@@ -54,6 +64,11 @@
     "redeem": "Redeem a code",
     "progress": "Check redemption progress",
     "homeTitle": "ChatGPT top-ups and Claude accounts",
-    "homeDescription": "Explore GPT subscription top-ups and Claude accounts from XUEGAOAI, with product pricing, delivery instructions, redemption guides and support information."
+    "homeDescription": "Explore GPT subscription top-ups and Claude accounts from XUEGAOAI, with product pricing, delivery instructions, redemption guides and support information.",
+    "about": "About us",
+    "terms": "Terms of service",
+    "privacy": "Privacy policy",
+    "blog": "Articles and guides",
+    "notice": "Announcements"
   }
 }

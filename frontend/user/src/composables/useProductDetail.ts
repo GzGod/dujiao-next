@@ -14,6 +14,7 @@ import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { resolveSkuAvailableStock, resolveSkuStockDisplay, type PublicStockDisplay } from '../utils/publicStock'
 import { useLocalized, useProductLabels } from './useProduct'
 import { toast } from './useToast'
+import { getProductGuide } from '../utils/productGuide'
 
 /**
  * 商品详情页的全部业务逻辑（数据加载、SKU/数量、促销/会员/批发定价、库存约束、
@@ -584,7 +585,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
   const productSeoDescription = computed(() => {
     if (!product.value) return ''
     const seo = product.value.seo_meta || {}
-    const raw = getLocalizedText(seo.description) || (typeof seo.description === 'string' ? seo.description : '')
+    const raw = getProductGuide(product.value.slug, appStore.locale)?.summary || getLocalizedText(seo.description) || (typeof seo.description === 'string' ? seo.description : '')
       || getLocalizedText(product.value.description) || getLocalizedText(product.value.content)
     return new DOMParser().parseFromString(raw || '', 'text/html').body.textContent?.trim().slice(0, 160) || ''
   })
@@ -597,7 +598,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
       return [{ rel: 'canonical', href: canonicalUrl.value }]
     },
     meta: () => {
-      if (!product.value) return []
+      if (!product.value) return loading.value ? [] : [{ name: 'robots', content: 'noindex, nofollow' }]
       const seoMeta = product.value.seo_meta || {}
       const seoKeywords = getLocalizedText(seoMeta.keywords) || (typeof seoMeta.keywords === 'string' ? seoMeta.keywords : '')
       const seoDescription = productSeoDescription.value
@@ -660,10 +661,17 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
         jsonLd.category = getLocalizedText(product.value.category.name)
       }
 
-      return [{
+      const base = canonicalUrl.value.split('/products/')[0]
+      const breadcrumb = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: String(appStore.config?.brand?.site_name || ''), item: base + '/' },
+        { '@type': 'ListItem', position: 2, name: t('nav.products'), item: base + '/products' },
+        { '@type': 'ListItem', position: 3, name: title, item: canonicalUrl.value },
+      ] }
+      return [jsonLd, breadcrumb].map((value, index) => ({
+        key: index === 0 ? 'product-offer' : 'page-breadcrumb',
         type: 'application/ld+json',
-        innerHTML: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
-      }]
+        innerHTML: JSON.stringify(value).replace(/</g, '\\u003c'),
+      }))
     },
   })
 

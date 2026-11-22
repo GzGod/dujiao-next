@@ -32,7 +32,18 @@ func newReader(handler gin.HandlerFunc) func(*gin.Context, string) (json.RawMess
 	return func(parent *gin.Context, slug string) (json.RawMessage, int, error) {
 		w := &captureWriter{headers: make(http.Header), status: 200}
 		request := parent.Request.Clone(parent.Request.Context())
-		request.URL = &url.URL{Path: "/" + slug, RawQuery: "page=1&page_size=100"}
+		request.Method = http.MethodGet
+		request.Body = nil
+		request.GetBody = nil
+		request.ContentLength = 0
+		request.Trailer = nil
+		query := url.Values{"page": {"1"}, "page_size": {"100"}}
+		for _, key := range []string{"category_id", "type"} {
+			if value := parent.Query(key); value != "" {
+				query.Set(key, value)
+			}
+		}
+		request.URL = &url.URL{Path: "/" + slug, RawQuery: query.Encode()}
 		request.Header = make(http.Header)
 		request.Header.Set("Accept-Language", "zh-CN")
 		engine.ServeHTTP(w, request)

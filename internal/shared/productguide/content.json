@@ -1,0 +1,725 @@
+{
+  "labels": {
+    "zh-CN": {
+      "heading": "这款商品适不适合你？",
+      "suitable": "适合谁",
+      "before": "付款前确认",
+      "steps": "付款后怎么做",
+      "faq": "你可能还想知道",
+      "guide": "查看完整充值教程",
+      "redeem": "前往核销",
+      "progress": "查询办理进度",
+      "support": "购买前咨询 / 售后",
+      "delivery": "交付方式",
+      "gpt": "自己的账号充值",
+      "claude": "独立成品账号",
+      "gptNote": "发码后还需核销",
+      "claudeNote": "付款后联系 TG 交付"
+    },
+    "zh-TW": {
+      "heading": "這款商品適不適合你？",
+      "suitable": "適合誰",
+      "before": "付款前確認",
+      "steps": "付款後怎麼做",
+      "faq": "你可能還想知道",
+      "guide": "查看完整儲值教學",
+      "redeem": "前往核銷",
+      "progress": "查詢辦理進度",
+      "support": "購買前諮詢 / 售後",
+      "delivery": "交付方式",
+      "gpt": "自己的帳號儲值",
+      "claude": "獨立成品帳號",
+      "gptNote": "發碼後還需核銷",
+      "claudeNote": "付款後聯絡 TG 交付"
+    },
+    "en-US": {
+      "heading": "Is this the right product for you?",
+      "suitable": "Who it suits",
+      "before": "Check before paying",
+      "steps": "What to do after payment",
+      "faq": "Questions before you decide",
+      "guide": "Read the full top-up guide",
+      "redeem": "Redeem your code",
+      "progress": "Check progress",
+      "support": "Ask a question / Get support",
+      "delivery": "Delivery method",
+      "gpt": "Top up your own account",
+      "claude": "Separate ready-made account",
+      "gptNote": "Redeem after code delivery",
+      "claudeNote": "Contact TG after payment"
+    }
+  },
+  "common": {
+    "gpt": {
+      "zh-CN": {
+        "before": [
+          "准备可正常登录的自有 ChatGPT 账号。本商品是充值服务，不包含账号出售。",
+          "已有付费套餐、自动续费、欠费或其他订阅状态时，先联系客服确认是否适用，再付款。",
+          "下单邮箱用于查单，不等于办理账号。提交核销资料时，确认实际充值账号和邮箱。",
+          "功能、额度和订阅周期不要仅凭商品名推断；不确定是否满足需求，购买前先确认。"
+        ],
+        "steps": [
+          {
+            "title": "下单并保存凭证",
+            "text": "确认规格、当前价格与数量。游客保存邮箱、查单密码及订单号。"
+          },
+          {
+            "title": "付款后领取核销码",
+            "text": "返回订单确认付款和发码状态。已扣款但订单未更新时先联系客服，不重复付款。"
+          },
+          {
+            "title": "验码并提交办理资料",
+            "text": "通过订单提供的核销入口验码，核对账号后按页面要求提交资料并明确同意办理。"
+          },
+          {
+            "title": "查询进度并确认生效",
+            "text": "提交成功只是资料已收到。用原码查进度，登录账号确认套餐；异常时联系客服处理原单。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "需要把账号密码发给客服吗？",
+            "a": "不要把密码发给客服。若核销页要求 Session，请按页面教程获取，并仅在核销表单内提交。Session 是敏感凭证，不要发到聊天或公开页面。"
+          },
+          {
+            "q": "付款成功、收到码，就算充值完成了吗？",
+            "a": "不算。付款、发码、提交资料和套餐生效是不同阶段。请完成核销，并登录实际办理账号确认结果。"
+          },
+          {
+            "q": "多久能到账？失败可以退款吗？",
+            "a": "不承诺固定到账时间；实际以发码及核销进度为准。未发码、未使用码和已提交办理的处理方式不同，退款或换码须核对原单及使用状态，由客服按售后规则处理。"
+          }
+        ]
+      },
+      "en-US": {
+        "before": [
+          "Prepare your own ChatGPT account with working access. This is a top-up service, not an account sale.",
+          "If you have a paid plan, auto-renewal, unpaid charges or another subscription status, confirm eligibility with support before paying.",
+          "Your order email is for order lookup. Confirm the actual account and email again when submitting redemption details.",
+          "Do not infer features, limits or subscription duration from the product name alone. Confirm any requirement before buying."
+        ],
+        "steps": [
+          {
+            "title": "Order and save your details",
+            "text": "Check the option, current price and quantity. Guests should save their email, order password and order number."
+          },
+          {
+            "title": "Pay and collect your code",
+            "text": "Return to the order to confirm payment and code delivery. If charged without an update, contact support before paying again."
+          },
+          {
+            "title": "Verify and submit details",
+            "text": "Use the redemption link in the order, verify your code, confirm the account and explicitly consent before submitting required details."
+          },
+          {
+            "title": "Check progress and activation",
+            "text": "Submission only confirms receipt of details. Check progress with the original code, then sign in to confirm activation. Contact support about the existing order if needed."
+          }
+        ],
+        "faqs": [
+          {
+            "q": "Should I send my account password to support?",
+            "a": "Do not send passwords to support. If the redemption form needs Session data, follow its instructions and submit only in that form. Session data is sensitive; never share it in chats or public pages."
+          },
+          {
+            "q": "Is payment or code delivery the same as activation?",
+            "a": "No. Payment, code delivery, submission and activation are separate stages. Complete redemption and sign in to the account being topped up to confirm the result."
+          },
+          {
+            "q": "How long does it take? Can I get a refund if it fails?",
+            "a": "No fixed activation time is promised. Follow order and redemption progress. Undelivered, unused and already-submitted orders require different handling. Support must review the order and code status under the applicable refund or replacement rules."
+          }
+        ]
+      },
+      "zh-TW": {
+        "before": [
+          "準備可正常登入的自有 ChatGPT 帳號。本商品是儲值服務，不包含帳號出售。",
+          "已有付費套餐、自動續費、欠費或其他訂閱狀態時，先聯繫客服確認是否適用，再付款。",
+          "下單信箱用於查單，不等於辦理帳號。提交核銷資料時，確認實際儲值帳號和信箱。",
+          "功能、額度和訂閱週期不要僅憑商品名推斷；不確定是否滿足需求，購買前先確認。"
+        ],
+        "steps": [
+          {
+            "title": "下單並保存憑證",
+            "text": "確認規格、當前價格與數量。遊客保存信箱、查單密碼及訂單號。"
+          },
+          {
+            "title": "付款後領取核銷碼",
+            "text": "返回訂單確認付款和發碼狀態。已扣款但訂單未更新時先聯繫客服，不重復付款。"
+          },
+          {
+            "title": "驗碼並提交辦理資料",
+            "text": "通過訂單提供的核銷入口驗碼，核對帳號後按頁面要求提交資料並明確同意辦理。"
+          },
+          {
+            "title": "查詢進度並確認生效",
+            "text": "提交成功只是資料已收到。用原碼查進度，登入帳號確認套餐；異常時聯繫客服處理原單。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "需要把帳號密碼發給客服嗎？",
+            "a": "不要把密碼發給客服。若核銷頁要求 Session，請按頁面教程獲取，並僅在核銷表單內提交。Session 是敏感憑證，不要發到聊天或公開頁面。"
+          },
+          {
+            "q": "付款成功、收到碼，就算儲值完成了嗎？",
+            "a": "不算。付款、發碼、提交資料和套餐生效是不同階段。請完成核銷，並登入實際辦理帳號確認結果。"
+          },
+          {
+            "q": "多久能到賬？失敗可以退款嗎？",
+            "a": "不承諾固定到賬時間；實際以發碼及核銷進度為準。未發碼、未使用碼和已提交辦理的處理方式不同，退款或換碼須核對原單及使用狀態，由客服按售後規則處理。"
+          }
+        ]
+      }
+    },
+    "claude": {
+      "zh-CN": {
+        "before": [
+          "这是独立成品账号，不是给你现有 Claude 账号充值，也不走 GPT 核销流程。",
+          "商品标注免 KYC，质保范围为首次登录；不包含永久可用或永不封号的承诺。",
+          "确认带 IP 或不带 IP 的规格。IP 的交付内容、使用方法和有效期，购买前向客服确认。",
+          "付款后需要通过 Telegram 联系客服安排交付；不能使用 Telegram 时先咨询再购买。"
+        ],
+        "steps": [
+          {
+            "title": "确认规格并下单",
+            "text": "核对带 IP / 不带 IP、当前价格和首次登录质保范围，保存订单号及查单信息。"
+          },
+          {
+            "title": "付款后联系 TG",
+            "text": "确认订单已付款，联系 @xuegaozhanshen，提供订单号，由客服核对并安排账号交付。"
+          },
+          {
+            "title": "接收资料并首次登录",
+            "text": "按客服提供的交付说明首次登录。登录异常请保留提示，及时联系原客服处理。"
+          },
+          {
+            "title": "确认交付与售后边界",
+            "text": "付款成功不代表账号已交付。首次登录质保不等于后续持续可用保证，具体问题联系原单客服。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "我已经有 Claude 账号，可以充到原账号吗？",
+            "a": "不可以按原账号充值理解本商品。这是独立成品账号，需由客服交付。若需要其他服务，请先咨询，不要误购。"
+          },
+          {
+            "q": "免 KYC 是不是保证不封号？",
+            "a": "不是。商品标注免 KYC 不等于平台不会进行后续验证，也不构成永久不封号保证；本商品质保范围是首次登录。"
+          },
+          {
+            "q": "付款后去哪里领？需要核销码吗？",
+            "a": "付款后联系 Telegram 客服 @xuegaozhanshen，提供订单号安排人工交付。此商品不需要去 GPT 核销站提交资料。"
+          }
+        ]
+      },
+      "en-US": {
+        "before": [
+          "This is a separate ready-made account. It does not top up an existing Claude account or use the GPT redemption process.",
+          "The product is listed as no-KYC with first-login coverage. It does not promise permanent access or immunity from suspension.",
+          "Confirm whether you are buying with or without IP. Ask support about IP delivery, setup and duration before paying.",
+          "Delivery requires contacting support on Telegram after payment. If Telegram is unavailable to you, ask before buying."
+        ],
+        "steps": [
+          {
+            "title": "Confirm your option and order",
+            "text": "Check with/without IP, current price and first-login coverage. Save your order number and lookup details."
+          },
+          {
+            "title": "Contact TG after payment",
+            "text": "Confirm your order is paid, then contact @xuegaozhanshen with the order number so support can arrange delivery."
+          },
+          {
+            "title": "Receive details and sign in",
+            "text": "Follow the delivery instructions for your first login. Keep any error message and contact the original support agent if login fails."
+          },
+          {
+            "title": "Confirm delivery and coverage",
+            "text": "Payment confirmation is not account delivery. First-login coverage is not a guarantee of continued access. Contact support about the original order for issues."
+          }
+        ],
+        "faqs": [
+          {
+            "q": "Can this top up the Claude account I already own?",
+            "a": "This product is a separate ready-made account delivered by support. Do not buy it expecting an existing-account top-up. Ask about other requirements first."
+          },
+          {
+            "q": "Does no-KYC mean the account cannot be suspended?",
+            "a": "No. A no-KYC listing does not exclude later platform verification or guarantee permanent access. Coverage is limited to the first login."
+          },
+          {
+            "q": "Where do I collect it? Do I need a redemption code?",
+            "a": "After payment, contact Telegram support @xuegaozhanshen with your order number for manual delivery. Do not submit this purchase to the GPT redemption site."
+          }
+        ]
+      },
+      "zh-TW": {
+        "before": [
+          "這是獨立成品帳號，不是給你現有 Claude 帳號儲值，也不走 GPT 核銷流程。",
+          "商品標注免 KYC，質保範圍為首次登入；不包含永久可用或永不封號的承諾。",
+          "確認帶 IP 或不帶 IP 的規格。IP 的交付內容、使用方法和有效期，購買前向客服確認。",
+          "付款後需要通過 Telegram 聯繫客服安排交付；不能使用 Telegram 時先咨詢再購買。"
+        ],
+        "steps": [
+          {
+            "title": "確認規格並下單",
+            "text": "核對帶 IP / 不帶 IP、當前價格和首次登入質保範圍，保存訂單號及查單信息。"
+          },
+          {
+            "title": "付款後聯繫 TG",
+            "text": "確認訂單已付款，聯繫 @xuegaozhanshen，提供訂單號，由客服核對並安排帳號交付。"
+          },
+          {
+            "title": "接收資料並首次登入",
+            "text": "按客服提供的交付說明首次登入。登入異常請保留提示，及時聯繫原客服處理。"
+          },
+          {
+            "title": "確認交付與售後邊界",
+            "text": "付款成功不代表帳號已交付。首次登入質保不等於後續持續可用保證，具體問題聯繫原單客服。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "我已經有 Claude 帳號，可以充到原帳號嗎？",
+            "a": "不可以按原帳號儲值理解本商品。這是獨立成品帳號，需由客服交付。若需要其他服務，請先咨詢，不要誤購。"
+          },
+          {
+            "q": "免 KYC 是不是保證不封號？",
+            "a": "不是。商品標注免 KYC 不等於平台不會進行後續驗證，也不構成永久不封號保證；本商品質保範圍是首次登入。"
+          },
+          {
+            "q": "付款後去哪裡領？需要核銷碼嗎？",
+            "a": "付款後聯繫 Telegram 客服 @xuegaozhanshen，提供訂單號安排人工交付。此商品不需要去 GPT 核銷站提交資料。"
+          }
+        ]
+      }
+    }
+  },
+  "products": {
+    "upstream-1-18-1793979792290": {
+      "kind": "gpt",
+      "locales": {
+        "zh-CN": {
+          "summary": "GPT Go 月付商品，为自有账号办理。付款后领取核销码，完成核销并确认账号套餐状态。",
+          "suitable": "想先从本店价格较低的 GPT 月付商品开始比较，并愿意在购买前确认 Go 的功能与账号适用条件的用户。",
+          "checks": [
+            "本商品名称标注月付；具体生效与到期情况以办理结果和账号显示为准。",
+            "Go 不是 Plus 或 Pro；如果你的需求必须使用其他套餐的功能，不要只按价格选择。"
+          ],
+          "faqs": [
+            {
+              "q": "Go 能当作更便宜的 Plus 买吗？",
+              "a": "不能直接等同。它们是不同商品，名称和价格不能证明功能、额度相同。先确认 Go 能满足你的实际需求，再决定。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A monthly GPT Go product for your own account. Collect the code after payment, complete redemption and check the resulting account plan.",
+          "suitable": "Customers comparing a lower-priced monthly GPT option who will confirm Go features and account eligibility before buying.",
+          "checks": [
+            "This product is labelled monthly. Confirm activation and expiry from the processing result and your account.",
+            "Go is not Plus or Pro. Do not choose on price alone if your requirements depend on another plan."
+          ],
+          "faqs": [
+            {
+              "q": "Can I treat Go as a cheaper Plus?",
+              "a": "No. They are different products. Names and prices do not establish identical features or limits. Confirm that Go meets your requirements first."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "GPT Go 月付商品，為自有帳號辦理。付款後領取核銷碼，完成核銷並確認帳號套餐狀態。",
+          "suitable": "想先從本店價格較低的 GPT 月付商品開始比較，並願意在購買前確認 Go 的功能與帳號適用條件的用戶。",
+          "checks": [
+            "本商品名稱標注月付；具體生效與到期情況以辦理結果和帳號顯示為準。",
+            "Go 不是 Plus 或 Pro；如果你的需求必須使用其他套餐的功能，不要只按價格選擇。"
+          ],
+          "faqs": [
+            {
+              "q": "Go 能當作更便宜的 Plus 買嗎？",
+              "a": "不能直接等同。它們是不同商品，名稱和價格不能證明功能、額度相同。先確認 Go 能滿足你的實際需求，再決定。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "gpt-go-monthly"
+    },
+    "upstream-1-3-1793979782658": {
+      "kind": "gpt",
+      "locales": {
+        "zh-CN": {
+          "summary": "GPT Plus 直充商品，为你自己的 ChatGPT 账号办理。付款后发码，需继续核销提交，完成后登录账号确认。",
+          "suitable": "已经确认需要 Plus，并希望保留自有账号继续使用的用户；不是购买共享账号或 Claude 成品号。",
+          "checks": [
+            "本商品标注直充，不是 Pro 商品，也不是其他套餐的升级差价。",
+            "已有 Plus 或其他付费订阅时，先确认续充、覆盖或等待到期的适用规则，避免重复购买。"
+          ],
+          "faqs": [
+            {
+              "q": "已有 Plus，可以直接再买一单续期吗？",
+              "a": "不要默认可以叠加或立即续期。请先告诉客服你的当前套餐与到期状态，确认这款商品是否适用再购买。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A GPT Plus direct top-up for your own ChatGPT account. Code delivery follows payment; complete redemption and check activation in your account.",
+          "suitable": "Customers who have confirmed they need Plus and want to use their own account, rather than a shared or ready-made Claude account.",
+          "checks": [
+            "This is listed as a direct top-up, not a Pro product or a price-difference upgrade.",
+            "If already subscribed, confirm renewal, replacement or expiry requirements before ordering to avoid duplicate purchases."
+          ],
+          "faqs": [
+            {
+              "q": "Can I buy another order to extend my existing Plus?",
+              "a": "Do not assume plans stack or renew immediately. Tell support your current plan and expiry status and confirm this product is suitable first."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "GPT Plus 直充商品，為你自己的 ChatGPT 帳號辦理。付款後發碼，需繼續核銷提交，完成後登入帳號確認。",
+          "suitable": "已經確認需要 Plus，並希望保留自有帳號繼續使用的用戶；不是購買共享帳號或 Claude 成品號。",
+          "checks": [
+            "本商品標注直充，不是 Pro 商品，也不是其他套餐的升級差價。",
+            "已有 Plus 或其他付費訂閱時，先確認續充、覆蓋或等待到期的適用規則，避免重復購買。"
+          ],
+          "faqs": [
+            {
+              "q": "已有 Plus，可以直接再買一單續期嗎？",
+              "a": "不要默認可以疊加或立即續期。請先告訴客服你的當前套餐與到期狀態，確認這款商品是否適用再購買。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "gpt-plus-top-up"
+    },
+    "upstream-1-4-1793979782822": {
+      "kind": "gpt",
+      "locales": {
+        "zh-CN": {
+          "summary": "GPT Pro 100 直充商品，为自有账号办理。本商品不是从其他套餐升级的差价单，付款后按核销流程继续办理。",
+          "suitable": "已确认需要本店 Pro 100 这款商品，并比较过 Pro 各档位交付条件的用户；当前它属于本店 Pro 商品的较低价位选项。",
+          "checks": [
+            "100、200、500 用于区分本店 Pro 商品，不能据此自行推断模型额度、倍率或官方订阅规则。",
+            "下单前确认选择的是 Pro 100 直充。已有其他套餐时，先确认账号是否可办理。",
+            "不要因为名称数字更大，就默认所有功能、周期或额度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 100 是升级补差价吗？",
+              "a": "不是。本商品当前标注为 Pro 100 直充。已有其他套餐不代表可以直接按升级补差价办理，需要先确认账号适用条件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎么选？",
+              "a": "先说明你需要的功能、使用强度及当前账号状态，让客服确认各商品实际可交付内容。价格不同不等于所有能力按相同比例变化。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A GPT Pro 100 direct top-up for your own account. This is not an upgrade price-difference order. Continue with redemption after payment.",
+          "suitable": "Customers who have confirmed they need this store’s Pro 100 product and compared the delivery conditions across its Pro options.",
+          "checks": [
+            "100, 200 and 500 distinguish store products. Do not infer model limits, multipliers or official subscription rules from those numbers. ",
+            "Confirm that you selected the Pro 100 direct top-up. Check eligibility first if your account already has another plan.",
+            "A larger product number does not establish proportionally greater features, duration or limits."
+          ],
+          "faqs": [
+            {
+              "q": "Is Pro 100 an upgrade price difference?",
+              "a": "No. This product is listed as a Pro 100 direct top-up. Having another plan does not establish eligibility for an upgrade transaction; confirm account conditions first."
+            },
+            {
+              "q": "How should I choose between Pro 100, 200 and 500?",
+              "a": "Explain your required features, usage and current account status so support can confirm the deliverable contents of each product. Different prices do not establish proportional differences in all capabilities."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "GPT Pro 100 直充商品，為自有帳號辦理。本商品不是從其他套餐升級的差價單，付款後按核銷流程繼續辦理。",
+          "suitable": "已確認需要本店 Pro 100 這款商品，並比較過 Pro 各檔位交付條件的用戶；當前它屬於本店 Pro 商品的較低價位選項。",
+          "checks": [
+            "100、200、500 用於區分本店 Pro 商品，不能據此自行推斷模型額度、倍率或官方訂閱規則。",
+            "下單前確認選擇的是 Pro 100 直充。已有其他套餐時，先確認帳號是否可辦理。",
+            "不要因為名稱數字更大，就默認所有功能、週期或額度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 100 是升級補差價嗎？",
+              "a": "不是。本商品當前標注為 Pro 100 直充。已有其他套餐不代表可以直接按升級補差價辦理，需要先確認帳號適用條件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎麼選？",
+              "a": "先說明你需要的功能、使用強度及當前帳號狀態，讓客服確認各商品實際可交付內容。價格不同不等於所有能力按相同比例變化。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "gpt-pro-100-top-up"
+    },
+    "upstream-1-5-1793979782952": {
+      "kind": "gpt",
+      "locales": {
+        "zh-CN": {
+          "summary": "GPT Pro 200 直充商品，为自有账号办理。本商品不是从其他套餐升级的差价单，付款后按核销流程继续办理。",
+          "suitable": "已确认需要本店 Pro 200 这款商品，并比较过 Pro 各档位交付条件的用户；当前它属于本店 Pro 商品的中间价位选项。",
+          "checks": [
+            "100、200、500 用于区分本店 Pro 商品，不能据此自行推断模型额度、倍率或官方订阅规则。",
+            "下单前确认选择的是 Pro 200 直充。已有其他套餐时，先确认账号是否可办理。",
+            "不要因为名称数字更大，就默认所有功能、周期或额度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 200 是升级补差价吗？",
+              "a": "不是。本商品当前标注为 Pro 200 直充。已有其他套餐不代表可以直接按升级补差价办理，需要先确认账号适用条件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎么选？",
+              "a": "先说明你需要的功能、使用强度及当前账号状态，让客服确认各商品实际可交付内容。价格不同不等于所有能力按相同比例变化。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A GPT Pro 200 direct top-up for your own account. This is not an upgrade price-difference order. Continue with redemption after payment.",
+          "suitable": "Customers who have confirmed they need this store’s Pro 200 product and compared the delivery conditions across its Pro options.",
+          "checks": [
+            "100, 200 and 500 distinguish store products. Do not infer model limits, multipliers or official subscription rules from those numbers. ",
+            "Confirm that you selected the Pro 200 direct top-up. Check eligibility first if your account already has another plan.",
+            "A larger product number does not establish proportionally greater features, duration or limits."
+          ],
+          "faqs": [
+            {
+              "q": "Is Pro 200 an upgrade price difference?",
+              "a": "No. This product is listed as a Pro 200 direct top-up. Having another plan does not establish eligibility for an upgrade transaction; confirm account conditions first."
+            },
+            {
+              "q": "How should I choose between Pro 100, 200 and 500?",
+              "a": "Explain your required features, usage and current account status so support can confirm the deliverable contents of each product. Different prices do not establish proportional differences in all capabilities."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "GPT Pro 200 直充商品，為自有帳號辦理。本商品不是從其他套餐升級的差價單，付款後按核銷流程繼續辦理。",
+          "suitable": "已確認需要本店 Pro 200 這款商品，並比較過 Pro 各檔位交付條件的用戶；當前它屬於本店 Pro 商品的中間價位選項。",
+          "checks": [
+            "100、200、500 用於區分本店 Pro 商品，不能據此自行推斷模型額度、倍率或官方訂閱規則。",
+            "下單前確認選擇的是 Pro 200 直充。已有其他套餐時，先確認帳號是否可辦理。",
+            "不要因為名稱數字更大，就默認所有功能、週期或額度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 200 是升級補差價嗎？",
+              "a": "不是。本商品當前標注為 Pro 200 直充。已有其他套餐不代表可以直接按升級補差價辦理，需要先確認帳號適用條件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎麼選？",
+              "a": "先說明你需要的功能、使用強度及當前帳號狀態，讓客服確認各商品實際可交付內容。價格不同不等於所有能力按相同比例變化。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "gpt-pro-200-top-up"
+    },
+    "upstream-1-12-1793979783532": {
+      "kind": "gpt",
+      "locales": {
+        "zh-CN": {
+          "summary": "GPT Pro 500 直充商品，为自有账号办理。本商品不是从其他套餐升级的差价单，付款后按核销流程继续办理。",
+          "suitable": "已确认需要本店 Pro 500 这款商品，并比较过 Pro 各档位交付条件的用户；当前它属于本店 Pro 商品的较高价位选项。",
+          "checks": [
+            "100、200、500 用于区分本店 Pro 商品，不能据此自行推断模型额度、倍率或官方订阅规则。",
+            "下单前确认选择的是 Pro 500 直充。已有其他套餐时，先确认账号是否可办理。",
+            "不要因为名称数字更大，就默认所有功能、周期或额度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 500 是升级补差价吗？",
+              "a": "不是。本商品当前标注为 Pro 500 直充。已有其他套餐不代表可以直接按升级补差价办理，需要先确认账号适用条件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎么选？",
+              "a": "先说明你需要的功能、使用强度及当前账号状态，让客服确认各商品实际可交付内容。价格不同不等于所有能力按相同比例变化。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A GPT Pro 500 direct top-up for your own account. This is not an upgrade price-difference order. Continue with redemption after payment.",
+          "suitable": "Customers who have confirmed they need this store’s Pro 500 product and compared the delivery conditions across its Pro options.",
+          "checks": [
+            "100, 200 and 500 distinguish store products. Do not infer model limits, multipliers or official subscription rules from those numbers. ",
+            "Confirm that you selected the Pro 500 direct top-up. Check eligibility first if your account already has another plan.",
+            "A larger product number does not establish proportionally greater features, duration or limits."
+          ],
+          "faqs": [
+            {
+              "q": "Is Pro 500 an upgrade price difference?",
+              "a": "No. This product is listed as a Pro 500 direct top-up. Having another plan does not establish eligibility for an upgrade transaction; confirm account conditions first."
+            },
+            {
+              "q": "How should I choose between Pro 100, 200 and 500?",
+              "a": "Explain your required features, usage and current account status so support can confirm the deliverable contents of each product. Different prices do not establish proportional differences in all capabilities."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "GPT Pro 500 直充商品，為自有帳號辦理。本商品不是從其他套餐升級的差價單，付款後按核銷流程繼續辦理。",
+          "suitable": "已確認需要本店 Pro 500 這款商品，並比較過 Pro 各檔位交付條件的用戶；當前它屬於本店 Pro 商品的較高價位選項。",
+          "checks": [
+            "100、200、500 用於區分本店 Pro 商品，不能據此自行推斷模型額度、倍率或官方訂閱規則。",
+            "下單前確認選擇的是 Pro 500 直充。已有其他套餐時，先確認帳號是否可辦理。",
+            "不要因為名稱數字更大，就默認所有功能、週期或額度都同比增加。"
+          ],
+          "faqs": [
+            {
+              "q": "Pro 500 是升級補差價嗎？",
+              "a": "不是。本商品當前標注為 Pro 500 直充。已有其他套餐不代表可以直接按升級補差價辦理，需要先確認帳號適用條件。"
+            },
+            {
+              "q": "Pro 100、200、500 怎麼選？",
+              "a": "先說明你需要的功能、使用強度及當前帳號狀態，讓客服確認各商品實際可交付內容。價格不同不等於所有能力按相同比例變化。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "gpt-pro-500-top-up"
+    },
+    "claude-pro-us-account-with-ip": {
+      "kind": "claude",
+      "locales": {
+        "zh-CN": {
+          "summary": "Claude Pro 美区独立成品号，带 IP，商品标注免 KYC、质保首次登录。付款后联系 TG 人工交付，无需 GPT 核销。",
+          "suitable": "需要独立 Claude Pro 成品号，并希望同时购买商品所标注 IP 选项的用户。",
+          "checks": [
+            "当前选项是带 IP；与另一款商品分开销售，付款前核对商品名。",
+            "“带 IP”不表示无限期提供 IP，也不保证不触发平台风控。具体交付方式与有效期先咨询客服。",
+            "质保仅覆盖首次登录；不是全周期售后或永久不封号保证。"
+          ],
+          "faqs": [
+            {
+              "q": "带 IP 和不带 IP，差在哪里？",
+              "a": "两款均为人工交付的 Claude Pro 美区成品号，标注免 KYC、质保首次登录。主要规格区别是是否包含商品标注的 IP；IP 类型、使用方式和有效期需向客服确认。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A separate US-region Claude Pro ready-made account with IP, listed as no-KYC with first-login coverage. Contact TG after payment for manual delivery; no GPT redemption is needed.",
+          "suitable": "Customers who need a separate Claude Pro account and also want the IP option described in this product.",
+          "checks": [
+            "You are viewing the with IP option. It is sold separately from the other option; check the product name before paying.",
+            "With IP does not mean indefinite IP provision or immunity from platform checks. Ask about delivery and duration first.",
+            "Coverage is for the first login, not the entire subscription period or permanent protection from suspension."
+          ],
+          "faqs": [
+            {
+              "q": "What differs between with-IP and without-IP?",
+              "a": "Both are manually delivered US-region Claude Pro accounts, listed as no-KYC with first-login coverage. The listed difference is whether IP is included. Confirm IP type, setup and duration with support."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "Claude Pro 美區獨立成品號，帶 IP，商品標注免 KYC、質保首次登入。付款後聯繫 TG 人工交付，無需 GPT 核銷。",
+          "suitable": "需要獨立 Claude Pro 成品號，並希望同時購買商品所標注 IP 選項的用戶。",
+          "checks": [
+            "當前選項是帶 IP；與另一款商品分開銷售，付款前核對商品名。",
+            "“帶 IP”不表示無限期提供 IP，也不保證不觸發平颱風控。具體交付方式與有效期先咨詢客服。",
+            "質保僅覆蓋首次登入；不是全週期售後或永久不封號保證。"
+          ],
+          "faqs": [
+            {
+              "q": "帶 IP 和不帶 IP，差在哪裡？",
+              "a": "兩款均為人工交付的 Claude Pro 美區成品號，標注免 KYC、質保首次登入。主要規格區別是是否包含商品標注的 IP；IP 類型、使用方式和有效期需向客服確認。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "claude-pro-us-account-with-ip"
+    },
+    "claude-pro-us-account-no-ip": {
+      "kind": "claude",
+      "locales": {
+        "zh-CN": {
+          "summary": "Claude Pro 美区独立成品号，不带 IP，商品标注免 KYC、质保首次登录。付款后联系 TG 人工交付，无需 GPT 核销。",
+          "suitable": "需要独立 Claude Pro 成品号，且已确认不需要商品附带 IP 选项、能够自行准备适用使用环境的用户。",
+          "checks": [
+            "当前选项是不带 IP；与另一款商品分开销售，付款前核对商品名。",
+            "此商品不附带 IP。不要把不带 IP 理解为无需考虑账号使用环境。",
+            "质保仅覆盖首次登录；不是全周期售后或永久不封号保证。"
+          ],
+          "faqs": [
+            {
+              "q": "带 IP 和不带 IP，差在哪里？",
+              "a": "两款均为人工交付的 Claude Pro 美区成品号，标注免 KYC、质保首次登录。主要规格区别是是否包含商品标注的 IP；IP 类型、使用方式和有效期需向客服确认。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A separate US-region Claude Pro ready-made account without IP, listed as no-KYC with first-login coverage. Contact TG after payment for manual delivery; no GPT redemption is needed.",
+          "suitable": "Customers who need a separate Claude Pro account, do not require the included-IP option and have confirmed they can prepare a suitable usage environment.",
+          "checks": [
+            "You are viewing the without IP option. It is sold separately from the other option; check the product name before paying.",
+            "No IP is included. This does not mean the account usage environment can be ignored.",
+            "Coverage is for the first login, not the entire subscription period or permanent protection from suspension."
+          ],
+          "faqs": [
+            {
+              "q": "What differs between with-IP and without-IP?",
+              "a": "Both are manually delivered US-region Claude Pro accounts, listed as no-KYC with first-login coverage. The listed difference is whether IP is included. Confirm IP type, setup and duration with support."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "Claude Pro 美區獨立成品號，不帶 IP，商品標注免 KYC、質保首次登入。付款後聯繫 TG 人工交付，無需 GPT 核銷。",
+          "suitable": "需要獨立 Claude Pro 成品號，且已確認不需要商品附帶 IP 選項、能夠自行準備適用使用環境的用戶。",
+          "checks": [
+            "當前選項是不帶 IP；與另一款商品分開銷售，付款前核對商品名。",
+            "此商品不附帶 IP。不要把不帶 IP 理解為無需考慮帳號使用環境。",
+            "質保僅覆蓋首次登入；不是全週期售後或永久不封號保證。"
+          ],
+          "faqs": [
+            {
+              "q": "帶 IP 和不帶 IP，差在哪裡？",
+              "a": "兩款均為人工交付的 Claude Pro 美區成品號，標注免 KYC、質保首次登入。主要規格區別是是否包含商品標注的 IP；IP 類型、使用方式和有效期需向客服確認。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "claude-pro-us-account-no-ip"
+    }
+  },
+  "site": {
+    "zh-CN": {
+      "subtitle": "GPT 自有账号充值与 Claude 独立成品号",
+      "intro": "雪糕 AI 提供 GPT 会员充值商品和 Claude 成品账号。GPT 商品付款发码后，客户按核销页提示提交办理资料；Claude 成品号付款后联系 Telegram 客服人工交付。付款、发码、提交资料和套餐生效是不同阶段。",
+      "servicesTitle": "我们提供什么",
+      "services": [
+        "商品页面展示当前价格、交付方式和购买前确认事项。",
+        "游客可凭邮箱和查单密码查询订单；登录用户可在个人订单中查看。",
+        "GPT 核销可凭原码查询进度；异常时联系客服核对原单。"
+      ],
+      "contactTitle": "联系与售后",
+      "contactText": "购买前不确定账号是否适用，或付款后遇到问题，请联系 Telegram 客服并提供订单号。不要在聊天中发送账号密码、Session 或完整核销码。"
+    },
+    "zh-TW": {
+      "subtitle": "GPT 自有帳號儲值與 Claude 獨立成品帳號",
+      "intro": "雪糕 AI 提供 GPT 會員儲值商品與 Claude 成品帳號。GPT 商品付款發碼後，客戶依核銷頁提示提交辦理資料；Claude 成品帳號付款後聯絡 Telegram 客服人工交付。付款、發碼、提交資料和方案生效是不同階段。",
+      "servicesTitle": "我們提供什麼",
+      "services": [
+        "商品頁面展示目前價格、交付方式與購買前確認事項。",
+        "訪客可憑信箱和查單密碼查詢訂單；登入用戶可在個人訂單中查看。",
+        "GPT 核銷可憑原碼查詢進度；異常時聯絡客服核對原單。"
+      ],
+      "contactTitle": "聯絡與售後",
+      "contactText": "購買前不確定帳號是否適用，或付款後遇到問題，請聯絡 Telegram 客服並提供訂單號。不要在聊天中傳送帳號密碼、Session 或完整核銷碼。"
+    },
+    "en-US": {
+      "subtitle": "GPT top-ups for your account and separate Claude accounts",
+      "intro": "XUEGAOAI offers GPT subscription top-ups and ready-made Claude accounts. After a GPT code is delivered, follow the redemption page to submit processing details. Contact Telegram support after paying for a Claude account for manual delivery. Payment, code delivery, submission and activation are separate stages.",
+      "servicesTitle": "What we provide",
+      "services": [
+        "Product pages show current prices, delivery methods and conditions to check before buying.",
+        "Guests can find orders with their email and order password; signed-in customers can use their order history.",
+        "Use the original GPT code to check redemption progress. Contact support about the original order for issues."
+      ],
+      "contactTitle": "Contact and support",
+      "contactText": "If unsure about account eligibility or an order, contact Telegram support with your order number. Do not send account passwords, Session data or complete redemption codes in chat."
+    }
+  }
+}
