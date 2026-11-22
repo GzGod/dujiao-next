@@ -9,6 +9,7 @@ import (
 
 	"github.com/dujiao-next/internal/htmltext"
 	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
+	"github.com/dujiao-next/internal/shared/buyinghelp"
 	"github.com/dujiao-next/internal/shared/productguide"
 	"github.com/dujiao-next/internal/web"
 	"github.com/gin-gonic/gin"
@@ -61,10 +62,11 @@ func New(config, products, product, post gin.HandlerFunc, sources ...gin.Handler
 		detail := strings.HasPrefix(path, "/products/") && strings.Count(path, "/") == 2
 		article := (strings.HasPrefix(path, "/blog/") || strings.HasPrefix(path, "/notice/")) && strings.Count(path, "/") == 2
 		guide := path == "/guides/redeem"
+		buyingHelp := buyinghelp.Has(path)
 		category := strings.HasPrefix(path, "/categories/") && strings.Count(path, "/") == 2
 		listing := path == "/blog" || path == "/notice"
 		static := path == "/about" || path == "/terms" || path == "/privacy"
-		if path != "/" && path != "/products" && !detail && !article && !guide && !category && !listing && !static {
+		if path != "/" && path != "/products" && !detail && !article && !guide && !category && !listing && !static && !buyingHelp {
 			return nil, nil
 		}
 		raw, _, err := readConfig(c, "")
@@ -87,7 +89,17 @@ func New(config, products, product, post gin.HandlerFunc, sources ...gin.Handler
 		} // Never construct canonical URLs from untrusted Host headers.
 		page := &web.Page{Language: lang, Canonical: base + path, Title: name, Description: plain(seo["description"])}
 		content := ""
-		if static {
+		if buyingHelp {
+			// These guides describe this shop's services, never a reseller's promises.
+			if !tenant.IsMain || base != "https://xuegaogx.cc" {
+				return nil, nil
+			}
+			doc, _ := buyinghelp.Get(path, lang)
+			page.Title = doc.Title + " - " + name
+			page.Description = doc.Description
+			page.Standalone = true
+			content = buyinghelp.HTML(path, lang)
+		} else if static {
 			titleKey := strings.TrimPrefix(path, "/")
 			page.Title = tr(titleKey) + " - " + name
 			if path == "/about" {
@@ -297,6 +309,9 @@ func New(config, products, product, post gin.HandlerFunc, sources ...gin.Handler
 				content += "<li>" + link("/products/"+url.PathEscape(productguide.CanonicalSlug(text(item["slug"]))), plain(item["title"])) + " — " + esc(text(item["price_amount"])) + "</li>"
 			}
 			content += "</ul><h2>" + tr("m3") + "</h2><p>" + tr("m4") + "</p><p>" + link("/guides/redeem", tr("m5")) + "</p>"
+		}
+		if page.Standalone && lang != "zh-CN" {
+			page.Canonical += "?lang=" + url.QueryEscape(lang)
 		}
 		page.JSONLD = structuredPage(page, base, name, path, lang)
 		page.Content = `<main class="seo-document"><nav>` + link("/", name) + " · " + link("/products", tr("m6")) + `</nav>` + content + `</main><style>.seo-document{max-width:900px;margin:40px auto;padding:24px;font:16px/1.8 system-ui;color:#202124;background:#fff;border-radius:20px}.dark .seo-document{background:#0b0b0b;color:#eee}.dark .seo-document a{color:#86b7ff}.seo-document h1{font-size:30px;line-height:1.4}.seo-document h2{margin-top:30px}.seo-document a{color:#1764c0;text-decoration:underline}.seo-document li{margin:12px 0}</style>`

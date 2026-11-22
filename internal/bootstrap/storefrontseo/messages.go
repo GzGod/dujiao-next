@@ -3,6 +3,7 @@ package storefrontseo
 import (
 	"embed"
 	"encoding/json"
+	"github.com/dujiao-next/internal/shared/buyinghelp"
 	"strings"
 )
 
@@ -43,5 +44,9 @@ func guideContent(cfg object, lang string, main bool) string {
 		}
 		redeemLink = "<p>" + link("https://redeem.xuegaogx.cc/", messages[lang]["redeem"]) + " · " + link("https://redeem.xuegaogx.cc/progress", messages[lang]["progress"]) + "</p>"
 	}
-	return `<p><a href="?lang=zh-CN">简体中文</a> · <a href="?lang=zh-TW">繁體中文</a> · <a href="?lang=en-US">English</a></p>` + redeemLink + messages[lang]["guide"] + link("/guest/orders", messages[lang]["guest"]) + " · " + link("/me/orders", messages[lang]["orders"]) + " · " + supportLink + "</p>"
+	helpLink := ""
+	if main && strings.TrimRight(text(obj(cfg["brand"])["site_url"]), "/") == "https://xuegaogx.cc" {
+		helpLink = "<p>" + buyinghelp.IndexLink(lang) + "</p>"
+	}
+	return helpLink + `<p><a href="?lang=zh-CN">简体中文</a> · <a href="?lang=zh-TW">繁體中文</a> · <a href="?lang=en-US">English</a></p>` + redeemLink + messages[lang]["guide"] + link("/guest/orders", messages[lang]["guest"]) + " · " + link("/me/orders", messages[lang]["orders"]) + " · " + supportLink + "</p>"
 }

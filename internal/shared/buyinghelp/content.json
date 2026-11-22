@@ -1,0 +1,472 @@
+{
+  "pages": {
+    "/guides/gpt-top-up": {
+      "zh-CN": {
+        "title": "第一次充值 ChatGPT：先确认账号、套餐和付款方式",
+        "description": "给自己的 ChatGPT 账号充值前，了解购买对象、付款渠道、核销步骤和账号适用条件。",
+        "sections": [
+          {
+            "question": "没有外币卡，想给自己的 GPT 账号充值，先做什么？",
+            "answer": "先确认自己能正常登录 ChatGPT，明确要购买的套餐，再查看商品是否支持你的账号状态。雪糕 AI 当前 GPT 商品为自有账号充值；付款后领取核销码，仍需核销并提交办理资料。"
+          },
+          {
+            "question": "我买到的是账号，还是会员充值？",
+            "answer": "本站 GPT 商品是为你自己的账号办理，不包含出售账号，也不是多人共享账号。Claude 成品号属于另一类商品，付款后由客服人工交付，不走 GPT 核销流程。"
+          },
+          {
+            "question": "可以用支付宝或 USDT、USDC 吗？",
+            "answer": "以结算页实际展示的可用渠道为准。选择加密货币时，必须核对币种、网络、地址、金额和支付有效期；相同地址不表示可以任意选择网络。不要按过期截图付款。"
+          },
+          {
+            "question": "下单前我需要准备什么？",
+            "answer": "准备可登录的账号，核对当前套餐和到期状态。游客下单保存邮箱、查单密码及订单号；下单邮箱用于查单，不一定就是办理账号邮箱，核销时还要再次确认目标账号。"
+          },
+          {
+            "question": "买 ChatGPT 会员，是否包含 API 余额？",
+            "answer": "ChatGPT 订阅与 API 平台计费分开，不能把会员充值当作 API 余额充值。第三方工具能否使用订阅权益，也需要单独确认，不因购买会员就自动获得。"
+          },
+          {
+            "question": "地区或账号本身不适用，还能通过代充解决吗？",
+            "answer": "付款方式与账号能否使用服务是两件事。充值不能保证改变地区支持、账号资格或平台限制。遇到账号状态、地区支持或订阅限制疑问，先核对官方说明并咨询是否适用，再付款。"
+          }
+        ]
+      },
+      "en-US": {
+        "title": "Your first ChatGPT top-up: account, plan and payment",
+        "description": "Check what you are buying, account eligibility, checkout options and redemption steps before paying.",
+        "sections": [
+          {
+            "question": "No foreign card: where should I start?",
+            "answer": "Confirm that you can sign in to your own ChatGPT account, choose a plan and check whether the product accepts your current account state. GPT top-ups here deliver a code after payment; redemption and submission are still required."
+          },
+          {
+            "question": "Is this an account or a subscription top-up?",
+            "answer": "GPT products top up your own account; they do not sell an account or provide a shared login. Claude ready-made accounts are a separate product category, delivered manually by support without GPT redemption."
+          },
+          {
+            "question": "Can I pay with Alipay, USDT or USDC?",
+            "answer": "Use the methods actually offered at checkout. For crypto, check token, network, address, amount and payment expiry. A matching address does not make every network valid. Do not pay using old screenshots."
+          },
+          {
+            "question": "What should I prepare?",
+            "answer": "Have working account access and check your current plan and expiry. Guests should keep their email, order password and order number. The order email is for lookup; confirm the actual account again at redemption."
+          },
+          {
+            "question": "Does ChatGPT membership include API credits?",
+            "answer": "ChatGPT subscriptions and API billing are separate. Do not buy a subscription expecting API credits. Eligibility in third-party tools must be checked separately."
+          },
+          {
+            "question": "Can a top-up fix an unsupported region or account?",
+            "answer": "Payment methods do not determine service eligibility. A top-up does not guarantee changes to region support, account eligibility or platform restrictions. Check official guidance and suitability before paying."
+          }
+        ]
+      },
+      "zh-TW": {
+        "title": "第一次儲值 ChatGPT：先確認帳號、套餐和付款方式",
+        "description": "給自己的 ChatGPT 帳號儲值前，瞭解購買對象、付款渠道、核銷步驟和帳號適用條件。",
+        "sections": [
+          {
+            "question": "沒有外幣卡，想給自己的 GPT 帳號儲值，先做什麼？",
+            "answer": "先確認自己能正常登入 ChatGPT，明確要購買的套餐，再查看商品是否支持你的帳號狀態。雪糕 AI 當前 GPT 商品為自有帳號儲值；付款後領取核銷碼，仍需核銷並提交辦理資料。"
+          },
+          {
+            "question": "我買到的是帳號，還是會員儲值？",
+            "answer": "本站 GPT 商品是為你自己的帳號辦理，不包含出售帳號，也不是多人共享帳號。Claude 成品號屬於另一類商品，付款後由客服人工交付，不走 GPT 核銷流程。"
+          },
+          {
+            "question": "可以用支付寶或 USDT、USDC 嗎？",
+            "answer": "以結算頁實際展示的可用渠道為準。選擇加密貨幣時，必須核對幣種、網絡、地址、金額和支付有效期；相同地址不表示可以任意選擇網絡。不要按過期截圖付款。"
+          },
+          {
+            "question": "下單前我需要準備什麼？",
+            "answer": "準備可登入的帳號，核對當前套餐和到期狀態。遊客下單保存信箱、查單密碼及訂單號；下單信箱用於查單，不一定就是辦理帳號信箱，核銷時還要再次確認目標帳號。"
+          },
+          {
+            "question": "買 ChatGPT 會員，是否包含 API 餘額？",
+            "answer": "ChatGPT 訂閱與 API 平台計費分開，不能把會員儲值當作 API 餘額儲值。第三方工具能否使用訂閱權益，也需要單獨確認，不因購買會員就自動獲得。"
+          },
+          {
+            "question": "地區或帳號本身不適用，還能通過代充解決嗎？",
+            "answer": "付款方式與帳號能否使用服務是兩件事。儲值不能保證改變地區支持、帳號資格或平台限制。遇到帳號狀態、地區支持或訂閱限制疑問，先核對官方說明並咨詢是否適用，再付款。"
+          }
+        ]
+      }
+    },
+    "/guides/gpt-plan-choice": {
+      "zh-CN": {
+        "title": "Go、Plus、Pro 怎么选：按需求确认，不只比较价格",
+        "description": "按自己的使用需求、现有套餐和实际交付条件比较 GPT Go、Plus 与 Pro 商品。",
+        "sections": [
+          {
+            "question": "我是学习、写作或编程用户，应该直接买哪个？",
+            "answer": "先列出你必须使用的功能、遇到的当前限制和预算，再对照官方当前套餐说明及本店商品的实际交付条件。职业或使用场景本身不能证明必须买某一档。先确认较低档是否满足需求。"
+          },
+          {
+            "question": "Go 可以当作便宜的 Plus 吗？",
+            "answer": "不能直接等同。本站 Go 月付和 Plus 直充是不同商品；价格较低不表示功能与额度完全相同。明确自己需要的能力后再选择。"
+          },
+          {
+            "question": "Pro 100、200、500 的数字意味着什么？",
+            "answer": "它们用于区分本站商品。不能单凭数字推断模型额度、使用倍率、订阅周期或官方权益。本店当前标注为直充，不是从现有套餐升级的补差价单。各档的准确权益与账号条件仍需购买前确认。"
+          },
+          {
+            "question": "买更贵的一档，是否所有功能和额度都更多？",
+            "answer": "不能这样保证。价格、套餐名称、交付方式和实际可用权益是不同信息。模型、工具与限额可能调整，应核对官方当前说明和自己的账号实际显示。"
+          },
+          {
+            "question": "不知道选哪款，应该向客服说明什么？",
+            "answer": "说明需要的功能、目前遇到的限制、当前套餐、到期状态和预算。不必发送密码、完整核销码或 Session。确认适用商品后，再进入对应商品页查看实时价格。"
+          }
+        ]
+      },
+      "en-US": {
+        "title": "Choosing GPT Go, Plus or Pro by requirements",
+        "description": "Compare actual requirements, account state and delivery conditions rather than price alone.",
+        "sections": [
+          {
+            "question": "Which plan should students, writers or developers buy?",
+            "answer": "List essential features, current limits and budget, then compare official plan information and this store’s delivery conditions. A job or use case alone does not establish that you need a particular tier. Check whether a lower tier meets your needs."
+          },
+          {
+            "question": "Is Go a cheaper equivalent to Plus?",
+            "answer": "No. The monthly Go product and Plus direct top-up are different products. A lower price does not establish identical features or limits."
+          },
+          {
+            "question": "What do Pro 100, 200 and 500 mean?",
+            "answer": "They distinguish store products, not a basis for inferring model limits, multipliers, duration or official entitlements. They are currently listed as direct top-ups, not upgrade price differences. Confirm exact entitlements and account conditions before buying."
+          },
+          {
+            "question": "Does a higher price guarantee more of every feature?",
+            "answer": "No. Price, plan name, delivery method and available entitlements are distinct. Models, tools and limits can change. Check current official guidance and your actual account."
+          },
+          {
+            "question": "What should I tell support if unsure?",
+            "answer": "Describe required features, the limit you are encountering, current plan, expiry and budget. Do not send passwords, full codes or Session data. After confirming suitability, use the product page for the current price."
+          }
+        ]
+      },
+      "zh-TW": {
+        "title": "Go、Plus、Pro 怎麼選：按需求確認，不只比較價格",
+        "description": "按自己的使用需求、現有套餐和實際交付條件比較 GPT Go、Plus 與 Pro 商品。",
+        "sections": [
+          {
+            "question": "我是學習、寫作或編程用戶，應該直接買哪個？",
+            "answer": "先列出你必須使用的功能、遇到的當前限制和預算，再對照官方當前套餐說明及本店商品的實際交付條件。職業或使用場景本身不能證明必須買某一檔。先確認較低檔是否滿足需求。"
+          },
+          {
+            "question": "Go 可以當作便宜的 Plus 嗎？",
+            "answer": "不能直接等同。本站 Go 月付和 Plus 直充是不同商品；價格較低不表示功能與額度完全相同。明確自己需要的能力後再選擇。"
+          },
+          {
+            "question": "Pro 100、200、500 的數字意味著什麼？",
+            "answer": "它們用於區分本站商品。不能單憑數字推斷模型額度、使用倍率、訂閱週期或官方權益。本店當前標注為直充，不是從現有套餐升級的補差價單。各檔的準確權益與帳號條件仍需購買前確認。"
+          },
+          {
+            "question": "買更貴的一檔，是否所有功能和額度都更多？",
+            "answer": "不能這樣保證。價格、套餐名稱、交付方式和實際可用權益是不同信息。模型、工具與限額可能調整，應核對官方當前說明和自己的帳號實際顯示。"
+          },
+          {
+            "question": "不知道選哪款，應該向客服說明什麼？",
+            "answer": "說明需要的功能、目前遇到的限制、當前套餐、到期狀態和預算。不必發送密碼、完整核銷碼或 Session。確認適用商品後，再進入對應商品頁查看實時價格。"
+          }
+        ]
+      }
+    },
+    "/guides/gpt-renewal": {
+      "zh-CN": {
+        "title": "已有 Plus 或 Pro，续费和更换套餐前要确认什么",
+        "description": "避免提前续费、跨平台订阅或更换套餐时误购和重复扣款。",
+        "sections": [
+          {
+            "question": "已有 Plus，可以提前买一单叠加时长吗？",
+            "answer": "不要默认可以叠加、覆盖或立即续费。先确认当前套餐、到期时间及原订阅渠道，再向客服确认本店商品能否办理。没有确认前不要用再次下单来测试。"
+          },
+          {
+            "question": "Plus 想换成 Pro，按差价买就可以吗？",
+            "answer": "本站 Pro 商品当前标注为直充，不是升级补差价。已有套餐是否需要先到期、是否适用本次办理，都需要先确认，不能仅按两个商品的售价相减。"
+          },
+          {
+            "question": "我通过苹果或 Google Play 订阅，能直接在网站续吗？",
+            "answer": "先确认原订阅由哪个平台管理，避免同时存在多个订阅造成重复收费。原平台取消续费和当前权益到期不一定是同一时间；不建议没有核对就另开订阅。"
+          },
+          {
+            "question": "已经取消自动续费，是否表示现在就能办理？",
+            "answer": "不一定。取消续费不等于当前套餐立即结束。请核对账号显示的有效期，并向客服说明取消状态与当前套餐，确认可办理时间。"
+          },
+          {
+            "question": "账号欠费、订阅异常或扣款失败怎么办？",
+            "answer": "先核对原账单、账号和订阅渠道。此类状态可能影响适用性，购买新的充值商品不能保证消除旧账单或解除限制。先核对原问题，再决定是否购买。"
+          }
+        ]
+      },
+      "en-US": {
+        "title": "Renewing or changing an existing ChatGPT subscription",
+        "description": "Check expiry, billing platform and account conditions before renewal to avoid duplicate purchases.",
+        "sections": [
+          {
+            "question": "Can another Plus order stack more time?",
+            "answer": "Do not assume stacking, replacement or immediate renewal. Check your plan, expiry and original billing platform, then confirm product eligibility with support. Do not place another order to test it."
+          },
+          {
+            "question": "Can I upgrade from Plus to Pro by paying the difference?",
+            "answer": "Store Pro products are listed as direct top-ups, not upgrade price differences. Confirm eligibility and any expiry requirements first; subtracting product prices is not an upgrade rule."
+          },
+          {
+            "question": "Can I renew an Apple or Google Play subscription on the website?",
+            "answer": "Identify who manages the existing subscription to avoid overlapping charges. Canceling renewal and the end of paid access may occur at different times. Do not start another subscription without checking."
+          },
+          {
+            "question": "Does canceling auto-renewal mean I can top up now?",
+            "answer": "Not necessarily. Canceling renewal does not immediately end the current plan. Check the expiry shown in the account and explain the status to support."
+          },
+          {
+            "question": "What if my account has unpaid charges or subscription errors?",
+            "answer": "Check the original invoice, account and billing platform. Buying a new top-up does not guarantee removal of unpaid charges or account restrictions. Resolve or verify the original issue first."
+          }
+        ]
+      },
+      "zh-TW": {
+        "title": "已有 Plus 或 Pro，續費和更換套餐前要確認什麼",
+        "description": "避免提前續費、跨平台訂閱或更換套餐時誤購和重復扣款。",
+        "sections": [
+          {
+            "question": "已有 Plus，可以提前買一單疊加時長嗎？",
+            "answer": "不要默認可以疊加、覆蓋或立即續費。先確認當前套餐、到期時間及原訂閱渠道，再向客服確認本店商品能否辦理。沒有確認前不要用再次下單來測試。"
+          },
+          {
+            "question": "Plus 想換成 Pro，按差價買就可以嗎？",
+            "answer": "本站 Pro 商品當前標注為直充，不是升級補差價。已有套餐是否需要先到期、是否適用本次辦理，都需要先確認，不能僅按兩個商品的售價相減。"
+          },
+          {
+            "question": "我通過蘋果或 Google Play 訂閱，能直接在網站續嗎？",
+            "answer": "先確認原訂閱由哪個平台管理，避免同時存在多個訂閱造成重復收費。原平台取消續費和當前權益到期不一定是同一時間；不建議沒有核對就另開訂閱。"
+          },
+          {
+            "question": "已經取消自動續費，是否表示現在就能辦理？",
+            "answer": "不一定。取消續費不等於當前套餐立即結束。請核對帳號顯示的有效期，並向客服說明取消狀態與當前套餐，確認可辦理時間。"
+          },
+          {
+            "question": "帳號欠費、訂閱異常或扣款失敗怎麼辦？",
+            "answer": "先核對原賬單、帳號和訂閱渠道。此類狀態可能影響適用性，購買新的儲值商品不能保證消除舊賬單或解除限制。先核對原問題，再決定是否購買。"
+          }
+        ]
+      }
+    },
+    "/guides/gpt-payment-orders": {
+      "zh-CN": {
+        "title": "付款与查单：邮箱、查单密码和订单状态怎么用",
+        "description": "解决游客购买、查单信息、支付未更新和加密货币付款前的常见疑问。",
+        "sections": [
+          {
+            "question": "不登录也可以购买吗？",
+            "answer": "以商品允许的购买方式和结算页面为准。支持游客购买时，需要填写邮箱和查单密码并保存订单号；不要把查单密码当作 ChatGPT 账号密码。"
+          },
+          {
+            "question": "下单邮箱要和 ChatGPT 邮箱相同吗？",
+            "answer": "下单邮箱用于订单查询和通知，办理账号则在核销时确认。两者用途不同，最终应以核销页显示的目标账号为准，不要只根据付款邮箱判断充到哪里。"
+          },
+          {
+            "question": "为什么订单价格、实付金额和稳定币数量不一样？",
+            "answer": "商品展示价格、订单优惠、支付费用和支付渠道换算可能是不同项目。以结算确认金额和本次支付页的币种、网络、精确数量为准，不根据旧汇率自行计算转账。"
+          },
+          {
+            "question": "已扣款但订单未更新，是否再付一次？",
+            "answer": "先不要重复付款。保存订单号、付款时间和支付凭证，联系客服核对原单。加密货币付款还需核对网络、代币和交易哈希；不要公开钱包私钥或助记词。"
+          },
+          {
+            "question": "关闭页面、没收到邮件或忘了查单密码怎么办？",
+            "answer": "先使用保存的订单号和查单信息回到订单查询页。邮件未收到不证明付款失败；没有足够查单信息时，联系客服核对原单，不能仅凭他人订单号取得交付资料。"
+          }
+        ]
+      },
+      "en-US": {
+        "title": "Payment and order lookup: email, passwords and status",
+        "description": "Understand guest checkout, order credentials, pending payment updates and crypto payment checks.",
+        "sections": [
+          {
+            "question": "Can I buy without signing in?",
+            "answer": "Follow the product eligibility and checkout options. Guest checkout requires an email and order password; save the order number. The lookup password is not your ChatGPT account password."
+          },
+          {
+            "question": "Must the order email match the ChatGPT email?",
+            "answer": "The order email serves lookup and notifications. The account being topped up is confirmed during redemption. Check the actual target account in the redemption form rather than assuming from payment email."
+          },
+          {
+            "question": "Why do product price, payment amount and stablecoin quantity differ?",
+            "answer": "Product price, discounts, payment fees and currency conversion may be separate items. Use the confirmed checkout amount and the current payment page’s precise token, network and quantity. Do not calculate a transfer from old rates."
+          },
+          {
+            "question": "Charged but the order has not updated: pay again?",
+            "answer": "Do not pay again immediately. Keep the order number, payment time and receipt, and contact support about the original order. For crypto, also check network, token and transaction hash. Never share private keys or seed phrases."
+          },
+          {
+            "question": "What if I closed the page, got no email or lost the order password?",
+            "answer": "Use saved order details to return to lookup. Missing email is not proof of payment failure. If you lack the required credentials, ask support to verify the original order; another person’s order number alone must not grant access to delivery details."
+          }
+        ]
+      },
+      "zh-TW": {
+        "title": "付款與查單：信箱、查單密碼和訂單狀態怎麼用",
+        "description": "解決遊客購買、查單信息、支付未更新和加密貨幣付款前的常見疑問。",
+        "sections": [
+          {
+            "question": "不登入也可以購買嗎？",
+            "answer": "以商品允許的購買方式和結算頁面為準。支持遊客購買時，需要填寫信箱和查單密碼並保存訂單號；不要把查單密碼當作 ChatGPT 帳號密碼。"
+          },
+          {
+            "question": "下單信箱要和 ChatGPT 信箱相同嗎？",
+            "answer": "下單信箱用於訂單查詢和通知，辦理帳號則在核銷時確認。兩者用途不同，最終應以核銷頁顯示的目標帳號為準，不要只根據付款信箱判斷充到哪裡。"
+          },
+          {
+            "question": "為什麼訂單價格、實付金額和穩定幣數量不一樣？",
+            "answer": "商品展示價格、訂單優惠、支付費用和支付渠道換算可能是不同項目。以結算確認金額和本次支付頁的幣種、網絡、精確數量為準，不根據舊匯率自行計算轉賬。"
+          },
+          {
+            "question": "已扣款但訂單未更新，是否再付一次？",
+            "answer": "先不要重復付款。保存訂單號、付款時間和支付憑證，聯繫客服核對原單。加密貨幣付款還需核對網絡、代幣和交易哈希；不要公開錢包私鑰或助記詞。"
+          },
+          {
+            "question": "關閉頁面、沒收到郵件或忘了查單密碼怎麼辦？",
+            "answer": "先使用保存的訂單號和查單信息回到訂單查詢頁。郵件未收到不證明付款失敗；沒有足夠查單信息時，聯繫客服核對原單，不能僅憑他人訂單號取得交付資料。"
+          }
+        ]
+      }
+    },
+    "/guides/gpt-safety-support": {
+      "zh-CN": {
+        "title": "充值安全与异常处理：Session、未到账、换码和退款",
+        "description": "区分官方产品规则与本站交付流程，了解资料提交边界及原单售后处理。",
+        "sections": [
+          {
+            "question": "这是 OpenAI 官方网站或官方充值渠道吗？",
+            "answer": "雪糕 AI 是本网站的服务品牌，不代表 OpenAI 官方网站。官方产品权益与平台规则由 OpenAI 决定；本站商品价格、交付步骤和售后处理以本店订单说明为准。"
+          },
+          {
+            "question": "为什么需要 Session？是不是不用密码就没有风险？",
+            "answer": "某些办理流程需要按核销页要求提交账号 Session。Session 包含敏感凭证，不等于普通文字；不索取密码也不代表没有账号授权风险。只在确认的核销表单中按需提交，不发给聊天客服或第三方工具。不愿授权时先咨询，不要提交。"
+          },
+          {
+            "question": "资料由谁处理，保存多久？",
+            "answer": "购买前应了解核销页的提交用途和资料处理说明。本站当前页面说明资料用于本次办理，但这里不承诺未经核实的零保存、立即删除或固定保存天数；需要了解处理主体和保存期限时先联系客服确认。"
+          },
+          {
+            "question": "显示提交成功或已发货，为什么账号没变化？",
+            "answer": "已发货通常表示核销码已交付；提交成功表示资料已收到。两者都不是套餐生效证明。用原核销码查进度，再登录实际办理账号核对套餐。"
+          },
+          {
+            "question": "办理中、需要补资料或显示完成但未到账，怎么办？",
+            "answer": "保留订单号和页面提示，先查询原码进度，联系服务方处理原单。显示完成时再次确认登录邮箱和账号；结果不明时不要反复提交或重新购买。"
+          },
+          {
+            "question": "可以自动换码或直接退款吗？",
+            "answer": "不能把所有状态都当作可自动处理。换码需核对原单、当前码版本、是否未使用及是否允许换码；已提交办理的码不默认可换。退款需要人工审核，是否适用及退款路径以原单售后核对结果为准，不保证提交申请就退款。"
+          },
+          {
+            "question": "能保证永久不封号或到账时间吗？",
+            "answer": "不能做这样的保证。平台限制、账号状态和办理进度可能影响结果。付款前确认适用条件，遇到异常保留原单信息处理；不要把未经核实的低价、固定时效或永久安全承诺当作购买依据。"
+          }
+        ]
+      },
+      "en-US": {
+        "title": "Top-up safety, Session data and problem resolution",
+        "description": "Understand credential handling, delayed activation, code replacement and reviewed refunds.",
+        "sections": [
+          {
+            "question": "Is this an official OpenAI website or payment channel?",
+            "answer": "XUEGAOAI is this website’s service brand, not OpenAI’s official website. OpenAI determines product entitlements and platform rules. Store prices, delivery steps and support handling follow the store order instructions."
+          },
+          {
+            "question": "Why is Session required? Does no password mean no risk?",
+            "answer": "Some processing flows require Session data in the redemption form. It contains sensitive credentials. Not asking for a password does not eliminate account authorization risk. Submit only in the verified form, never to chat support or third-party tools. If unwilling to authorize, ask before submitting."
+          },
+          {
+            "question": "Who processes my details and how long are they kept?",
+            "answer": "Read the redemption purpose and data handling information before buying. Current pages describe use for this processing request; this guide does not make unverified claims of zero retention, immediate deletion or fixed retention periods. Ask support about the processing party and retention before submitting if needed."
+          },
+          {
+            "question": "Why has my account not changed after delivery or submission?",
+            "answer": "Delivery generally means the code was issued; an accepted submission means details were received. Neither proves activation. Check progress with the original code, then sign in to the actual target account."
+          },
+          {
+            "question": "What if processing is delayed or marked complete without activation?",
+            "answer": "Keep the order number and message, check original-code progress and contact support about the existing order. If marked complete, confirm the signed-in email and account. Do not repeatedly submit or reorder when the result is uncertain."
+          },
+          {
+            "question": "Can I automatically replace a code or get a refund?",
+            "answer": "Not every state permits automatic action. Replacement requires the original order, current code revision, unused status and replacement eligibility. Submitted codes are not assumed replaceable. Refunds require manual review under the original order’s conditions; an application is not approval."
+          },
+          {
+            "question": "Can permanent account safety or a fixed activation time be guaranteed?",
+            "answer": "No. Platform restrictions, account state and processing can affect results. Check eligibility before paying and retain the original order for support. Do not rely on unverified low-price, fixed-time or permanent-safety promises."
+          }
+        ]
+      },
+      "zh-TW": {
+        "title": "儲值安全與異常處理：Session、未到賬、換碼和退款",
+        "description": "區分官方產品規則與本站交付流程，瞭解資料提交邊界及原單售後處理。",
+        "sections": [
+          {
+            "question": "這是 OpenAI 官方網站或官方儲值渠道嗎？",
+            "answer": "雪糕 AI 是本網站的服務品牌，不代表 OpenAI 官方網站。官方產品權益與平台規則由 OpenAI 決定；本站商品價格、交付步驟和售後處理以本店訂單說明為準。"
+          },
+          {
+            "question": "為什麼需要 Session？是不是不用密碼就沒有風險？",
+            "answer": "某些辦理流程需要按核銷頁要求提交帳號 Session。Session 包含敏感憑證，不等於普通文字；不索取密碼也不代表沒有帳號授權風險。只在確認的核銷表單中按需提交，不發給聊天客服或第三方工具。不願授權時先咨詢，不要提交。"
+          },
+          {
+            "question": "資料由誰處理，保存多久？",
+            "answer": "購買前應瞭解核銷頁的提交用途和資料處理說明。本站當前頁面說明資料用於本次辦理，但這裡不承諾未經覈實的零保存、立即刪除或固定保存天數；需要瞭解處理主體和保存期限時先聯繫客服確認。"
+          },
+          {
+            "question": "顯示提交成功或已發貨，為什麼帳號沒變化？",
+            "answer": "已發貨通常表示核銷碼已交付；提交成功表示資料已收到。兩者都不是套餐生效證明。用原核銷碼查進度，再登入實際辦理帳號核對套餐。"
+          },
+          {
+            "question": "辦理中、需要補資料或顯示完成但未到賬，怎麼辦？",
+            "answer": "保留訂單號和頁面提示，先查詢原碼進度，聯繫服務方處理原單。顯示完成時再次確認登入信箱和帳號；結果不明時不要反復提交或重新購買。"
+          },
+          {
+            "question": "可以自動換碼或直接退款嗎？",
+            "answer": "不能把所有狀態都當作可自動處理。換碼需核對原單、當前碼版本、是否未使用及是否允許換碼；已提交辦理的碼不默認可換。退款需要人工審核，是否適用及退款路徑以原單售後核對結果為準，不保證提交申請就退款。"
+          },
+          {
+            "question": "能保證永久不封號或到賬時間嗎？",
+            "answer": "不能做這樣的保證。平台限制、帳號狀態和辦理進度可能影響結果。付款前確認適用條件，遇到異常保留原單信息處理；不要把未經覈實的低價、固定時效或永久安全承諾當作購買依據。"
+          }
+        ]
+      }
+    }
+  },
+  "labels": {
+    "zh-CN": {
+      "indexTitle": "GPT 充值决策与帮助指南",
+      "indexDescription": "从账号和套餐选择，到续费、付款、核销和售后，按你的实际问题查找答案。",
+      "related": "相关问题与下一步",
+      "updated": "内容核对：2026-11-23。商品价格与可购状态以商品页为准。",
+      "products": "查看当前商品",
+      "redeem": "充值核销教程",
+      "support": "购买前咨询与售后",
+      "sources": "官方参考资料（官方规则与本站服务范围不同）"
+    },
+    "en-US": {
+      "indexTitle": "GPT top-up buying and help guides",
+      "indexDescription": "Find answers for your account, plan, renewal, payment, redemption and support decisions.",
+      "related": "Related questions and next steps",
+      "updated": "Content reviewed: 2026-11-23. Product pages show current prices and availability.",
+      "products": "View current products",
+      "redeem": "Redemption instructions",
+      "support": "Questions and support",
+      "sources": "Official references (official rules and store services differ)"
+    },
+    "zh-TW": {
+      "indexTitle": "GPT 儲值決策與幫助指南",
+      "indexDescription": "從帳號和套餐選擇，到續費、付款、核銷和售後，按你的實際問題查找答案。",
+      "related": "相關問題與下一步",
+      "updated": "內容核對：2026-11-23。商品價格與可購狀態以商品頁為準。",
+      "products": "查看當前商品",
+      "redeem": "儲值核銷教程",
+      "support": "購買前咨詢與售後",
+      "sources": "官方參考資料（官方規則與本站服務範圍不同）"
+    }
+  }
+}
