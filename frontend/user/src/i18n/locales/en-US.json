@@ -2076,7 +2076,8 @@
       "dark": "Switch to dark mode"
     },
     "seo": {
-      "title": "AI membership top-ups"
+      "title": "ChatGPT top-ups and Claude accounts",
+      "description": "Explore GPT subscription top-ups and Claude accounts from XUEGAOAI, with product pricing, delivery instructions, redemption guides and support information."
     },
     "nav": {
       "redeem": "Redeem code",
@@ -2158,16 +2159,26 @@
     },
     "process": {
       "eyebrow": "HOW IT WORKS",
-      "title": "From payment to done, every step is visible",
-      "lede": "Never send your password to anyone. Just follow the prompts on your order page.",
-      "s1t": "Pick a plan",
-      "s1": "Choose by how much you use AI, or check your account first.",
-      "s2t": "Place the order",
-      "s2": "Enter an email and an order password for updates and lookups.",
-      "s3t": "Scan to pay",
-      "s3": "Choose a payment method and track processing on the order page.",
-      "s4t": "Done",
-      "s4": "Follow progress on the order page; the result appears right there."
+      "title": "Your top-up, in four clear steps",
+      "lede": "Redeem GPT codes to start your top-up. Contact support for Claude accounts. Payment success does not mean your subscription is active.",
+      "s1t": "Choose your plan",
+      "s1": "Check delivery details, enter your email and order password, and save your order number.",
+      "s2t": "Complete payment",
+      "s2": "Return to your order to check payment status. Charged but no update? Contact support first.",
+      "s3t": "Collect and activate",
+      "s3": "GPT: collect your code from the order, open the redemption page, verify it and submit the required details. Claude: contact Telegram support after payment for delivery.",
+      "s4t": "Confirm activation",
+      "s4": "Check redemption progress, then sign in to confirm your plan is active. A delivered code or accepted submission is not a completed top-up.",
+      "helpTitle": "Need a hand? We can help",
+      "helpText": "If submission fails, details are missing or activation is delayed, contact support with your order number. Keep the existing order; do not reorder or repeatedly submit.",
+      "redeem": "Redeem / Check progress",
+      "orders": "Find my order",
+      "support": "Contact Telegram support",
+      "progress": "Check redemption progress",
+      "gptDelivery": "Collect your code, verify it and submit the required details.",
+      "claudeDelivery": "Contact TG support after paying for manual account delivery.",
+      "startRedeem": "Redeem GPT code",
+      "guide": "Full top-up guide"
     },
     "guard": {
       "eyebrow": "Peace of mind",

@@ -581,7 +581,16 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     return `${base}/products/${product.value.slug}`
   })
 
+  const productSeoDescription = computed(() => {
+    if (!product.value) return ''
+    const seo = product.value.seo_meta || {}
+    const raw = getLocalizedText(seo.description) || (typeof seo.description === 'string' ? seo.description : '')
+      || getLocalizedText(product.value.description) || getLocalizedText(product.value.content)
+    return new DOMParser().parseFromString(raw || '', 'text/html').body.textContent?.trim().slice(0, 160) || ''
+  })
+
   useHead({
+    htmlAttrs: { lang: () => appStore.locale },
     title: () => product.value ? getLocalizedText(product.value.title) : '',
     link: () => {
       if (!canonicalUrl.value) return []
@@ -591,7 +600,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
       if (!product.value) return []
       const seoMeta = product.value.seo_meta || {}
       const seoKeywords = getLocalizedText(seoMeta.keywords) || (typeof seoMeta.keywords === 'string' ? seoMeta.keywords : '')
-      const seoDescription = getLocalizedText(seoMeta.description) || (typeof seoMeta.description === 'string' ? seoMeta.description : '')
+      const seoDescription = productSeoDescription.value
       const tags = []
 
       if (seoKeywords) tags.push({ name: 'keywords', content: seoKeywords })
@@ -627,8 +636,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     script: () => {
       if (!product.value) return []
       const title = getLocalizedText(product.value.title)
-      const seoMeta = product.value.seo_meta || {}
-      const description = getLocalizedText(seoMeta.description) || (typeof seoMeta.description === 'string' ? seoMeta.description : '')
+      const description = productSeoDescription.value
       const priceAmount = product.value.price_amount || '0'
       const currency = siteCurrency.value || 'CNY'
 
@@ -654,7 +662,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
 
       return [{
         type: 'application/ld+json',
-        innerHTML: JSON.stringify(jsonLd),
+        innerHTML: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
       }]
     },
   })

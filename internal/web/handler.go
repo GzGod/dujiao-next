@@ -160,7 +160,11 @@ func RegisterAdmin(r *gin.Engine, prefix string, fsys fs.FS) error {
 //
 // 由于 NoRoute 在所有显式路由（API、uploads、health、admin）之后才匹配，
 // 这里不需要做路径前缀剥离；命中真实文件返回文件，否则 fallback 到 index.html。
-func RegisterUser(r *gin.Engine, fsys fs.FS) error {
+func RegisterUser(r *gin.Engine, fsys fs.FS, renderers ...PageRenderer) error {
+	var renderer PageRenderer
+	if len(renderers) > 0 {
+		renderer = renderers[0]
+	}
 	if r == nil {
 		return errors.New("nil gin engine")
 	}
@@ -186,14 +190,14 @@ func RegisterUser(r *gin.Engine, fsys fs.FS) error {
 
 		fp := strings.TrimPrefix(c.Request.URL.Path, "/")
 		if fp == "" || fp == "index.html" {
-			serveIndex(c, indexCached)
+			serveUserIndex(c, indexCached, renderer)
 			return
 		}
 		if hasFile(fsys, fp) {
 			serveAsset(c, fileServer, fp)
 			return
 		}
-		serveIndex(c, indexCached)
+		serveUserIndex(c, indexCached, renderer)
 	})
 	return nil
 }

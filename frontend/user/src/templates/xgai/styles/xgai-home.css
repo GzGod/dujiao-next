@@ -559,3 +559,36 @@
   .xguard__grid { grid-template-columns: 1fr; }
   .xguard__grid article + article { border-top: 1px solid rgba(255, 255, 255, 0.08); border-left: 0; }
 }
+
+/* Delivery instructions and recovery actions share the storefront theme tokens. */
+.xflow__grid article { display: flex; flex-direction: column; border-color: var(--x-line-strong); }
+.xflow__grid article > p { flex: 1; }
+.xflow__delivery { display: grid; gap: 12px; flex: 1; }
+.xflow__delivery > div { padding-left: 12px; border-left: 2px solid var(--x-line-strong); }
+.xflow__delivery b { display: block; margin-bottom: 3px; color: var(--x-ink); font-size: 12px; letter-spacing: .03em; }
+.xflow__delivery p { font-size: 13px; }
+.xflow__step-links { display: grid; gap: 8px; margin-top: 20px; }
+.xflow__step-links a { display: flex; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--x-line-strong); border-radius: 10px; color: var(--x-blue); font-size: 13px; font-weight: 600; background: var(--x-blue-soft); }
+.xflow__help { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 20px; padding: 24px 28px; border: 1px solid var(--x-line-strong); border-radius: var(--x-r-lg); background: var(--x-surface); }
+.xflow__help > div:first-child { max-width: 660px; }
+.xflow__help h3 { margin: 0 0 8px; color: var(--x-ink); font-size: 17px; font-weight: 650; }
+.xflow__help p { margin: 0; color: var(--x-ink-3); font-size: 14px; line-height: 1.75; }
+.xflow__actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 10px; }
+.xflow__actions a { display: inline-flex; justify-content: center; align-items: center; min-height: 42px; padding: 10px 16px; border: 1px solid var(--x-line-strong); border-radius: 10px; color: var(--x-ink); font-size: 13px; font-weight: 600; }
+.xflow__actions a:last-child { color: white; background: var(--x-blue); border-color: var(--x-blue); }
+.xflow :is(.xflow__step-links, .xflow__actions) a { transition: opacity .18s, border-color .18s; }
+.xflow :is(.xflow__step-links, .xflow__actions) a:hover { opacity: .8; border-color: var(--x-blue); }
+.xflow :is(.xflow__step-links, .xflow__actions) a:focus-visible { outline: 2px solid var(--x-blue); outline-offset: 3px; }
+@media (max-width: 1000px) { .xflow__help { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 600px) {
+  .xflow__head { margin-bottom: 24px; }
+  .xflow__grid { gap: 12px; }
+  .xflow__grid article { padding: 20px 20px 20px 76px; min-height: 112px; }
+  .xflow__grid article > i { position: absolute; left: 20px; top: 20px; width: 36px; height: 36px; border-radius: 11px; }
+  .xflow__grid article > span { top: 68px; left: 20px; right: auto; width: 36px; text-align: center; font-size: 12px; }
+  .xflow__grid h3 { margin-top: 2px; font-size: 16px; }
+  .xflow__grid p { font-size: 13px; }
+  .xflow__help { padding: 20px; gap: 18px; }
+  .xflow__actions { width: 100%; flex-direction: column; }
+  .xflow__actions a { width: 100%; }
+}

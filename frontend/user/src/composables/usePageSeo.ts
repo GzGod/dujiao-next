@@ -101,6 +101,7 @@ export function usePageSeo(options: PageSeoOptions = {}) {
   })
 
   useHead({
+    htmlAttrs: { lang: () => appStore.locale },
     title: () => fullTitle.value,
     link: () => {
       if (!fullCanonical.value) return []

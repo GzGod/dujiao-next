@@ -29,6 +29,8 @@ Promise.all([
   useTelegramMiniAppStore(pinia).init(),
   setI18nLocale(detectLocale()),
 ]).then(() => {
+  // Server HTML remains readable until the interactive storefront is ready.
+  document.querySelectorAll('[data-seo-bootstrap]').forEach((node) => node.remove())
   app.mount('#app')
 })
 

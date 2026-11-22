@@ -202,9 +202,31 @@
           <span>{{ String(index + 1).padStart(2, '0') }}</span>
           <i><component :is="step.icon" /></i>
           <h3>{{ step.title }}</h3>
-          <p>{{ step.text }}</p>
+          <p v-if="index !== 2">{{ step.text }}</p>
+          <div v-else class="xflow__delivery">
+            <div><b>GPT</b><p>{{ t('xgai.process.gptDelivery') }}</p></div>
+            <div><b>Claude</b><p>{{ t('xgai.process.claudeDelivery') }}</p></div>
+          </div>
+          <div v-if="index === 2" class="xflow__step-links">
+            <a href="https://redeem.xuegaogx.cc/" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.startRedeem') }} ↗</a>
+            <a href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.support') }} ↗</a>
+          </div>
+          <div v-if="index === 3" class="xflow__step-links">
+            <a href="https://redeem.xuegaogx.cc/progress" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.progress') }} ↗</a>
+          </div>
         </article>
       </div>
+      <aside class="xflow__help">
+        <div>
+          <h3>{{ t('xgai.process.helpTitle') }}</h3>
+          <p>{{ t('xgai.process.helpText') }}</p>
+        </div>
+        <div class="xflow__actions">
+          <a href="/guides/redeem">{{ t('xgai.process.guide') }}</a>
+          <RouterLink :to="userAuthStore.isAuthenticated ? '/me/orders' : '/guest/orders'">{{ t('xgai.process.orders') }}</RouterLink>
+          <a href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.support') }}</a>
+        </div>
+      </aside>
     </section>
 
     <!-- 保障 -->
@@ -244,6 +266,7 @@ import {
 } from 'lucide-vue-next'
 import { productAPI } from '../../api'
 import { useAppStore } from '../../stores/app'
+import { useUserAuthStore } from '../../stores/userAuth'
 import { useLocalized } from '../../composables/useProduct'
 import { usePageSeo } from '../../composables/usePageSeo'
 import ProductQuickBuy from '../../components/ProductQuickBuy.vue'
@@ -257,9 +280,10 @@ const SESSION_URL = 'https://chatgpt.com/api/auth/session'
 const { t } = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
+const userAuthStore = useUserAuthStore()
 const { getLocalizedText } = useLocalized()
 
-usePageSeo({ title: () => t('xgai.seo.title'), canonicalPath: () => '/' })
+usePageSeo({ title: () => t('xgai.seo.title'), description: () => t('xgai.seo.description'), canonicalPath: () => '/' })
 
 // ---------- 商品 ----------
 const products = ref<any[]>([])

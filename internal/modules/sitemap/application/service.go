@@ -121,6 +121,7 @@ func (s *Service) collectURLs(ctx context.Context, baseURL string) ([]domain.URL
 		{"/", "daily", "1.0"},
 		{"/products", "daily", "0.9"},
 		{"/blog", "weekly", "0.6"},
+		{"/guides/redeem", "monthly", "0.7"},
 		{"/notice", "weekly", "0.5"},
 		{"/about", "monthly", "0.3"},
 		{"/terms", "yearly", "0.2"},
