@@ -840,7 +840,13 @@ export interface AdminResellerProfileRef {
   user?: AdminResellerUser
 }
 
+export interface ResellerSupplyPricing {
+  default_markup_percent: string | null
+  overrides: { product_id: number; sku_id: number; mode: string; value: string }[]
+}
+
 export interface AdminResellerProfile {
+  supply_pricing?: ResellerSupplyPricing | null
   id: number
   user_id: number
   status: string
@@ -1018,6 +1024,7 @@ export interface AdminResellerProfileApprovePayload {
 }
 
 export interface AdminResellerProfileUpdatePayload {
+  supply_pricing?: ResellerSupplyPricing
   default_markup_percent?: string
   max_markup_percent?: string
   settlement_status?: string

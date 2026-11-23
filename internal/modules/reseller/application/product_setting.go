@@ -237,6 +237,10 @@ func (s *ProductSettingService) getDetail(profile *resellerdomain.Profile, produ
 	if row == nil {
 		return nil, productcontract.ErrNotFound
 	}
+	row.Product, err = ProductWithSupplyPrices(profile, row.Product)
+	if err != nil {
+		return nil, err
+	}
 	effective, rules, err := computeProductEffectivePrices(profile, row.Product, row.Settings)
 	if err != nil {
 		return nil, err
@@ -247,6 +251,11 @@ func (s *ProductSettingService) getDetail(profile *resellerdomain.Profile, produ
 func (s *ProductSettingService) decorateRows(profile *resellerdomain.Profile, rows []resellercontract.ProductSettingProductRow) []ProductSettingListRow {
 	out := make([]ProductSettingListRow, 0, len(rows))
 	for _, row := range rows {
+		priced, err := ProductWithSupplyPrices(profile, row.Product)
+		if err != nil {
+			continue
+		}
+		row.Product = priced
 		effective, rules, _ := computeProductEffectivePrices(profile, row.Product, row.Settings)
 		out = append(out, ProductSettingListRow{Profile: profile, Product: row.Product, Settings: row.Settings, EffectiveBySKUID: effective, RuleBySKUID: rules})
 	}
@@ -264,6 +273,11 @@ func (s *ProductSettingService) saveSettings(profile *resellerdomain.Profile, pr
 	if product == nil {
 		return productcontract.ErrNotFound
 	}
+	priced, err := ProductWithSupplyPrices(profile, *product)
+	if err != nil {
+		return err
+	}
+	product = &priced
 	normalizedSettings := make([]resellerdomain.ProductSetting, 0, len(input.Settings))
 	for _, item := range input.Settings {
 		normalized, err := normalizeProductSettingInput(profile, product, item)
@@ -365,7 +379,10 @@ func (s *ProductSettingService) previewSettings(profile *resellerdomain.Profile,
 	if row == nil {
 		return nil, productcontract.ErrNotFound
 	}
-	product := row.Product
+	product, err := ProductWithSupplyPrices(profile, row.Product)
+	if err != nil {
+		return nil, err
+	}
 
 	var productSetting *resellerdomain.ProductSetting
 	skuSettings := map[uint]*resellerdomain.ProductSetting{}

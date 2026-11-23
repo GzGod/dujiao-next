@@ -32,6 +32,7 @@ type ResellerApproveInput struct {
 }
 
 type ResellerProfileUpdateInput struct {
+	SupplyPricing        *resellerdomain.SupplyPricing
 	DefaultMarkupPercent decimal.Decimal
 	MaxMarkupPercent     decimal.Decimal
 	SettlementStatus     string
@@ -284,6 +285,40 @@ func (s *ManagementService) UpdateProfileOperationalConfig(adminID, profileID ui
 	if settlementStatus != "" && settlementStatus != resellerdomain.SettlementStatusNormal && settlementStatus != resellerdomain.SettlementStatusFrozen {
 		return nil, resellercontract.ErrProfileStatusInvalid
 	}
+	if err := validateSupplyPricing(input.SupplyPricing); err != nil {
+		return nil, err
+	}
+	if input.SupplyPricing != nil {
+		candidate := &resellerdomain.Profile{SupplyPricing: input.SupplyPricing}
+		for _, rule := range input.SupplyPricing.Overrides {
+			row, err := s.store.GetProductWithSettings(profileID, rule.ProductID)
+			if err != nil {
+				return nil, err
+			}
+			if row == nil {
+				return nil, productcontract.ErrNotFound
+			}
+			if rule.SKUID == 0 && len(row.Product.SKUs) == 0 {
+				if _, err := ResolveSupplyUnitAmount(candidate, rule.ProductID, 0, row.Product.PriceAmount.Decimal, row.Product.CostPriceAmount.Decimal); err != nil {
+					return nil, err
+				}
+			} else {
+				found := rule.SKUID == 0
+				for _, sku := range row.Product.SKUs {
+					if rule.SKUID != 0 && rule.SKUID != sku.ID {
+						continue
+					}
+					found = true
+					if _, err := ResolveSupplyUnitAmount(candidate, rule.ProductID, sku.ID, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal); err != nil {
+						return nil, err
+					}
+				}
+				if !found {
+					return nil, productcontract.ErrProductSKUInvalid
+				}
+			}
+		}
+	}
 	var updated *resellerdomain.Profile
 	err := s.store.WithinManagementTransaction(func(repoTx resellercontract.ManagementStore) error {
 		profile, err := repoTx.GetProfileByID(profileID)
@@ -294,6 +329,9 @@ func (s *ManagementService) UpdateProfileOperationalConfig(adminID, profileID ui
 			return productcontract.ErrNotFound
 		}
 		now := time.Now()
+		if input.SupplyPricing != nil {
+			profile.SupplyPricing = input.SupplyPricing
+		}
 		profile.DefaultMarkupPercent = money.FromDecimal(input.DefaultMarkupPercent)
 		profile.MaxMarkupPercent = money.FromDecimal(input.MaxMarkupPercent)
 		if settlementStatus != "" {

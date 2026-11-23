@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import ResellerSupplyPricing from '@/components/admin/ResellerSupplyPricing.vue'
 import { adminAPI } from '@/api/admin'
 import type { AdminResellerDomain, AdminResellerProfileDetail } from '@/api/types'
 import {
@@ -456,7 +457,8 @@ onMounted(fetchDetail)
           </div>
         </TabsContent>
 
-        <TabsContent value="products" class="mt-0">
+        <TabsContent value="products" class="mt-0 space-y-4">
+          <ResellerSupplyPricing v-if="profile" :key="profile.updated_at" :profile="profile" @saved="fetchDetail" />
           <div class="rounded-xl border border-border bg-card p-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>

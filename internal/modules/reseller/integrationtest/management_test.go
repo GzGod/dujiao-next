@@ -490,3 +490,26 @@ func seedResellerProductSettingProductForAdminHandler(t *testing.T, db *gorm.DB)
 	}
 	return product, skus
 }
+
+func TestAdminProfileSupplyPricingUsesExistingProtectedUpdateAndAudit(t *testing.T) {
+	h, db := setupAdminResellerManagementHandlerTest(t)
+	profile := seedAdminResellerManagementProfile(t, db, resellerdomain.ProfileStatusActive)
+	body := strings.NewReader(`{"default_markup_percent":"10","max_markup_percent":"50","supply_pricing":{"default_markup_percent":"3","overrides":[]}}`)
+	c, recorder := newAdminResellerManagementContext(http.MethodPut, fmt.Sprintf("/admin/resellers/profiles/%d", profile.ID), body)
+	c.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", profile.ID)}}
+	adminResellerManagementHTTP(h).UpdateProfile(c)
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"supply_pricing"`) {
+		t.Fatalf("update failed: %s", recorder.Body.String())
+	}
+	var loaded resellerdomain.Profile
+	if err := db.First(&loaded, profile.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if loaded.SupplyPricing == nil || loaded.SupplyPricing.DefaultMarkupPercent == nil || *loaded.SupplyPricing.DefaultMarkupPercent != "3" {
+		t.Fatal("supply not saved")
+	}
+	var audit auditlogdomain.AuthzAuditLog
+	if err := db.Where("action = ?", "reseller_profile_update").First(&audit).Error; err != nil {
+		t.Fatal(err)
+	}
+}

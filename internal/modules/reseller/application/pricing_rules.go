@@ -96,3 +96,118 @@ func ValidateUnitAmount(profile *resellerdomain.Profile, sku *productdomain.Prod
 	}
 	return nil
 }
+
+// ResolveSupplyUnitAmount is shared by storefront display, reseller previews and
+// order snapshots. A configured price that falls below current cost fails closed.
+func ResolveSupplyUnitAmount(profile *resellerdomain.Profile, productID, skuID uint, retail, cost decimal.Decimal) (decimal.Decimal, error) {
+	base := retail.Round(2)
+	if profile == nil || profile.SupplyPricing == nil {
+		return base, nil
+	}
+	config := profile.SupplyPricing
+	var selected *resellerdomain.SupplyPriceRule
+	for i := range config.Overrides {
+		rule := &config.Overrides[i]
+		if rule.ProductID == productID && rule.SKUID == 0 {
+			selected = rule
+		}
+	}
+	for i := range config.Overrides {
+		rule := &config.Overrides[i]
+		if rule.ProductID == productID && rule.SKUID == skuID && skuID > 0 {
+			selected = rule
+		}
+	}
+	if selected != nil {
+		value, err := decimal.NewFromString(selected.Value)
+		if err != nil || value.IsNegative() {
+			return decimal.Zero, resellercontract.ErrPriceBelowBase
+		}
+		switch selected.Mode {
+		case "fixed":
+			base = value.Round(2)
+		case "cost_markup":
+			if !cost.GreaterThan(decimal.Zero) {
+				return decimal.Zero, resellercontract.ErrPriceBelowBase
+			}
+			base = ApplyMarkupPercent(cost, value)
+		default:
+			return decimal.Zero, resellercontract.ErrPricingModeInvalid
+		}
+	} else if config.DefaultMarkupPercent != nil && cost.GreaterThan(decimal.Zero) {
+		value, err := decimal.NewFromString(*config.DefaultMarkupPercent)
+		if err != nil || value.IsNegative() {
+			return decimal.Zero, resellercontract.ErrPriceBelowBase
+		}
+		base = ApplyMarkupPercent(cost, value)
+	}
+	if base.LessThanOrEqual(decimal.Zero) || (cost.GreaterThan(decimal.Zero) && base.LessThan(cost.Round(2))) {
+		return decimal.Zero, resellercontract.ErrPriceBelowBase
+	}
+	return base, nil
+}
+
+func validateSupplyPricing(config *resellerdomain.SupplyPricing) error {
+	if config == nil {
+		return nil
+	}
+	if config.DefaultMarkupPercent != nil {
+		d, err := decimal.NewFromString(*config.DefaultMarkupPercent)
+		if err != nil || d.IsNegative() || d.GreaterThan(decimal.NewFromInt(10000)) {
+			return resellercontract.ErrPricingModeInvalid
+		}
+	}
+	if len(config.Overrides) > 1000 {
+		return resellercontract.ErrPricingModeInvalid
+	}
+	seen := map[[2]uint]bool{}
+	for _, rule := range config.Overrides {
+		key := [2]uint{rule.ProductID, rule.SKUID}
+		value, err := decimal.NewFromString(rule.Value)
+		if rule.ProductID == 0 || seen[key] || err != nil || value.IsNegative() || value.GreaterThan(decimal.NewFromInt(100000000)) {
+			return resellercontract.ErrPricingModeInvalid
+		}
+		if rule.Mode != "fixed" && rule.Mode != "cost_markup" {
+			return resellercontract.ErrPricingModeInvalid
+		}
+		if rule.Mode == "fixed" && value.Round(2).LessThanOrEqual(decimal.Zero) {
+			return resellercontract.ErrPriceBelowBase
+		}
+		seen[key] = true
+	}
+	return nil
+}
+
+// ProductWithSupplyPrices copies catalogue data; it never changes the main-site
+// product or exposes the upstream cost to a reseller response.
+func ProductWithSupplyPrices(profile *resellerdomain.Profile, product productdomain.Product) (productdomain.Product, error) {
+	result := product
+	result.SKUs = append([]productdomain.ProductSKU(nil), product.SKUs...)
+	base, err := ResolveSupplyUnitAmount(profile, product.ID, 0, product.PriceAmount.Decimal, product.CostPriceAmount.Decimal)
+	// SKU-only overrides are evaluated below; a product aggregate may lack a cost.
+	if err != nil && len(product.SKUs) == 0 {
+		return result, err
+	}
+	if err == nil {
+		result.PriceAmount.Decimal = base
+	}
+	hasSupplySKU := false
+	for i := range result.SKUs {
+		sku := &result.SKUs[i]
+		if !sku.IsActive {
+			continue
+		}
+		price, err := ResolveSupplyUnitAmount(profile, product.ID, sku.ID, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal)
+		if err != nil {
+			return result, err
+		}
+		sku.PriceAmount.Decimal = price
+		if profile != nil && profile.SupplyPricing != nil {
+			if !hasSupplySKU || price.LessThan(result.PriceAmount.Decimal) {
+				result.PriceAmount.Decimal = price
+			}
+			hasSupplySKU = true
+		}
+	}
+	return result, nil
+}

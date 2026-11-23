@@ -646,3 +646,42 @@ func TestResellerPricingResolverDisplayHidesInvalidSKUWithoutFailing(t *testing.
 		t.Fatalf("expected display fall back to valid sku 11@130, got %+v", result)
 	}
 }
+
+func TestSupplyPriceMatchesDisplayOrderProfitAndImmutableSnapshot(t *testing.T) {
+	profile := testResellerProfile()
+	markup := "3"
+	profile.SupplyPricing = &resellerdomain.SupplyPricing{DefaultMarkupPercent: &markup}
+	resolver := NewResellerPricingResolver(&resellerPricingRepoStub{profile: profile})
+	result := testOrderBuildResult(struct {
+		productID uint
+		skuID     uint
+		base      decimal.Decimal
+		cost      decimal.Decimal
+		quantity  int
+	}{1, 11, decimal.NewFromInt(100), decimal.NewFromInt(80), 2})
+	product := *result.Plans[0].Product
+	product.SKUs = []productdomain.ProductSKU{*result.Plans[0].SKU}
+	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), []productdomain.Product{product})
+	if err != nil {
+		t.Fatal(err)
+	}
+	display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+	if err != nil || !display.Visible || display.SKUPrices[11].String() != "98.88" {
+		t.Fatalf("display mismatch: %+v %v", display, err)
+	}
+	ctx, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ctx.BaseAmount.Equal(decimal.RequireFromString("164.80")) || !ctx.ProfitAmount.Equal(decimal.RequireFromString("32.96")) || result.Plans[0].Item.UnitPrice.String() != "98.88" {
+		t.Fatalf("wrong order calculation: %+v", ctx)
+	}
+	snapshot := ctx.BuildPricingSnapshotJSON()
+	profile.SupplyPricing.DefaultMarkupPercent = nil
+	if snapshot["base_amount"] != "164.80" || ctx.Items[0].BaseUnitAmount.StringFixed(2) != "82.40" {
+		t.Fatal("saved order supply changed")
+	}
+	if result.Plans[0].SKU.PriceAmount.String() != "100.00" {
+		t.Fatal("main-site retail was mutated")
+	}
+}

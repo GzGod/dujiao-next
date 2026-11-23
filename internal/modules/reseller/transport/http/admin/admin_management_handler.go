@@ -63,10 +63,11 @@ type profileReasonRequest struct {
 }
 
 type profileUpdateRequest struct {
-	DefaultMarkupPercent string `json:"default_markup_percent"`
-	MaxMarkupPercent     string `json:"max_markup_percent"`
-	SettlementStatus     string `json:"settlement_status"`
-	Reason               string `json:"reason"`
+	SupplyPricing        *resellerdomain.SupplyPricing `json:"supply_pricing"`
+	DefaultMarkupPercent string                        `json:"default_markup_percent"`
+	MaxMarkupPercent     string                        `json:"max_markup_percent"`
+	SettlementStatus     string                        `json:"settlement_status"`
+	Reason               string                        `json:"reason"`
 }
 
 type systemDomainRequest struct {
@@ -193,6 +194,7 @@ func (h *AdminManagementHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	row, err := h.management.UpdateProfileOperationalConfig(adminID, id, resellermodule.ResellerProfileUpdateInput{
+		SupplyPricing:        req.SupplyPricing,
 		DefaultMarkupPercent: defaultMarkup,
 		MaxMarkupPercent:     maxMarkup,
 		SettlementStatus:     req.SettlementStatus,
@@ -203,6 +205,7 @@ func (h *AdminManagementHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	h.recordAudit(c, "reseller_profile_update", "/admin/resellers/profiles/:id", gin.H{
+		"supply_pricing":         row.SupplyPricing,
 		"profile_id":             id,
 		"reseller_id":            id,
 		"default_markup_percent": row.DefaultMarkupPercent.String(),

@@ -15,6 +15,7 @@ type AdminResellerProfileUserResp struct {
 }
 
 type AdminResellerProfileResp struct {
+	SupplyPricing        *resellerdomain.SupplyPricing `json:"supply_pricing"`
 	ID                   uint                          `json:"id"`
 	UserID               uint                          `json:"user_id"`
 	Status               string                        `json:"status"`
@@ -59,6 +60,7 @@ func NewAdminResellerProfileResp(profile *resellerdomain.Profile) *AdminReseller
 		return nil
 	}
 	resp := &AdminResellerProfileResp{
+		SupplyPricing:        profile.SupplyPricing,
 		ID:                   profile.ID,
 		UserID:               profile.UserID,
 		Status:               profile.Status,
