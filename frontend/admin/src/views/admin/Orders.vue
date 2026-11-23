@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { manualFulfillmentTargets } from '@/utils/manualFulfillment'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute } from 'vue-router'
@@ -185,14 +186,13 @@ const markCompleted = async (order: AdminOrder) => {
   fetchOrders(pagination.value.page)
 }
 
-const canCreateFulfillment = (order: AdminOrder | null) => {
-  if (!order) return false
-  if (order.fulfillment) return false
-  if (order.parent_id == null && Array.isArray(order.children) && order.children.length > 0) return false
-  if (Array.isArray(order.items) && order.items.length > 0 && !order.items.every((item: AdminOrderItem) => item.fulfillment_type === 'manual')) {
-    return false
+const openManualDelivery = (order: AdminOrder) => {
+  const targets = manualFulfillmentTargets(order)
+  if (targets.length === 1) {
+    openFulfillment(targets[0]!, targets[0]!.id === order.id ? undefined : order.id)
+  } else {
+    openDetail(order)
   }
-  return order.status === 'paid' || order.status === 'fulfilling'
 }
 
 const openDetail = (order: AdminOrder) => {
@@ -461,8 +461,8 @@ watch(
                 <Button v-if="canUpdateStatus(order)" size="xs" variant="outline" @click="updateStatus(order)">
                   {{ t('admin.orders.update') }}
                 </Button>
-                <Button v-if="canCreateFulfillment(order)" size="xs" variant="secondary" @click="openFulfillment(order)">
-                  {{ t('admin.orders.fulfillmentCreate') }}
+                <Button v-if="manualFulfillmentTargets(order).length" size="xs" variant="secondary" @click="openManualDelivery(order)">
+                  {{ t('admin.orders.manualDeliveryAction') }}
                 </Button>
                 <Button v-if="order.status === 'delivered'" size="xs" variant="outline" @click="markCompleted(order)">
                   {{ t('admin.orders.markCompleted') }}

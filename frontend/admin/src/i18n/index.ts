@@ -995,6 +995,10 @@ const messages = {
         fulfillmentTruncatedHint: '当前仅显示前 100 条预览，请下载获取完整交付内容',
         detailPayments: '支付记录',
         fulfillmentCreate: '交付录入',
+        manualDeliveryAction: '人工发货 / 标记交付',
+        tgDeliveryConfirm: '确认已通过 TG 完成账号交付',
+        tgDeliveryHint: '仅在实际交付完成后勾选。提交后订单将标记为已发货，客户可见交付记录。',
+        tgDeliveryRecord: '账号已通过 Telegram 客服交付；如需帮助，请联系 https://t.me/xuegaozhanshen 并提供订单号。',
         fulfillmentModalTitle: '交付录入',
         fulfillmentType: '交付类型',
         fulfillmentTypes: {
@@ -5579,6 +5583,10 @@ const messages = {
         fulfillmentTruncatedHint: '當前僅顯示前 100 條預覽，請下載獲取完整交付內容',
         detailPayments: '支付紀錄',
         fulfillmentCreate: '交付錄入',
+        manualDeliveryAction: '人工發貨 / 標記交付',
+        tgDeliveryConfirm: '確認已透過 TG 完成帳號交付',
+        tgDeliveryHint: '僅在實際交付完成後勾選。提交後訂單將標記為已發貨，客戶可見交付記錄。',
+        tgDeliveryRecord: '帳號已透過 Telegram 客服交付；如需協助，請聯絡 https://t.me/xuegaozhanshen 並提供訂單號。',
         fulfillmentModalTitle: '交付錄入',
         fulfillmentType: '交付類型',
         fulfillmentTypes: {
@@ -10163,6 +10171,10 @@ const messages = {
         fulfillmentTruncatedHint: 'Showing first 100 items only. Please download for full content.',
         detailPayments: 'Payments',
         fulfillmentCreate: 'Create Fulfillment',
+        manualDeliveryAction: 'Manual delivery / Mark delivered',
+        tgDeliveryConfirm: 'Confirm account delivery via TG is complete',
+        tgDeliveryHint: 'Select only after actual delivery. Submitting marks the order as delivered and creates a customer-visible delivery record.',
+        tgDeliveryRecord: 'Account delivered via Telegram support. For help, contact https://t.me/xuegaozhanshen with your order number.',
         fulfillmentModalTitle: 'Fulfillment',
         fulfillmentType: 'Type',
         fulfillmentTypes: {

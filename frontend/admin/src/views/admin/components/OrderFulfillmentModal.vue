@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { AdminOrder } from '@/api/types'
@@ -24,6 +24,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const deliveredViaTG = ref(false)
+const isClaude = computed(() => selectedOrder.value?.items?.some((item) => /claude/i.test(JSON.stringify(item.title))) || false)
 const detailLoading = ref(false)
 const detailError = ref('')
 const selectedOrder = ref<AdminOrder | null>(null)
@@ -46,7 +48,7 @@ const removeDeliveryEntry = (index: number) => {
 }
 
 const buildDeliveryDataPayload = () => {
-  const note = String(fulfillmentForm.note || '').trim()
+  const note = deliveredViaTG.value ? t('admin.orders.tgDeliveryRecord') : String(fulfillmentForm.note || '').trim()
   const entries = fulfillmentForm.entries
     .map((item) => ({
       key: String(item.key || '').trim(),
@@ -70,6 +72,7 @@ const hasFulfillmentSubmitData = () => {
 }
 
 const resetFulfillmentForm = () => {
+  deliveredViaTG.value = false
   fulfillmentForm.note = ''
   fulfillmentForm.entries = [createEmptyDeliveryEntry()]
   fulfillmentError.value = ''
@@ -175,6 +178,10 @@ watch(
           </div>
 
           <form class="space-y-4" @submit.prevent="submitFulfillment">
+            <label v-if="isClaude" class="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+              <input v-model="deliveredViaTG" type="checkbox" class="mt-1" />
+              <span><strong>{{ t('admin.orders.tgDeliveryConfirm') }}</strong><span class="mt-1 block text-muted-foreground">{{ t('admin.orders.tgDeliveryHint') }}</span></span>
+            </label>
             <div>
               <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.orders.fulfillmentNote') }}</label>
               <Textarea

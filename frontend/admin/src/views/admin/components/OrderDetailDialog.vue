@@ -1039,7 +1039,7 @@ watch(
                       {{ statusLabel(child.status) }}
                     </span>
                     <Button v-if="canCreateChildFulfillment(child)" size="sm" variant="secondary" class="w-full sm:w-auto" @click="handleOpenFulfillment(child, selectedOrder.id)">
-                      {{ t('admin.orders.fulfillmentCreate') }}
+                      {{ t('admin.orders.manualDeliveryAction') }}
                     </Button>
                   </div>
                 </div>
