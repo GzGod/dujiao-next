@@ -253,6 +253,7 @@ export interface ResellerLocalizedText {
 }
 
 export interface ResellerSiteConfigPayload {
+    theme?: { template: string; primary_color: string }
     site_name: string
     logo?: string
     favicon?: string

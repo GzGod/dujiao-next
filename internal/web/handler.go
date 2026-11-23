@@ -162,6 +162,11 @@ func RegisterAdmin(r *gin.Engine, prefix string, fsys fs.FS) error {
 // 由于 NoRoute 在所有显式路由（API、uploads、health、admin）之后才匹配，
 // 这里不需要做路径前缀剥离；命中真实文件返回文件，否则 fallback 到 index.html。
 func RegisterUser(r *gin.Engine, fsys fs.FS, renderers ...PageRenderer) error {
+	return RegisterUserWithFrontend(r, fsys, nil, renderers...)
+}
+
+// RegisterUserWithFrontend lets tenant-owned static bundles override storefront assets.
+func RegisterUserWithFrontend(r *gin.Engine, fsys fs.FS, frontend func(*gin.Context) bool, renderers ...PageRenderer) error {
 	var renderer PageRenderer
 	if len(renderers) > 0 {
 		renderer = renderers[0]
@@ -189,6 +194,9 @@ func RegisterUser(r *gin.Engine, fsys fs.FS, renderers ...PageRenderer) error {
 			return
 		}
 
+		if frontend != nil && frontend(c) {
+			return
+		}
 		fp := strings.TrimPrefix(c.Request.URL.Path, "/")
 		if fp == "" || fp == "index.html" {
 			serveUserIndex(c, indexCached, renderer)

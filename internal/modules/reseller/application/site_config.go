@@ -15,11 +15,23 @@ import (
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 
+	"archive/zip"
+	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"errors"
 	"github.com/dujiao-next/internal/cache"
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/shared/contactlink"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/mailbrand"
+	"io"
+	"mime"
+	"path"
+	"time"
+	"unicode/utf8"
 )
 
 type LocalizedTextInput map[string]string
@@ -55,7 +67,13 @@ type ResellerNavConfigInput struct {
 	CustomItems []ResellerFooterLinkInput `json:"custom_items"`
 }
 
+type ResellerThemeInput struct {
+	Template     string `json:"template"`
+	PrimaryColor string `json:"primary_color"`
+}
+
 type ResellerSiteConfigInput struct {
+	Theme        *ResellerThemeInput       `json:"theme"`
 	SiteName     string                    `json:"site_name"`
 	Logo         string                    `json:"logo"`
 	Favicon      string                    `json:"favicon"`
@@ -262,6 +280,22 @@ func (s *SiteConfigService) buildModel(resellerID uint, input ResellerSiteConfig
 	if err != nil {
 		return nil, err
 	}
+	theme := jsonmap.JSON{}
+	if input.Theme != nil {
+		var err error
+		theme, err = normalizeResellerTheme(*input.Theme)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		existing, err := s.repo.GetSiteConfigByResellerID(resellerID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			theme = existing.ThemeJSON
+		}
+	}
 	return &resellerdomain.SiteConfig{
 		ResellerID:       resellerID,
 		SiteName:         trimLimit(input.SiteName, 120),
@@ -272,7 +306,7 @@ func (s *SiteConfigService) buildModel(resellerID uint, input ResellerSiteConfig
 		SEOJSON:          seo,
 		FooterLinksJSON:  footerLinks,
 		NavConfigJSON:    navConfig,
-		ThemeJSON:        jsonmap.JSON{},
+		ThemeJSON:        theme,
 	}, nil
 }
 
@@ -474,6 +508,17 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 	if cfg == nil {
 		return
 	}
+	if cfg.ThemeJSON != nil {
+		// Only allowlisted values reach the browser, including legacy DB rows.
+		template, _ := cfg.ThemeJSON["template"].(string)
+		color, _ := cfg.ThemeJSON["primary_color"].(string)
+		if theme, err := normalizeResellerTheme(ResellerThemeInput{Template: template, PrimaryColor: color}); err == nil {
+			if template != "" && template != "inherit" {
+				out["storefront_template"] = template
+			}
+			out["reseller_theme"] = theme
+		}
+	}
 	brand, _ := out["brand"].(map[string]interface{})
 	if brand == nil {
 		brand = map[string]interface{}{}
@@ -560,4 +605,359 @@ func announcementVersion(annType string, title, content map[string]interface{}) 
 		}
 	}
 	return fmt.Sprintf("%08x", hasher.Sum32())
+}
+
+const FrontendMaxZIP = 10 << 20
+
+var ErrFrontendInvalid = errors.New("frontend archive invalid")
+var ErrFrontendStale = errors.New("frontend draft changed")
+var frontendExtensions = map[string]bool{".html": true, ".js": true, ".mjs": true, ".css": true, ".json": true, ".svg": true, ".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".avif": true, ".ico": true, ".woff": true, ".woff2": true, ".ttf": true, ".otf": true, ".txt": true, ".webmanifest": true}
+
+type FrontendService struct {
+	repo resellercontract.FrontendStore
+}
+
+func NewFrontendService(repo resellercontract.FrontendStore) *FrontendService {
+	return &FrontendService{repo: repo}
+}
+
+type FrontendStatus struct {
+	DraftHash     string    `json:"draft_hash"`
+	PublishedHash string    `json:"published_hash"`
+	DraftSize     int       `json:"draft_size"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	PreviewToken  string    `json:"preview_token,omitempty"`
+}
+
+func (s *FrontendService) requireUser(user uint) (*resellerdomain.Profile, error) {
+	p, err := s.repo.GetProfileByUserID(user)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, resellercontract.ErrNotOpened
+	}
+	if p.Status != resellerdomain.ProfileStatusActive {
+		return nil, resellercontract.ErrProfileInactive
+	}
+	return p, nil
+}
+func frontendDigest(b []byte) string { d := sha256.Sum256(b); return hex.EncodeToString(d[:]) }
+func ValidateFrontendArchive(raw []byte) (*zip.Reader, error) {
+	if len(raw) == 0 || len(raw) > FrontendMaxZIP {
+		return nil, ErrFrontendInvalid
+	}
+	z, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil || len(z.File) > 1000 {
+		return nil, ErrFrontendInvalid
+	}
+	var total uint64
+	seen := map[string]bool{}
+	hasIndex := false
+	for _, f := range z.File {
+		n := f.Name
+		if !utf8.ValidString(n) || strings.ContainsAny(n, "\\\x00") || strings.HasPrefix(n, "/") || path.Clean(n) != strings.TrimSuffix(n, "/") || (!f.Mode().IsRegular() && !f.FileInfo().IsDir()) {
+			return nil, ErrFrontendInvalid
+		}
+		for _, part := range strings.Split(strings.TrimSuffix(n, "/"), "/") {
+			if part == "" || strings.HasPrefix(part, ".") {
+				return nil, ErrFrontendInvalid
+			}
+		}
+		top := strings.Split(n, "/")[0]
+		if top == "api" || top == "uploads" || top == "health" || top == "__frontend_preview" {
+			return nil, ErrFrontendInvalid
+		}
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		if seen[n] || !frontendExtensions[strings.ToLower(path.Ext(n))] || f.UncompressedSize64 > 5<<20 {
+			return nil, ErrFrontendInvalid
+		}
+		seen[n] = true
+		total += f.UncompressedSize64
+		if total > 25<<20 {
+			return nil, ErrFrontendInvalid
+		}
+		reader, err := f.Open()
+		if err != nil {
+			return nil, ErrFrontendInvalid
+		}
+		b, err := io.ReadAll(io.LimitReader(reader, int64(5<<20)+1))
+		reader.Close()
+		if err != nil || len(b) > 5<<20 {
+			return nil, ErrFrontendInvalid
+		}
+		if n == "index.html" {
+			hasIndex = true
+			if !utf8.Valid(b) || !bytes.Contains(bytes.ToLower(b), []byte("<html")) {
+				return nil, ErrFrontendInvalid
+			}
+		}
+	}
+	if !hasIndex {
+		return nil, ErrFrontendInvalid
+	}
+	return z, nil
+}
+func statusFrontend(row *resellerdomain.FrontendBundle) *FrontendStatus {
+	if row == nil {
+		return &FrontendStatus{}
+	}
+	return &FrontendStatus{DraftHash: row.DraftHash, PublishedHash: row.PublishedHash, DraftSize: len(row.Draft), UpdatedAt: row.UpdatedAt}
+}
+func (s *FrontendService) Status(user uint) (*FrontendStatus, error) {
+	p, e := s.requireUser(user)
+	if e != nil {
+		return nil, e
+	}
+	r, e := s.repo.GetFrontend(p.ID)
+	return statusFrontend(r), e
+}
+func (s *FrontendService) Upload(user uint, raw []byte) (*FrontendStatus, error) {
+	p, e := s.requireUser(user)
+	if e != nil {
+		return nil, e
+	}
+	if _, e = ValidateFrontendArchive(raw); e != nil {
+		return nil, e
+	}
+	token := make([]byte, 24)
+	if _, e = rand.Read(token); e != nil {
+		return nil, e
+	}
+	key := hex.EncodeToString(token)
+	e = s.repo.PutFrontendDraft(p.ID, raw, frontendDigest(raw), frontendDigest([]byte(key)), time.Now().Add(time.Hour))
+	if e != nil {
+		return nil, e
+	}
+	row, e := s.repo.GetFrontend(p.ID)
+	out := statusFrontend(row)
+	out.PreviewToken = key
+	return out, e
+}
+func (s *FrontendService) PreviewToken(user uint) (*FrontendStatus, error) {
+	p, e := s.requireUser(user)
+	if e != nil {
+		return nil, e
+	}
+	if e = s.requireFrontendDomain(p.ID); e != nil {
+		return nil, e
+	}
+	row, e := s.repo.GetFrontend(p.ID)
+	if e != nil {
+		return nil, e
+	}
+	if row == nil || len(row.Draft) == 0 {
+		return nil, ErrFrontendInvalid
+	}
+	token := make([]byte, 24)
+	if _, e = rand.Read(token); e != nil {
+		return nil, e
+	}
+	key := hex.EncodeToString(token)
+	ok, e := s.repo.RotateFrontendPreview(p.ID, row.DraftHash, frontendDigest([]byte(key)), time.Now().Add(time.Hour))
+	if e != nil {
+		return nil, e
+	}
+	if !ok {
+		return nil, ErrFrontendStale
+	}
+	out := statusFrontend(row)
+	out.PreviewToken = key
+	return out, nil
+}
+func (s *FrontendService) Publish(user uint, expected string) error {
+	p, e := s.requireUser(user)
+	if e != nil {
+		return e
+	}
+	if e = s.requireFrontendDomain(p.ID); e != nil {
+		return e
+	}
+	ok, e := s.repo.PublishFrontend(p.ID, expected)
+	if e != nil {
+		return e
+	}
+	if !ok {
+		return ErrFrontendStale
+	}
+	return nil
+}
+func (s *FrontendService) Disable(user uint) error {
+	p, e := s.requireUser(user)
+	if e != nil {
+		return e
+	}
+	return s.repo.DisableFrontend(p.ID)
+}
+
+type FrontendAsset struct {
+	Data        []byte
+	ContentType string
+	Preview     bool
+}
+
+func (s *FrontendService) Asset(tenant resellercontract.TenantContext, requestPath, token string) (*FrontendAsset, error) {
+	if !tenant.IsReseller() {
+		return nil, nil
+	}
+	p, e := s.repo.GetProfileByID(*tenant.ResellerID)
+	if e != nil {
+		return nil, e
+	}
+	if p == nil || p.Status != resellerdomain.ProfileStatusActive {
+		return nil, nil
+	}
+	row, e := s.repo.GetFrontend(p.ID)
+	if e != nil || row == nil {
+		return nil, e
+	}
+	raw := row.Published
+	preview := token != ""
+	if preview {
+		if time.Now().After(row.PreviewExpiresAt) || subtle.ConstantTimeCompare([]byte(row.PreviewHash), []byte(frontendDigest([]byte(token)))) != 1 {
+			return nil, ErrFrontendInvalid
+		}
+		raw = row.Draft
+	}
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	z, e := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	if e != nil {
+		return nil, e
+	}
+	name := strings.TrimPrefix(requestPath, "/")
+	if name == "" {
+		name = "index.html"
+	}
+	if path.Clean(name) != name || strings.ContainsAny(name, "\\\x00") {
+		return nil, ErrFrontendInvalid
+	}
+	var selected *zip.File
+	for _, f := range z.File {
+		if f.Name == name {
+			selected = f
+			break
+		}
+	}
+	if selected == nil && path.Ext(name) == "" {
+		for _, f := range z.File {
+			if f.Name == "index.html" {
+				selected = f
+				break
+			}
+		}
+	}
+	if selected == nil {
+		return &FrontendAsset{}, nil
+	}
+	reader, e := selected.Open()
+	if e != nil {
+		return nil, e
+	}
+	defer reader.Close()
+	data, e := io.ReadAll(io.LimitReader(reader, 5<<20+1))
+	if e != nil {
+		return nil, e
+	}
+	ext := strings.ToLower(path.Ext(selected.Name))
+	contentType := mime.TypeByExtension(ext)
+	if ext == ".js" || ext == ".mjs" {
+		contentType = "text/javascript; charset=utf-8"
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if preview && (ext == ".html" || ext == ".js" || ext == ".mjs" || ext == ".css" || ext == ".json") {
+		prefix := "/__frontend_preview/" + token + "/"
+		dirs := map[string]bool{}
+		for _, f := range z.File {
+			top := strings.Split(f.Name, "/")[0]
+			dirs[top] = true
+		}
+		text := string(data)
+		for top := range dirs {
+			for _, quote := range []string{"\"", "'", "`", "("} {
+				text = strings.ReplaceAll(text, quote+"/"+top, quote+prefix+top)
+			}
+		}
+		if ext == ".html" {
+			text = strings.Replace(text, "<head>", "<head><base href=\""+prefix+"\">", 1)
+		}
+		data = []byte(text)
+	}
+	return &FrontendAsset{Data: data, ContentType: contentType, Preview: preview}, nil
+}
+
+func normalizeResellerTheme(input ResellerThemeInput) (jsonmap.JSON, error) {
+	template := strings.TrimSpace(input.Template)
+	switch template {
+	case "", "inherit", "xgai", "classic", "vault":
+	default:
+		return nil, newResellerFieldError("theme")
+	}
+	color := strings.TrimSpace(input.PrimaryColor)
+	if color != "" {
+		if len(color) != 7 || color[0] != '#' {
+			return nil, newResellerFieldError("theme")
+		}
+		if _, err := hex.DecodeString(color[1:]); err != nil {
+			return nil, newResellerFieldError("theme")
+		}
+	}
+	return jsonmap.JSON{"template": template, "primary_color": strings.ToLower(color)}, nil
+}
+
+func (s *FrontendService) requireFrontendDomain(resellerID uint) error {
+	domains, err := s.repo.ListDomainsByResellerID(resellerID)
+	if err != nil {
+		return err
+	}
+	for _, d := range domains {
+		if d.Status == resellerdomain.DomainStatusActive && d.VerificationStatus == resellerdomain.DomainVerificationVerified {
+			return nil
+		}
+	}
+	return ErrFrontendInvalid
+}
+
+// RedemptionSite returns only public branding for an active, verified reseller domain.
+// Read directly from storage: disabling a site must revoke redemption access immediately.
+func (s *SiteConfigService) RedemptionSite(host string) (map[string]interface{}, error) {
+	if host == "" || host != resellercontract.NormalizeHost(host) || strings.ContainsAny(host, "/:@?#\\ ") {
+		return nil, nil
+	}
+	lookup, ok := s.repo.(resellercontract.DomainLookupRepository)
+	if !ok {
+		return nil, nil
+	}
+	row, err := lookup.FindActiveVerifiedDomain(host)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil || row.Profile == nil || row.Profile.Status != resellerdomain.ProfileStatusActive {
+		return nil, nil
+	}
+	cfg, err := s.repo.GetSiteConfigByResellerID(row.ResellerID)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]interface{}{"enabled": true, "origin": "https://" + host, "site_name": "雪糕 AI", "logo": "", "favicon": "", "primary_color": "", "telegram": ""}
+	if cfg != nil {
+		out["site_name"] = cfg.SiteName
+		out["logo"] = cfg.Logo
+		out["favicon"] = cfg.Favicon
+		if theme, err := normalizeResellerTheme(ResellerThemeInput{PrimaryColor: resellerThemeColor(cfg.ThemeJSON)}); err == nil {
+			out["primary_color"] = theme["primary_color"]
+		}
+		out["telegram"], _ = cfg.SupportJSON["telegram"].(string)
+	}
+	return out, nil
+}
+
+func resellerThemeColor(theme map[string]interface{}) string {
+	value, _ := theme["primary_color"].(string)
+	return value
 }

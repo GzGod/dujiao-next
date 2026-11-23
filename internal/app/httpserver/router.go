@@ -290,7 +290,21 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 		if err := web.RegisterAdmin(r, cfg.Web.AdminPath, web.AdminFS()); err != nil {
 			log.Sugar().Fatalf("注册 admin SPA 失败: %v", err)
 		}
-		if err := web.RegisterUser(r, web.UserFS(), storefrontseo.New(publicConfigHandler.GetConfig, publicCatalogHandler.GetProducts, publicCatalogHandler.GetProductBySlug, publicContentHandler.GetPostBySlug, publicCategoryHandler.List, publicContentHandler.GetPosts)); err != nil {
+		if err := web.RegisterUserWithFrontend(r, web.UserFS(), func(ctx *gin.Context) bool {
+			if c.ResellerDomainResolver == nil {
+				return false
+			}
+			tenant, err := c.ResellerDomainResolver.ResolveRequest(ctx.Request.Context(), ctx.Request)
+			if err != nil {
+				ctx.Status(503)
+				return true
+			}
+			if tenant.Unavailable {
+				ctx.Status(404)
+				return true
+			}
+			return userResellerHandler.TryServeFrontend(ctx, tenant)
+		}, storefrontseo.New(publicConfigHandler.GetConfig, publicCatalogHandler.GetProducts, publicCatalogHandler.GetProductBySlug, publicContentHandler.GetPostBySlug, publicCategoryHandler.List, publicContentHandler.GetPosts)); err != nil {
 			log.Sugar().Fatalf("注册 user SPA 失败: %v", err)
 		}
 	}

@@ -127,3 +127,15 @@ type ProductSettingStore interface {
 	ListAdminSettings(filter ProductSettingAdminListFilter) ([]resellerdomain.ProductSetting, int64, error)
 	SummarizeByResellerID(resellerID uint) (ProductSettingSummary, error)
 }
+
+// FrontendStore keeps static release data separate from public site settings.
+type FrontendStore interface {
+	ListDomainsByResellerID(uint) ([]resellerdomain.Domain, error)
+	GetProfileByUserID(uint) (*resellerdomain.Profile, error)
+	GetProfileByID(uint) (*resellerdomain.Profile, error)
+	GetFrontend(uint) (*resellerdomain.FrontendBundle, error)
+	PutFrontendDraft(uint, []byte, string, string, time.Time) error
+	RotateFrontendPreview(uint, string, string, time.Time) (bool, error)
+	PublishFrontend(uint, string) (bool, error)
+	DisableFrontend(uint) error
+}

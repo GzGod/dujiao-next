@@ -82,7 +82,7 @@
           <ResellerImageField
             v-model="form.favicon"
             :label="t('personalCenter.reseller.siteConfig.fields.favicon')"
-            :hint="t('personalCenter.reseller.siteConfig.uploadHint')"
+            :hint="t('personalCenter.reseller.siteConfig.faviconHint')"
           />
         </div>
       </section>

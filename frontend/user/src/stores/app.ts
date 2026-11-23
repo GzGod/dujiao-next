@@ -21,9 +21,14 @@ export const useAppStore = defineStore('app', () => {
     const siteIconHref = computed(() => {
         const siteIcon = String(config.value?.brand?.site_icon || '').trim()
         if (siteIcon) return getImageUrl(siteIcon)
-        // 主站未配置 site_icon 时用内置图标；分销子站保持原兜底，避免串用主站品牌。
-        return isResellerTenant.value ? '/dj.svg' : '/favicon.svg'
+        // 未设置独立图标时，主站和分站统一使用雪糕 AI 品牌图标。
+        return '/favicon.svg'
     })
+    const redemptionUrl = (pathname = '/') => {
+        const url = new URL(pathname, 'https://redeem.xuegaogx.cc')
+        if (isResellerTenant.value && config.value?.tenant?.host) url.searchParams.set('site', config.value.tenant.host)
+        return url.href
+    }
     const canAccessResellerConsole = computed(() => !!config.value && !isResellerTenant.value)
 
     // 设置语言：同时驱动 vue-i18n（内部按需加载语言包）
@@ -119,6 +124,7 @@ export const useAppStore = defineStore('app', () => {
         loading,
         serverTimeOffset,
         isResellerTenant,
+        redemptionUrl,
         canAccessResellerConsole,
         setLocale,
         loadConfig,

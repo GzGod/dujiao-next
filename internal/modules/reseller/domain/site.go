@@ -47,3 +47,18 @@ type SiteConfig struct {
 }
 
 func (SiteConfig) TableName() string { return "reseller_site_configs" }
+
+// FrontendBundle stores bounded static release archives in the durable database.
+// Draft uploads never overwrite the currently published frontend.
+type FrontendBundle struct {
+	ResellerID       uint      `gorm:"primaryKey" json:"reseller_id"`
+	Draft            []byte    `json:"-"`
+	DraftHash        string    `gorm:"size:64" json:"draft_hash"`
+	Published        []byte    `json:"-"`
+	PublishedHash    string    `gorm:"size:64" json:"published_hash"`
+	PreviewHash      string    `gorm:"size:64" json:"-"`
+	PreviewExpiresAt time.Time `json:"preview_expires_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+func (FrontendBundle) TableName() string { return "reseller_frontend_bundles" }

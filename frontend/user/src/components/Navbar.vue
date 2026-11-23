@@ -252,7 +252,7 @@ const brandSiteName = computed(() => {
 const { theme } = useTheme()
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
+  return raw ? getImageUrl(raw) : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
 })
 
 const toggleMobileMenu = () => {

@@ -10,6 +10,7 @@ import (
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // UpsertSiteConfig 创建或恢复分销站点配置。
@@ -109,4 +110,28 @@ func (r *Store) ListSiteConfigs(filter resellercontract.SiteConfigListFilter) ([
 		return nil, 0, err
 	}
 	return rows, total, nil
+}
+
+func (r *Store) GetFrontend(id uint) (*resellerdomain.FrontendBundle, error) {
+	var row resellerdomain.FrontendBundle
+	err := r.db.First(&row, "reseller_id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &row, err
+}
+func (r *Store) PutFrontendDraft(id uint, archive []byte, hash, preview string, expires time.Time) error {
+	row := resellerdomain.FrontendBundle{ResellerID: id, Draft: archive, DraftHash: hash, PreviewHash: preview, PreviewExpiresAt: expires, UpdatedAt: time.Now()}
+	return r.db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "reseller_id"}}, DoUpdates: clause.AssignmentColumns([]string{"draft", "draft_hash", "preview_hash", "preview_expires_at", "updated_at"})}).Create(&row).Error
+}
+func (r *Store) PublishFrontend(id uint, expected string) (bool, error) {
+	result := r.db.Model(&resellerdomain.FrontendBundle{}).Where("reseller_id = ? AND draft_hash = ? AND draft_hash <> ''", id, expected).Updates(map[string]interface{}{"published": gorm.Expr("draft"), "published_hash": gorm.Expr("draft_hash"), "updated_at": time.Now()})
+	return result.RowsAffected == 1, result.Error
+}
+func (r *Store) DisableFrontend(id uint) error {
+	return r.db.Model(&resellerdomain.FrontendBundle{}).Where("reseller_id = ?", id).Updates(map[string]interface{}{"published": nil, "published_hash": "", "updated_at": time.Now()}).Error
+}
+func (r *Store) RotateFrontendPreview(id uint, expected, hash string, expires time.Time) (bool, error) {
+	result := r.db.Model(&resellerdomain.FrontendBundle{}).Where("reseller_id = ? AND draft_hash = ?", id, expected).Updates(map[string]interface{}{"preview_hash": hash, "preview_expires_at": expires})
+	return result.RowsAffected == 1, result.Error
 }

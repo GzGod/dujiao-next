@@ -91,7 +91,6 @@
         <div class="space-y-1 text-center md:text-left">
           <p>&copy; {{ currentYear }} {{ brandSiteName }}. {{ t('footer.rights') }}</p>
           <p class="flex items-center justify-center gap-1 md:justify-start">
-            <details><summary>GPL-3.0</summary><a href="https://github.com/dujiao-next" target="_blank" rel="noopener noreferrer">Dujiao-Next · GPL-3.0</a></details>
           </p>
         </div>
         <div class="flex flex-col items-center gap-2 md:items-end">
@@ -150,7 +149,7 @@ const brandInitial = computed(() => {
 const { theme } = useTheme()
 const brandLogo = computed(() => {
   const raw = String(config.value?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
+  return raw ? getImageUrl(raw) : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
 })
 
 const isListMode = computed(() => config.value?.template_mode === 'list')

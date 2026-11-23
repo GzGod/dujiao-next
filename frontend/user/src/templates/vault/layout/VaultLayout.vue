@@ -126,7 +126,6 @@
       <div class="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-3.5 border-t px-6 pb-[30px] pt-[18px] text-[13.5px] text-muted-foreground">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span>© {{ year }} {{ brandName }}</span>
-          <details><summary>GPL-3.0</summary><a href="https://github.com/dujiao-next" target="_blank" rel="noopener noreferrer">Dujiao-Next · GPL-3.0</a></details>
         </div>
         <span>简体中文 · 繁體 · English</span>
       </div>
@@ -176,7 +175,7 @@ const year = new Date().getFullYear()
 const brandName = computed(() => String(appStore.config?.brand?.site_name || '').trim() || '雪糕 AI')
 const brandLogo = computed(() => {
   const raw = String(appStore.config?.brand?.site_logo || '').trim()
-  return raw ? getImageUrl(raw) : appStore.isResellerTenant ? '' : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
+  return raw ? getImageUrl(raw) : (theme.value === 'dark' ? '/brand/xuegaoai-horizontal-dark-0333e3dc29.svg' : '/brand/xuegaoai-horizontal-04f33b87fb.svg')
 })
 const brandDescription = computed(() => {
   const desc = appStore.config?.brand?.site_description

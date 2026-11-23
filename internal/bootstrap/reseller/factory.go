@@ -2,6 +2,7 @@ package resellerbootstrap
 
 import (
 	"github.com/dujiao-next/internal/app/container"
+	resellerapp "github.com/dujiao-next/internal/modules/reseller/application"
 	adminhttp "github.com/dujiao-next/internal/modules/reseller/transport/http/admin"
 	userhttp "github.com/dujiao-next/internal/modules/reseller/transport/http/user"
 )
@@ -20,12 +21,14 @@ type Handlers struct {
 }
 
 func New(c *container.Container) Handlers {
+	user := userhttp.NewUserHandler(
+		c.ResellerManagementService,
+		c.ResellerSiteConfigService,
+		c.UploadService,
+	)
+	user.SetFrontendService(resellerapp.NewFrontendService(c.ResellerStore))
 	return Handlers{
-		User: userhttp.NewUserHandler(
-			c.ResellerManagementService,
-			c.ResellerSiteConfigService,
-			c.UploadService,
-		),
+		User:               user,
 		UserProductSetting: userhttp.NewUserProductSettingHandler(c.ResellerProductSettingService),
 		UserFinance: userhttp.NewUserFinanceHandler(
 			c.ResellerAccountingQuery,

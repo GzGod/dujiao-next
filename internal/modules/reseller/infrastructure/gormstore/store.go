@@ -26,6 +26,7 @@ func Migrate(db *gorm.DB) error {
 		&resellerdomain.Profile{},
 		&resellerdomain.Domain{},
 		&resellerdomain.SiteConfig{},
+		&resellerdomain.FrontendBundle{},
 		&resellerdomain.ProductSetting{},
 		&resellerdomain.OrderSnapshot{},
 		&resellerdomain.LedgerEntry{},

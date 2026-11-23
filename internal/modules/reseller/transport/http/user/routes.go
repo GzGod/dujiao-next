@@ -15,6 +15,11 @@ func RegisterUserConsoleRoutes(console gin.IRoutes, handler *UserHandler) {
 	console.GET("/site-config", handler.GetSiteConfig)
 	console.PUT("/site-config", handler.UpdateSiteConfig)
 	console.POST("/upload", handler.UploadImage)
+	console.GET("/frontend", handler.FrontendStatus)
+	console.POST("/frontend", handler.UploadFrontend)
+	console.POST("/frontend/preview", handler.PreviewFrontend)
+	console.POST("/frontend/publish", handler.PublishFrontend)
+	console.DELETE("/frontend", handler.DisableFrontend)
 }
 
 // RegisterUserProductSettingRoutes 注册用户中心分销商品配置路由。

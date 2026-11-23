@@ -75,6 +75,7 @@ func registerStorefrontRoutes(
 	public := storefront.Group("/public")
 	{
 		publicconfigtransport.RegisterPublicRoutes(public, publicConfigHandler)
+		public.GET("/reseller-redemption", userResellerHandler.RedemptionSite)
 		producthttp.RegisterPublicRoutes(public, publicCatalogHandler)
 		categoryhttp.RegisterPublicRoutes(public, publicCategoryHandler)
 		contenttransport.RegisterPublicRoutes(public, publicContentHandler)

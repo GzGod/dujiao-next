@@ -101,6 +101,7 @@ type ResellerSiteConfigResp struct {
 	Support      jsonmap.JSON  `json:"support"`
 	SEO          jsonmap.JSON  `json:"seo"`
 	FooterLinks  []interface{} `json:"footer_links"`
+	Theme        jsonmap.JSON  `json:"theme"`
 	NavConfig    jsonmap.JSON  `json:"nav_config"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 }
@@ -135,6 +136,7 @@ type AdminResellerSiteConfigResp struct {
 	Support      jsonmap.JSON                      `json:"support"`
 	SEO          jsonmap.JSON                      `json:"seo"`
 	FooterLinks  []interface{}                     `json:"footer_links"`
+	Theme        jsonmap.JSON                      `json:"theme"`
 	NavConfig    jsonmap.JSON                      `json:"nav_config"`
 	Profile      *ResellerSiteConfigProfileRefResp `json:"profile,omitempty"`
 	CreatedAt    time.Time                         `json:"created_at"`
@@ -307,6 +309,7 @@ func NewResellerSiteConfigResp(row *resellerdomain.SiteConfig) *ResellerSiteConf
 		Support:      row.SupportJSON,
 		SEO:          row.SEOJSON,
 		FooterLinks:  resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
+		Theme:        row.ThemeJSON,
 		NavConfig:    row.NavConfigJSON,
 		UpdatedAt:    row.UpdatedAt,
 	}
@@ -367,6 +370,7 @@ func NewAdminResellerSiteConfigResp(row *resellerdomain.SiteConfig) AdminReselle
 		Support:      row.SupportJSON,
 		SEO:          row.SEOJSON,
 		FooterLinks:  resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
+		Theme:        row.ThemeJSON,
 		NavConfig:    row.NavConfigJSON,
 		Profile:      profile,
 		CreatedAt:    row.CreatedAt,

@@ -71,6 +71,12 @@ const XgaiLayout = defineAsyncComponent(() => import('./templates/xgai/layout/Xg
 
 // config 由 router.beforeEach 统一加载，无需在此重复调用
 const appStore = useAppStore()
+useHead({style:()=>{
+ const color=appStore.isResellerTenant ? appStore.config?.reseller_theme?.primary_color : ''
+ if(typeof color!=='string'||!/^#[\da-f]{6}$/i.test(color))return []
+ return [{key:'reseller-brand-color',innerHTML:`:root,:root.dark{--brand-600:${color};--brand-700:color-mix(in srgb,${color} 85%,black);--brand-50:color-mix(in srgb,${color} 8%,transparent);--primary:${color};--ui-accent:${color};--ui-accent-hover:color-mix(in srgb,${color} 85%,black)}html .xgai-scope,html body.xgai-tokens,html.dark .xgai-scope,html.dark body.xgai-tokens{--x-blue:${color};--x-blue-strong:color-mix(in srgb,${color} 85%,black);--x-blue-soft:color-mix(in srgb,${color} 8%,transparent);--x-blue-tint:color-mix(in srgb,${color} 10%,white);--x-dark-accent:${color};--ui-accent:${color};--ui-accent-hover:color-mix(in srgb,${color} 85%,black)}`}]
+}})
+
 const route = useRoute()
 useHead({ script: () => {
   const brand = appStore.config?.brand

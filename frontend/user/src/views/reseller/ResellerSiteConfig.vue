@@ -72,6 +72,7 @@
       </div>
     </Card>
 
+    <ResellerFrontendPanel :domain-url="primaryDomainUrl" />
     <ResellerSiteConfigPanel :embedded="true" />
   </div>
 </template>
@@ -86,6 +87,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import ResellerSectionHeader from '../../components/reseller-console/ResellerSectionHeader.vue'
 import ResellerStatusBadge from '../../components/reseller-console/ResellerStatusBadge.vue'
+import ResellerFrontendPanel from '../../components/reseller/ResellerFrontendPanel.vue'
 import ResellerSiteConfigPanel from '../../components/reseller/ResellerSiteConfigPanel.vue'
 import { useResellerProfile } from '../../composables/reseller/useResellerProfile'
 import {

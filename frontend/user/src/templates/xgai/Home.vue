@@ -208,11 +208,11 @@
             <div><b>Claude</b><p>{{ t('xgai.process.claudeDelivery') }}</p></div>
           </div>
           <div v-if="index === 2" class="xflow__step-links">
-            <a href="https://redeem.xuegaogx.cc/" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.startRedeem') }} ↗</a>
+            <a :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.startRedeem') }} ↗</a>
             <a href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.support') }} ↗</a>
           </div>
           <div v-if="index === 3" class="xflow__step-links">
-            <a href="https://redeem.xuegaogx.cc/progress" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.progress') }} ↗</a>
+            <a :href="appStore.redemptionUrl('/progress')" target="_blank" rel="noopener noreferrer">{{ t('xgai.process.progress') }} ↗</a>
           </div>
         </article>
       </div>

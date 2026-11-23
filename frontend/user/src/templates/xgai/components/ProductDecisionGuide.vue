@@ -8,13 +8,15 @@
     <nav class="xdecision__actions" :aria-label="labels.delivery">
       <template v-if="guide.kind === 'gpt'">
         <a href="/guides/redeem">{{ labels.guide }} ↗</a>
-        <a href="https://redeem.xuegaogx.cc/" target="_blank" rel="noopener noreferrer">{{ labels.redeem }} ↗</a>
+        <a :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer">{{ labels.redeem }} ↗</a>
       </template>
       <a href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer">{{ labels.support }} ↗</a>
     </nav>
   </section>
 </template>
 <script setup lang="ts">
+import { useAppStore } from '../../../stores/app'
+const appStore = useAppStore()
 import type { ProductGuide } from '../../../utils/productGuide'
 defineProps<{ guide: ProductGuide; labels: Record<string, string> }>()
 </script>

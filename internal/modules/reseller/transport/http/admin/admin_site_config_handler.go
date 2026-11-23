@@ -42,6 +42,7 @@ func NewAdminSiteConfigHandler(siteConfig AdminSiteConfigService, directory Site
 }
 
 type adminSiteConfigRequest struct {
+	Theme        *resellermodule.ResellerThemeInput       `json:"theme"`
 	SiteName     string                                   `json:"site_name"`
 	Logo         string                                   `json:"logo"`
 	Favicon      string                                   `json:"favicon"`
@@ -54,6 +55,7 @@ type adminSiteConfigRequest struct {
 
 func (req adminSiteConfigRequest) toInput() resellermodule.ResellerSiteConfigInput {
 	return resellermodule.ResellerSiteConfigInput{
+		Theme:        req.Theme,
 		SiteName:     req.SiteName,
 		Logo:         req.Logo,
 		Favicon:      req.Favicon,

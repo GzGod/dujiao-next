@@ -10,6 +10,11 @@ import type {
 } from './types'
 
 export const resellerAPI = {
+    frontendStatus: () => userApi.get('/reseller/frontend'),
+    uploadFrontend: (data: FormData) => userApi.post('/reseller/frontend', data),
+    previewFrontend: () => userApi.post('/reseller/frontend/preview', {}),
+    publishFrontend: (draft_hash: string) => userApi.post('/reseller/frontend/publish', {draft_hash}),
+    disableFrontend: () => userApi.delete('/reseller/frontend'),
     managementProfile: () => userApi.get('/reseller/profile'),
     apply: (data: ResellerApplyPayload) => userApi.post('/reseller/apply', data),
     domains: () => userApi.get('/reseller/domains'),
