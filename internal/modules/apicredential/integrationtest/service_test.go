@@ -211,3 +211,56 @@ func TestApiCredentialServiceApplyBlocksApprovedAndDisabled(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentProvisioningPreservesKeysAndExplicitRevocation(t *testing.T) {
+	svc, repo, db := setupApiCredentialServiceTest(t)
+	conn, _ := db.DB()
+	conn.SetMaxOpenConns(1)
+	eligible := false
+	svc.AgentEligible = func(uint) (bool, error) { return eligible, nil }
+	cred, err := svc.GetByUserID(9100)
+	if err != nil || cred != nil {
+		t.Fatal("ordinary user received credentials")
+	}
+	eligible = true
+	cred, err = svc.GetByUserID(9100)
+	if err != nil || cred == nil || !cred.IsActive || cred.Status != constants.ApiCredentialStatusApproved || cred.ApiSecret == "" {
+		t.Fatal("agent was not provisioned", err)
+	}
+	key, secret := cred.ApiKey, cred.ApiSecret
+	if err = svc.EnsureAgentAccess(9100); err != nil {
+		t.Fatal(err)
+	}
+	cred, _ = repo.GetByUserID(9100)
+	if cred.ApiKey != key || cred.ApiSecret != secret {
+		t.Fatal("existing credential rotated")
+	}
+	if err = svc.SetActive(cred.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	cred, err = svc.GetByUserID(9100)
+	if err != nil || cred.IsActive {
+		t.Fatal("explicit suspension was bypassed")
+	}
+	pending, err := svc.Apply(9101)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = svc.EnsureAgentAccess(9101); err != nil {
+		t.Fatal(err)
+	}
+	pending, _ = repo.GetByID(pending.ID)
+	if pending.Status != constants.ApiCredentialStatusApproved {
+		t.Fatal("pending agent still requires manual review")
+	}
+	if err = svc.Reject(pending.ID, "blocked"); err != nil {
+		t.Fatal(err)
+	}
+	if err = svc.EnsureAgentAccess(9101); err != nil {
+		t.Fatal(err)
+	}
+	pending, _ = repo.GetByID(pending.ID)
+	if pending.Status != constants.ApiCredentialStatusRejected {
+		t.Fatal("rejection was bypassed")
+	}
+}

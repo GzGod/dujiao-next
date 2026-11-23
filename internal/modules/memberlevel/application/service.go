@@ -10,9 +10,10 @@ import (
 
 // Service 会员等级服务
 type Service struct {
-	levelRepo memberlevelcontract.LevelRepository
-	priceRepo memberlevelcontract.PriceRepository
-	userRepo  memberlevelcontract.UserRepository
+	EnsureAgentAPI func(uint) error
+	levelRepo      memberlevelcontract.LevelRepository
+	priceRepo      memberlevelcontract.PriceRepository
+	userRepo       memberlevelcontract.UserRepository
 }
 
 // NewService 创建会员等级服务
@@ -366,7 +367,13 @@ func (s *Service) SetUserLevel(userID, levelID uint) error {
 		}
 	}
 	user.MemberLevelID = levelID
-	return s.userRepo.Update(user)
+	if err := s.userRepo.Update(user); err != nil {
+		return err
+	}
+	if s.EnsureAgentAPI != nil {
+		return s.EnsureAgentAPI(userID)
+	}
+	return nil
 }
 
 // BackfillDefaultLevel 为所有未分配等级的老用户批量分配默认等级，返回影响行数

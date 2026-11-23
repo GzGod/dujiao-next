@@ -3,6 +3,7 @@ package application
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"sync"
 	"time"
 
 	"github.com/dujiao-next/internal/constants"
@@ -12,7 +13,9 @@ import (
 
 // Service API 凭证服务
 type Service struct {
-	credRepo apicredentialcontract.Repository
+	provisionMu   sync.Mutex
+	AgentEligible func(uint) (bool, error)
+	credRepo      apicredentialcontract.Repository
 }
 
 // NewService 创建凭证服务
@@ -210,6 +213,11 @@ func (s *Service) RegenerateByUserID(userID uint) (string, error) {
 
 // GetByUserID 获取用户的凭证
 func (s *Service) GetByUserID(userID uint) (*apicredentialdomain.ApiCredential, error) {
+	if s.AgentEligible != nil {
+		if err := s.EnsureAgentAccess(userID); err != nil {
+			return nil, err
+		}
+	}
 	return s.credRepo.GetByUserID(userID)
 }
 
@@ -234,4 +242,33 @@ func generateRandomHex(byteLen int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// EnsureAgentAccess provisions only approved agent levels. Explicit revocation
+// and existing credentials are preserved; reading a key never rotates it.
+func (s *Service) EnsureAgentAccess(userID uint) error {
+	if s.AgentEligible == nil {
+		return nil
+	}
+	s.provisionMu.Lock()
+	defer s.provisionMu.Unlock()
+	eligible, err := s.AgentEligible(userID)
+	if err != nil || !eligible {
+		return err
+	}
+	cred, err := s.credRepo.GetAnyByUserID(userID)
+	if err != nil {
+		return err
+	}
+	if cred != nil && (cred.DeletedAt != nil || cred.Status != constants.ApiCredentialStatusPendingReview) {
+		return nil
+	}
+	if cred == nil {
+		cred, err = s.Apply(userID)
+		if err != nil {
+			return err
+		}
+	}
+	_, _, err = s.Approve(cred.ID)
+	return err
 }

@@ -58,6 +58,21 @@ func (c *Container) initIntegrationServices() {
 		notificationfeishu.New(),
 	)
 	c.ApiCredentialService = apicredentialapp.NewService(c.ApiCredentialRepo)
+	c.ApiCredentialService.AgentEligible = func(userID uint) (bool, error) {
+		user, err := c.MemberLevelUserRepo.GetByID(userID)
+		if err != nil || user == nil {
+			return false, err
+		}
+		if user.Status != "active" || user.MemberLevelID == 0 {
+			return false, nil
+		}
+		level, err := c.MemberLevelService.GetByID(user.MemberLevelID)
+		if err != nil || level == nil {
+			return false, err
+		}
+		return level.IsActive && level.RequiresApproval, nil
+	}
+	c.MemberLevelService.EnsureAgentAPI = c.ApiCredentialService.EnsureAgentAccess
 	c.SiteConnectionService = siteconnectionapp.NewService(c.SiteConnectionRepo, c.Config.App.SecretKey, "uploads")
 	mediaCore := contentapp.NewMediaService(
 		contentgormstore.NewMediaStore(gormdb.DB),

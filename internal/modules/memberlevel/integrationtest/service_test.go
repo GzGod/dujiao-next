@@ -367,3 +367,35 @@ func TestResolveMemberPriceUsesLevelCostMarkup(t *testing.T) {
 		t.Fatalf("product override should win, got %s", got)
 	}
 }
+
+func TestSetUserLevelProvisionsAPIOnlyAfterPersistingAssignment(t *testing.T) {
+	svc, db := newMemberLevelServiceForTest(t)
+	conn, _ := db.DB()
+	conn.SetMaxOpenConns(1)
+	level := createMemberLevelFixture(t, db, "agent-test", 100, "0", false)
+	user := createUserFixture(t, db, "agent-provision@example.test", 0)
+	calls := 0
+	svc.EnsureAgentAPI = func(id uint) error {
+		calls++
+		var saved userdomain.User
+		if err := db.First(&saved, id).Error; err != nil {
+			return err
+		}
+		if saved.MemberLevelID != level.ID {
+			t.Fatal("API hook ran before level was saved")
+		}
+		return nil
+	}
+	if err := svc.SetUserLevel(user.ID, 99999); err == nil {
+		t.Fatal("invalid level accepted")
+	}
+	if calls != 0 {
+		t.Fatal("invalid assignment provisioned API")
+	}
+	if err := svc.SetUserLevel(user.ID, level.ID); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatal("assignment did not provision API")
+	}
+}
