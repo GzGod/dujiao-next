@@ -44,6 +44,7 @@
 
     <Loading :loading="appStore.loading" />
     <Toast />
+    <FloatingSupport v-if="shellReady" />
     <ConfirmDialog />
   </div>
 </template>
@@ -58,6 +59,7 @@ import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 import Loading from './components/Loading.vue'
 import Toast from './components/Toast.vue'
+import FloatingSupport from './components/FloatingSupport.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import BackToTop from './components/BackToTop.vue'

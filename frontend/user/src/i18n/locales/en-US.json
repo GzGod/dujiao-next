@@ -2253,5 +2253,9 @@
     "prompt": "Need help using or redeeming your purchase? Contact our support team.",
     "contact": "Contact support",
     "dismiss": "Got it"
+  },
+  "floatingSupport": {
+    "title": "Get help",
+    "label": "Contact Telegram support (opens a new tab)"
   }
 }

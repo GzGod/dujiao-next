@@ -2253,5 +2253,9 @@
     "prompt": "不会使用或核销？联系客服，我们帮你处理。",
     "contact": "联系客服",
     "dismiss": "我知道了"
+  },
+  "floatingSupport": {
+    "title": "联系客服",
+    "label": "联系 Telegram 客服（新窗口打开）"
   }
 }

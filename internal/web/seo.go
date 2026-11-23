@@ -42,6 +42,17 @@ func renderPage(index []byte, page *Page) []byte {
 	meta = strings.NewReplacer("<meta ", "<meta data-seo-bootstrap ", "<link ", "<link data-seo-bootstrap ", "<script ", "<script data-seo-bootstrap ").Replace(meta)
 	body = bytes.Replace(body, []byte("</head>"), []byte(meta+"</head>"), 1)
 	body = bytes.Replace(body, []byte(`<div id="app"></div>`), []byte(`<div id="app">`+page.Content+`</div>`), 1)
+	if page.Standalone && strings.HasPrefix(page.Canonical, "https://xuegaogx.cc/") {
+		label := "联系客服"
+		if page.Language == "zh-TW" {
+			label = "聯絡客服"
+		}
+		if page.Language == "en-US" {
+			label = "Get help"
+		}
+		floating := `<a href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer" style="position:fixed;right:16px;bottom:130px;z-index:45;background:#1768d8;color:white;padding:14px 18px;border-radius:16px;box-shadow:0 8px 28px #0041a040;font:600 14px/1.4 system-ui;text-decoration:none">` + label + `<small style="display:block;font-size:11px">Telegram ↗</small></a>`
+		body = bytes.Replace(body, []byte("</body>"), []byte(floating+"</body>"), 1)
+	}
 	if page.Standalone {
 		body = moduleScript.ReplaceAll(body, nil)
 	}
