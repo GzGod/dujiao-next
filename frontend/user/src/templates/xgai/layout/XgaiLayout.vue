@@ -27,9 +27,7 @@
         </nav>
 
         <div class="xh__actions">
-          <button type="button" class="xh__icon" :aria-label="t(theme === 'dark' ? 'xgai.theme.light' : 'xgai.theme.dark')" @click="toggleTheme">
-            <Sun v-if="theme === 'dark'" /><Moon v-else />
-          </button>
+          <ThemeSwitch />
           <div ref="langEl" class="xh__lang">
             <button type="button" class="xh__icon" :aria-label="t('navbar.selectLanguage')" @click="langOpen = !langOpen">
               <Languages />
@@ -108,8 +106,9 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { ArrowRight, Languages, ShoppingBag, Sun, Moon } from 'lucide-vue-next'
+import { ArrowRight, Languages, ShoppingBag } from 'lucide-vue-next'
 import { useAppStore } from '../../../stores/app'
+import ThemeSwitch from '../../../components/ThemeSwitch.vue'
 import { useTheme } from '../../../utils/theme'
 import { useCartStore } from '../../../stores/cart'
 import { useUserAuthStore } from '../../../stores/userAuth'
@@ -122,7 +121,7 @@ import '../styles/xgai-layout.css'
 import '../styles/xgai-checkout.css'
 
 const { t } = useI18n()
-const { theme, toggleTheme } = useTheme()
+const { theme } = useTheme()
 const route = useRoute()
 const appStore = useAppStore()
 const cartStore = useCartStore()
