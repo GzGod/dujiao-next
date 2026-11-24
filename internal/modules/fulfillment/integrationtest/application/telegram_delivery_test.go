@@ -155,7 +155,7 @@ func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	if err := svc.NotifyAdminOrders(ctx, false); err != nil {
 		t.Fatal(err)
 	}
-	if sender.message.ChatID != "5760638358" || !strings.Contains(sender.message.Text, order.OrderNo) || len(sender.message.Buttons) != 1 {
+	if sender.message.ChatID != "5760638358" || !strings.Contains(sender.message.Text, order.OrderNo) || len(sender.message.Buttons) != 2 {
 		t.Fatal("notification not exclusively to admin")
 	}
 	calls := sender.calls
@@ -177,6 +177,23 @@ func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	action := fmt.Sprintf("deliver:%d", order.ID)
 	if err := svc.AdminAction(ctx, "43", action, ""); err == nil {
 		t.Fatal("forwarded admin button accepted")
+	}
+	if err := svc.AdminAction(ctx, "5760638358", action, ""); err != nil {
+		t.Fatal(err)
+	}
+	preparation, _ := fs.GetAdminSession("5760638358")
+	if len(sender.message.Buttons) != 1 || sender.message.Buttons[0].Callback != "cancel:"+preparation.Nonce {
+		t.Fatal("preparation missing cancellation button")
+	}
+	if err := svc.AdminAction(ctx, "5760638358", "cancel:"+preparation.Nonce, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.AdminAction(ctx, "5760638358", "", "do not deliver cancelled content"); err != nil {
+		t.Fatal(err)
+	}
+	cancelled, _ := fs.GetAdminSession("5760638358")
+	if cancelled.Stage != "consumed" {
+		t.Fatal("cancelled session accepted draft")
 	}
 	if err := svc.AdminAction(ctx, "5760638358", action, ""); err != nil {
 		t.Fatal(err)
@@ -400,5 +417,74 @@ func TestInFlightTelegramSendBlocksConcurrentRefundAndSecondDelivery(t *testing.
 	loaded, _ := os.GetByID(leaf.ID)
 	if loaded.Status != constants.OrderStatusDelivered {
 		t.Fatal("original delivery not finalized")
+	}
+}
+
+func TestAdminMarkDeliveredAndCancelPreparation(t *testing.T) {
+	for _, scenario := range []string{"mark", "cancel", "refunded", "reserved"} {
+		t.Run(scenario, func(t *testing.T) {
+			db := setupFulfillmentServiceTestDB(t)
+			if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}); err != nil {
+				t.Fatal(err)
+			}
+			sql, _ := db.DB()
+			sql.SetMaxOpenConns(1)
+			order := &orderdomain.Order{OrderNo: "MARK-" + scenario, Status: constants.OrderStatusPaid, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "Claude"}}}}
+			if err := db.Create(order).Error; err != nil {
+				t.Fatal(err)
+			}
+			fs := store.New(db)
+			os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+			sender := &deliverySender{}
+			svc := &app.TelegramDeliveryService{Store: fs, Sender: sender, Fulfillment: app.New(app.Options{OrderStore: os, FulfillmentStore: fs}), BotUsername: "fixture_bot", TokenSecret: strings.Repeat("s", 32), AdminChatID: "5760638358", AuthorizeAdmin: func() (uint, error) { return 7, nil }}
+			ctx := context.Background()
+			action := fmt.Sprintf("markdelivered:%d", order.ID)
+			if err := svc.AdminAction(ctx, "42", action, ""); err == nil || sender.calls != 0 {
+				t.Fatal("non-admin accepted")
+			}
+			if err := svc.AdminAction(ctx, "5760638358", action, ""); err != nil {
+				t.Fatal(err)
+			}
+			session, _ := fs.GetAdminSession("5760638358")
+			if session.Stage != "mark_delivered" {
+				t.Fatal("missing confirmation")
+			}
+			loaded, _ := os.GetByID(order.ID)
+			if loaded.Status != constants.OrderStatusPaid {
+				t.Fatal("marked before confirmation")
+			}
+			if scenario == "cancel" {
+				_ = svc.AdminAction(ctx, "5760638358", "cancel:"+session.Nonce, "")
+			} else if scenario == "refunded" {
+				if err := os.UpdateStatus(order.ID, constants.OrderStatusRefunded, nil); err != nil {
+					t.Fatal(err)
+				}
+			} else if scenario == "reserved" {
+				if err := db.Create(&domain.TelegramDelivery{OrderID: order.ID, State: "bound", ChatID: "42", TokenHash: "fixture"}).Error; err != nil {
+					t.Fatal(err)
+				}
+				if ok, err := fs.ReserveTelegramDelivery(order.ID, 7, "pending-hash"); err != nil || !ok {
+					t.Fatalf("reserve: %v", err)
+				}
+			}
+			_ = svc.AdminAction(ctx, "5760638358", "markconfirm:"+session.Nonce, "")
+			_ = svc.AdminAction(ctx, "5760638358", "markconfirm:"+session.Nonce, "")
+			loaded, _ = os.GetByID(order.ID)
+			if (loaded.Status == constants.OrderStatusDelivered) != (scenario == "mark") {
+				t.Fatalf("unexpected status: %s", loaded.Status)
+			}
+			for _, message := range sender.messages {
+				if message.ChatID != "5760638358" {
+					t.Fatal("sent delivery content to customer")
+				}
+			}
+			if scenario == "mark" {
+				var count int64
+				db.Model(&domain.Fulfillment{}).Where("order_id = ?", order.ID).Count(&count)
+				if count != 1 {
+					t.Fatalf("duplicate fulfillment: %d", count)
+				}
+			}
+		})
 	}
 }

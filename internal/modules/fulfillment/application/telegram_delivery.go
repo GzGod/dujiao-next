@@ -276,6 +276,25 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 	if data == "" && text == "/orders" {
 		return s.NotifyAdminOrders(ctx, true)
 	}
+	if strings.HasPrefix(data, "markdelivered:") {
+		id, err := strconv.ParseUint(strings.TrimPrefix(data, "markdelivered:"), 10, 64)
+		if err != nil || id == 0 {
+			return ErrFulfillmentInvalid
+		}
+		order, err := s.Fulfillment.orderStore.GetByID(uint(id))
+		if err != nil || !manualPaid(order) || len(order.Children) > 0 {
+			return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_2"))
+		}
+		nonce := newDeliveryNonce()
+		if nonce == "" {
+			return ErrTelegramDeliveryUnavailable
+		}
+		session := &domain.TelegramAdminSession{ChatID: chat, OrderID: order.ID, AdminID: admin, Nonce: nonce, Stage: "mark_delivered", ExpiresAt: time.Now().Add(15 * time.Minute)}
+		if err := s.Store.SaveAdminSession(session); err != nil {
+			return err
+		}
+		return s.adminReply(ctx, chat, fmt.Sprintf(i18n.T("zh-CN", "telegram.mark_confirm"), order.OrderNo), contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: "markconfirm:" + nonce}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.cancel_prepare"), Callback: "cancel:" + nonce})
+	}
 	if strings.HasPrefix(data, "deliver:") {
 		id64, err := strconv.ParseUint(strings.TrimPrefix(data, "deliver:"), 10, 64)
 		if err != nil {
@@ -305,7 +324,7 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 		if err := s.Store.SaveAdminSession(session); err != nil {
 			return err
 		}
-		return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_4")+order.OrderNo+i18n.T("zh-CN", "telegram.admin_5")+binding.Username+" · "+binding.ChatID+i18n.T("zh-CN", "telegram.admin_6"))
+		return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_4")+order.OrderNo+i18n.T("zh-CN", "telegram.admin_5")+binding.Username+" · "+binding.ChatID+i18n.T("zh-CN", "telegram.admin_6"), contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.cancel_prepare"), Callback: "cancel:" + nonce})
 	}
 	session, err := s.Store.GetAdminSession(chat)
 	if err != nil || session == nil || session.AdminID != admin || time.Now().After(session.ExpiresAt) {
@@ -320,6 +339,24 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 			return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_8"))
 		}
 		return nil
+	}
+	if session.Stage == "mark_delivered" && data == "markconfirm:"+session.Nonce {
+		ok, err := s.Store.ConsumeAdminSession(chat, session.Nonce, "mark_delivered")
+		if err != nil || !ok {
+			return ErrTelegramDeliveryUnavailable
+		}
+		order, err := s.Fulfillment.orderStore.GetByID(session.OrderID)
+		if err != nil || !manualPaid(order) || len(order.Children) > 0 {
+			return ErrOrderStatusInvalid
+		}
+		_, err = s.Fulfillment.CreateManual(CreateManualInput{OrderID: order.ID, AdminID: admin, Payload: i18n.T(order.GuestLocale, "telegram.mark_record")})
+		if err != nil {
+			return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.mark_failed"))
+		}
+		if order.ParentID != nil {
+			_, _ = orderapp.SyncParentStatus(s.Fulfillment.orderStore, *order.ParentID, time.Now())
+		}
+		return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_10"))
 	}
 	if session.Stage == "review" && (data == "received:"+session.Nonce || data == "unsent:"+session.Nonce) {
 		ok, err := s.Store.ConsumeAdminSession(chat, session.Nonce, "review")
@@ -474,7 +511,7 @@ func (s *TelegramDeliveryService) NotifyAdminOrders(ctx context.Context, force b
 			status = i18n.T("zh-CN", "telegram.admin_17") + binding.Username + " · " + binding.ChatID
 		}
 		text := i18n.T("zh-CN", "telegram.admin_18") + order.OrderNo + i18n.T("zh-CN", "telegram.admin_19") + strings.Join(titles, " / ") + i18n.T("zh-CN", "telegram.admin_20") + order.TotalAmount.String() + " " + order.Currency + "\n" + status
-		if err := s.adminReply(ctx, s.AdminChatID, text, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", id)}); err != nil {
+		if err := s.adminReply(ctx, s.AdminChatID, text, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", id)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", id)}); err != nil {
 			return err
 		}
 	}
