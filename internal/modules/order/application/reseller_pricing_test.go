@@ -685,3 +685,38 @@ func TestSupplyPriceMatchesDisplayOrderProfitAndImmutableSnapshot(t *testing.T) 
 		t.Fatal("main-site retail was mutated")
 	}
 }
+
+func TestAdminBlockedProductCannotBeDisplayedOrOrderedByReseller(t *testing.T) {
+	profile := testResellerProfile()
+	profile.SupplyPricing = &resellerdomain.SupplyPricing{BlockedProductIDs: []uint{1}}
+	repo := &resellerPricingRepoStub{profile: profile, settings: []resellerdomain.ProductSetting{{ResellerID: profile.ID, ProductID: 1, IsListed: true, PricingMode: "inherit"}}}
+	resolver := NewResellerPricingResolver(repo)
+	result := testOrderBuildResult(struct {
+		productID uint
+		skuID     uint
+		base      decimal.Decimal
+		cost      decimal.Decimal
+		quantity  int
+	}{1, 11, decimal.NewFromInt(100), decimal.NewFromInt(50), 1})
+	if _, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result); !errors.Is(err, ErrResellerProductNotListed) {
+		t.Fatalf("direct order bypassed block: %v", err)
+	}
+	product := *result.Plans[0].Product
+	product.SKUs = []productdomain.ProductSKU{*result.Plans[0].SKU}
+	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), []productdomain.Product{product})
+	if err != nil {
+		t.Fatal(err)
+	}
+	display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &product, batch)
+	if err != nil || display.Visible {
+		t.Fatalf("blocked product displayed: %+v %v", display, err)
+	}
+	// The same catalogue item remains purchasable at the main site.
+	if _, err := resolver.ApplyToOrderBuildResult(resellercontract.MainTenantContext("main.example.test"), 123, result); err != nil {
+		t.Fatalf("main site affected: %v", err)
+	}
+	profile.SupplyPricing = nil
+	if _, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result); err != nil {
+		t.Fatalf("restored product cannot be ordered: %v", err)
+	}
+}

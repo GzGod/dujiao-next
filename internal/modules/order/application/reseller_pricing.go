@@ -69,6 +69,9 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 		if plan == nil || plan.Product == nil || plan.SKU == nil {
 			return nil, ErrProductSKUInvalid
 		}
+		if !profile.CanSupplyProduct(plan.Product.ID) {
+			return nil, ErrResellerProductNotListed
+		}
 		productSetting := settingsByProduct[plan.Product.ID]
 		skuSetting := settingsBySKU[resellercontract.SettingKey{ProductID: plan.Product.ID, SKUID: plan.SKU.ID}]
 		if productSetting != nil && !productSetting.IsListed {
@@ -188,6 +191,9 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 	}
 	if product == nil || batch == nil || batch.Profile == nil {
 		return nil, ErrResellerProductNotListed
+	}
+	if !batch.Profile.CanSupplyProduct(product.ID) {
+		return &resellercontract.DisplayPriceResult{Visible: false, ProductID: product.ID}, nil
 	}
 	productSettings, skuSettings := buildSettingIndexes(batch.SettingsByProduct[product.ID])
 	productSetting := productSettings[product.ID]

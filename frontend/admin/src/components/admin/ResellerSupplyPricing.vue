@@ -5,6 +5,7 @@ import { adminAPI } from '@/api/admin'
 import type { AdminResellerProfile, ResellerSupplyPricing } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getLocalizedText } from '@/utils/format'
@@ -17,6 +18,11 @@ const saving = ref(false)
 const loaded = ref(false)
 const products = ref<any[]>([])
 const search = ref('')
+const blockedProductIDs = ref<number[]>([...(props.profile.supply_pricing?.blocked_product_ids || [])])
+const canSell = (id: number) => !blockedProductIDs.value.includes(id)
+const setCanSell = (id: number, enabled: boolean) => {
+ blockedProductIDs.value = enabled ? blockedProductIDs.value.filter(value => value !== id) : [...new Set([...blockedProductIDs.value, id])]
+}
 const catalogRows = computed(() => products.value.flatMap(p => (p.skus?.length ? p.skus : [{ id: 0, sku_code: '', price_amount: p.price_amount, cost_price_amount: p.cost_price_amount }]).map((sku: any) => ({ product: p, sku }))).filter(row => `${title(row.product)} ${row.sku.sku_code}`.toLowerCase().includes(search.value.toLowerCase())))
 const fixedRule = (productId: number, skuId: number) => rules.value.find(r => r.product_id === productId && r.sku_id === skuId && r.mode === 'fixed')
 const setFixedPrice = (productId: number, skuId: number, value: string | number) => {
@@ -47,7 +53,7 @@ const save = async () => {
    default_markup_percent: props.profile.default_markup_percent,
    max_markup_percent: props.profile.max_markup_percent,
    settlement_status: props.profile.settlement_status,
-   supply_pricing: { default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
+   supply_pricing: { blocked_product_ids: blockedProductIDs.value, default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
   })
   notifySuccess(t(`${key}.saved`)); emit('saved')
  } catch (e: any) { notifyError(e?.message || t(`${key}.failed`)) }
@@ -91,14 +97,15 @@ const changeProduct = async (rule: ResellerSupplyPricing['overrides'][number], v
   <Input v-model="search" :placeholder="t(`${key}.search`)" :aria-label="t(`${key}.search`)" />
   <div class="overflow-auto rounded-lg border border-border max-h-[560px]">
    <table class="w-full text-sm">
-    <thead class="sticky top-0 bg-card"><tr class="border-b border-border"><th class="p-3 text-left">{{ t(`${key}.product`) }}</th><th class="p-3 text-left">{{ t(`${key}.sku`) }}</th><th class="p-3 text-right">{{ t(`${key}.retail`) }}</th><th class="p-3 text-right">{{ t(`${key}.cost`) }}</th><th class="p-3 text-left min-w-[200px]">{{ t(`${key}.fixed`) }}</th></tr></thead>
+    <thead class="sticky top-0 bg-card"><tr class="border-b border-border"><th class="p-3 text-left">{{ t(`${key}.product`) }}</th><th class="p-3 text-left">{{ t(`${key}.sku`) }}</th><th class="p-3 text-left min-w-[150px]">{{ t(`${key}.availability`) }}</th><th class="p-3 text-right">{{ t(`${key}.retail`) }}</th><th class="p-3 text-right">{{ t(`${key}.cost`) }}</th><th class="p-3 text-left min-w-[200px]">{{ t(`${key}.fixed`) }}</th></tr></thead>
     <tbody><tr v-for="row in catalogRows" :key="`${row.product.id}-${row.sku.id}`" class="border-b border-border last:border-0">
-     <td class="p-3">{{ title(row.product) }}</td><td class="p-3">{{ row.sku.sku_code || t(`${key}.allSkus`) }}</td><td class="p-3 text-right font-mono">{{ row.sku.price_amount }}</td><td class="p-3 text-right font-mono">{{ row.sku.cost_price_amount }}</td>
+     <td class="p-3">{{ title(row.product) }}</td><td class="p-3">{{ row.sku.sku_code || t(`${key}.allSkus`) }}</td><td class="p-3"><div class="flex items-center gap-2"><Switch :model-value="canSell(row.product.id)" :aria-label="`${title(row.product)} ${t(`${key}.availability`)}`" @update:model-value="value => setCanSell(row.product.id, Boolean(value))" /><span :class="canSell(row.product.id) ? 'text-foreground' : 'text-destructive'">{{ t(`${key}.${canSell(row.product.id) ? 'allowed' : 'blocked'}`) }}</span></div></td><td class="p-3 text-right font-mono">{{ row.sku.price_amount }}</td><td class="p-3 text-right font-mono">{{ row.sku.cost_price_amount }}</td>
      <td class="p-3"><Input type="number" min="0.01" step="0.01" :aria-label="`${title(row.product)} ${row.sku.sku_code} ${t(`${key}.fixed`)}`" :model-value="fixedRule(row.product.id, row.sku.id)?.value ?? ''" :placeholder="t(`${key}.tableInherit`)" @update:model-value="value => setFixedPrice(row.product.id, row.sku.id, value)" /></td>
-    </tr><tr v-if="loaded && !catalogRows.length"><td colspan="5" class="p-4 text-muted-foreground">{{ t(`${key}.empty`) }}</td></tr></tbody>
+    </tr><tr v-if="loaded && !catalogRows.length"><td colspan="6" class="p-4 text-muted-foreground">{{ t(`${key}.empty`) }}</td></tr></tbody>
    </table>
   </div>
   <p class="text-xs text-muted-foreground">{{ t(`${key}.tableHint`) }}</p>
+  <p class="text-xs text-muted-foreground">{{ t(`${key}.availabilityHint`) }}</p>
   <details><summary class="cursor-pointer text-sm font-medium">{{ t(`${key}.advanced`) }}</summary>
   <div v-for="(rule, index) in rules" :key="index" class="rounded-lg border border-border p-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
    <div class="space-y-2"><Label>{{ t(`${key}.product`) }}</Label><Select :model-value="String(rule.product_id)" @update:model-value="value => changeProduct(rule, value)"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="p in products" :key="p.id" :value="String(p.id)">{{ title(p) }}</SelectItem></SelectContent></Select></div>

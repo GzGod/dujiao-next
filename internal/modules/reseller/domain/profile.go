@@ -11,6 +11,7 @@ import (
 // SupplyPricing is controlled exclusively by the main-site administrator.
 // Nil DefaultMarkupPercent preserves the legacy main-site retail base.
 type SupplyPricing struct {
+	BlockedProductIDs    []uint            `json:"blocked_product_ids,omitempty"`
 	DefaultMarkupPercent *string           `json:"default_markup_percent"`
 	Overrides            []SupplyPriceRule `json:"overrides"`
 }
@@ -42,3 +43,17 @@ type Profile struct {
 }
 
 func (Profile) TableName() string { return "reseller_profiles" }
+
+// CanSupplyProduct is a main-site permission, independent of reseller-managed
+// listing preferences. Missing configuration preserves existing catalogue access.
+func (p *Profile) CanSupplyProduct(productID uint) bool {
+	if p == nil || p.SupplyPricing == nil {
+		return true
+	}
+	for _, id := range p.SupplyPricing.BlockedProductIDs {
+		if id == productID {
+			return false
+		}
+	}
+	return true
+}

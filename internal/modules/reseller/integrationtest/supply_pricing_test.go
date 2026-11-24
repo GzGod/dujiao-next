@@ -95,3 +95,50 @@ func TestSupplyPricingRejectsInvalidOrBelowCostOverrides(t *testing.T) {
 		t.Fatal("cost increase must block loss")
 	}
 }
+
+func TestAdminProductBlockPersistsAndCannotBeOverriddenByReseller(t *testing.T) {
+	db := openResellerProductSettingServiceTestDB(t)
+	user, profile, product, _ := seedResellerProductSettingServiceData(t, db)
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
+	repository := store.New(db)
+	management := app.NewManagementService(repository, config.ResellerConfig{})
+	input := app.ResellerProfileUpdateInput{DefaultMarkupPercent: profile.DefaultMarkupPercent.Decimal, MaxMarkupPercent: profile.MaxMarkupPercent.Decimal, SupplyPricing: &domain.SupplyPricing{BlockedProductIDs: []uint{product.ID}}}
+	if _, err := management.UpdateProfileOperationalConfig(1, profile.ID, input); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repository.GetProfileByID(profile.ID)
+	if err != nil || loaded.CanSupplyProduct(product.ID) {
+		t.Fatalf("block not persisted: %v", err)
+	}
+	service := newResellerProductSettingServiceForTest(db)
+	if _, err := service.GetUserProductSetting(user.ID, product.ID); err == nil {
+		t.Fatal("reseller can access blocked product")
+	}
+	if _, err := service.SaveUserProductSettings(user.ID, product.ID, app.ProductSettingSaveInput{Settings: []app.ProductSettingInput{{SKUID: 0, IsListed: true, PricingMode: "inherit"}}}); err == nil {
+		t.Fatal("reseller can override administrator block")
+	}
+	if err := service.ResetUserProductSetting(user.ID, product.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ = repository.GetProfileByID(profile.ID)
+	if loaded.CanSupplyProduct(product.ID) {
+		t.Fatal("reseller reset removed administrator block")
+	}
+	if !(&domain.Profile{}).CanSupplyProduct(product.ID) {
+		t.Fatal("other site's permission changed")
+	}
+	input.SupplyPricing = &domain.SupplyPricing{}
+	if _, err := management.UpdateProfileOperationalConfig(1, profile.ID, input); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetUserProductSetting(user.ID, product.ID); err != nil {
+		t.Fatalf("administrator cannot restore access: %v", err)
+	}
+	for _, ids := range [][]uint{{0}, {product.ID, product.ID}, {999999}} {
+		input.SupplyPricing = &domain.SupplyPricing{BlockedProductIDs: ids}
+		if _, err := management.UpdateProfileOperationalConfig(1, profile.ID, input); err == nil {
+			t.Fatalf("invalid block accepted: %v", ids)
+		}
+	}
+}

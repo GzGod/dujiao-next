@@ -1,6 +1,7 @@
 package application
 
 import (
+	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 	"strings"
 
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
@@ -151,6 +152,16 @@ func validateSupplyPricing(config *resellerdomain.SupplyPricing) error {
 	if config == nil {
 		return nil
 	}
+	if len(config.BlockedProductIDs) > 1000 {
+		return resellercontract.ErrPricingModeInvalid
+	}
+	blocked := map[uint]bool{}
+	for _, id := range config.BlockedProductIDs {
+		if id == 0 || blocked[id] {
+			return resellercontract.ErrPricingModeInvalid
+		}
+		blocked[id] = true
+	}
 	if config.DefaultMarkupPercent != nil {
 		d, err := decimal.NewFromString(*config.DefaultMarkupPercent)
 		if err != nil || d.IsNegative() || d.GreaterThan(decimal.NewFromInt(10000)) {
@@ -182,6 +193,9 @@ func validateSupplyPricing(config *resellerdomain.SupplyPricing) error {
 // product or exposes the upstream cost to a reseller response.
 func ProductWithSupplyPrices(profile *resellerdomain.Profile, product productdomain.Product) (productdomain.Product, error) {
 	result := product
+	if !profile.CanSupplyProduct(product.ID) {
+		return result, productcontract.ErrNotFound
+	}
 	result.SKUs = append([]productdomain.ProductSKU(nil), product.SKUs...)
 	base, err := ResolveSupplyUnitAmount(profile, product.ID, 0, product.PriceAmount.Decimal, product.CostPriceAmount.Decimal)
 	// SKU-only overrides are evaluated below; a product aggregate may lack a cost.

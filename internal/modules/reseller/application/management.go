@@ -290,6 +290,15 @@ func (s *ManagementService) UpdateProfileOperationalConfig(adminID, profileID ui
 	}
 	if input.SupplyPricing != nil {
 		candidate := &resellerdomain.Profile{SupplyPricing: input.SupplyPricing}
+		for _, productID := range input.SupplyPricing.BlockedProductIDs {
+			row, err := s.store.GetProductWithSettings(profileID, productID)
+			if err != nil {
+				return nil, err
+			}
+			if row == nil {
+				return nil, productcontract.ErrNotFound
+			}
+		}
 		for _, rule := range input.SupplyPricing.Overrides {
 			row, err := s.store.GetProductWithSettings(profileID, rule.ProductID)
 			if err != nil {

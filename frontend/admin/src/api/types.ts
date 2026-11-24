@@ -841,6 +841,7 @@ export interface AdminResellerProfileRef {
 }
 
 export interface ResellerSupplyPricing {
+  blocked_product_ids?: number[]
   default_markup_percent: string | null
   overrides: { product_id: number; sku_id: number; mode: string; value: string }[]
 }

@@ -3804,6 +3804,11 @@ const messages = {
         },
       },
       resellerSupply: {
+        availability: "分站销售权限",
+        allowed: "允许销售",
+        blocked: "禁止销售",
+        availabilityHint: "禁售针对当前分销商的整个商品（所有规格），分站不能自行恢复；保存后该站不展示且不能创建新订单，主站和其他分站不受影响。",
+
         entry: "商品供货价",
         owner: "当前用户：#{id} {email}",
         search: "搜索商品或规格",
@@ -3829,10 +3834,10 @@ const messages = {
         percent: "成本加价（%）",
         remove: "删除规则",
         add: "添加商品供货规则",
-        save: "保存供货价",
+        save: "保存商品设置",
         priority: "优先级：规格规则 → 商品规则 → 站点默认。留空默认并删除所有规则可恢复继承；新规则仅影响新订单，旧订单按原快照结算。",
         invalid: "请填写有效的商品与非负金额；固定供货价必须大于零。",
-        saved: "供货价已保存",
+        saved: "商品设置已保存",
         failed: "供货价加载或保存失败",
       },
       resellerProfileDetail: {
@@ -8430,6 +8435,11 @@ const messages = {
         },
       },
       resellerSupply: {
+        availability: "分站銷售權限",
+        allowed: "允許銷售",
+        blocked: "禁止銷售",
+        availabilityHint: "禁售套用於目前分銷商的整個商品（所有規格），分站不能自行恢復；儲存後該站不展示且不能建立新訂單，主站與其他分站不受影響。",
+
         entry: "商品供貨價",
         owner: "目前使用者：#{id} {email}",
         search: "搜尋商品或規格",
@@ -8455,10 +8465,10 @@ const messages = {
         percent: "成本加價（%）",
         remove: "刪除規則",
         add: "新增商品供貨規則",
-        save: "儲存供貨價",
+        save: "儲存商品設定",
         priority: "優先級：規格規則 → 商品規則 → 站點預設。清空預設並刪除所有規則可恢復繼承；僅影響新訂單，舊訂單按原快照結算。",
         invalid: "請填寫有效商品與非負金額；固定供貨價必須大於零。",
-        saved: "供貨價已儲存",
+        saved: "商品設定已儲存",
         failed: "供貨價載入或儲存失敗",
       },
       resellerProfileDetail: {
@@ -13056,6 +13066,11 @@ const messages = {
         },
       },
       resellerSupply: {
+        availability: "Site sales permission",
+        allowed: "Allowed",
+        blocked: "Blocked",
+        availabilityHint: "Blocking applies to all SKUs of this product for this reseller. The reseller cannot override it. After saving, the site hides it and rejects new orders; other sites are unaffected.",
+
         entry: "Product supply prices",
         owner: "Current user: #{id} {email}",
         search: "Search products or SKUs",
@@ -13081,10 +13096,10 @@ const messages = {
         percent: "Cost markup (%)",
         remove: "Remove rule",
         add: "Add product supply rule",
-        save: "Save supply prices",
+        save: "Save product settings",
         priority: "Priority: SKU → product → site default. Clear the default and all overrides to restore inheritance. Only new orders change; existing orders retain their pricing snapshots.",
         invalid: "Choose valid products and non-negative values. Fixed supply prices must be positive.",
-        saved: "Supply prices saved",
+        saved: "Product settings saved",
         failed: "Unable to load or save supply prices",
       },
       resellerProfileDetail: {
