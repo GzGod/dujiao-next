@@ -16,6 +16,18 @@ const key = 'admin.resellerSupply'
 const saving = ref(false)
 const loaded = ref(false)
 const products = ref<any[]>([])
+const search = ref('')
+const catalogRows = computed(() => products.value.flatMap(p => (p.skus?.length ? p.skus : [{ id: 0, sku_code: '', price_amount: p.price_amount, cost_price_amount: p.cost_price_amount }]).map((sku: any) => ({ product: p, sku }))).filter(row => `${title(row.product)} ${row.sku.sku_code}`.toLowerCase().includes(search.value.toLowerCase())))
+const fixedRule = (productId: number, skuId: number) => rules.value.find(r => r.product_id === productId && r.sku_id === skuId && r.mode === 'fixed')
+const setFixedPrice = (productId: number, skuId: number, value: string | number) => {
+ const index = rules.value.findIndex(r => r.product_id === productId && r.sku_id === skuId)
+ const amount = String(value).trim()
+ if (!amount) { if (index >= 0) rules.value.splice(index, 1); return }
+ const rule: ResellerSupplyPricing['overrides'][number] = { product_id: productId, sku_id: skuId, mode: 'fixed', value: amount }
+ if (index >= 0) rules.value[index] = rule
+ else rules.value.push(rule)
+}
+
 const defaultMarkup = ref(props.profile.supply_pricing?.default_markup_percent ?? '')
 const rules = ref<ResellerSupplyPricing['overrides']>(JSON.parse(JSON.stringify(props.profile.supply_pricing?.overrides || [])))
 const productFor = (id: number) => products.value.find(p => p.id === id)
@@ -53,7 +65,7 @@ onMounted(async () => {
    page++
   }
   // The catalogue list may omit SKUs; load them when a rule is selected.
-  for (const r of rules.value) await loadProduct(r.product_id)
+  await Promise.all(products.value.map(p => loadProduct(p.id)))
   loaded.value = true
  } catch (e: any) { notifyError(e?.message || t(`${key}.failed`)) }
 })
@@ -75,6 +87,19 @@ const changeProduct = async (rule: ResellerSupplyPricing['overrides'][number], v
  <section class="rounded-xl border border-border bg-card p-4 space-y-4">
   <div><h3 class="text-sm font-medium">{{ t(`${key}.title`) }}</h3><p class="mt-1 text-sm text-muted-foreground">{{ t(`${key}.hint`) }}</p></div>
   <div class="max-w-md space-y-2"><Label>{{ t(`${key}.default`) }}</Label><Input v-model="defaultMarkup" type="number" min="0" step="0.01" :placeholder="t(`${key}.inherit`)" /><p class="text-xs text-muted-foreground">{{ t(`${key}.unknownCost`) }}</p></div>
+  <p class="text-sm font-medium">{{ t(`${key}.owner`, { id: profile.user_id, email: profile.user?.email || '' }) }}</p>
+  <Input v-model="search" :placeholder="t(`${key}.search`)" :aria-label="t(`${key}.search`)" />
+  <div class="overflow-auto rounded-lg border border-border max-h-[560px]">
+   <table class="w-full text-sm">
+    <thead class="sticky top-0 bg-card"><tr class="border-b border-border"><th class="p-3 text-left">{{ t(`${key}.product`) }}</th><th class="p-3 text-left">{{ t(`${key}.sku`) }}</th><th class="p-3 text-right">{{ t(`${key}.retail`) }}</th><th class="p-3 text-right">{{ t(`${key}.cost`) }}</th><th class="p-3 text-left min-w-[200px]">{{ t(`${key}.fixed`) }}</th></tr></thead>
+    <tbody><tr v-for="row in catalogRows" :key="`${row.product.id}-${row.sku.id}`" class="border-b border-border last:border-0">
+     <td class="p-3">{{ title(row.product) }}</td><td class="p-3">{{ row.sku.sku_code || t(`${key}.allSkus`) }}</td><td class="p-3 text-right font-mono">{{ row.sku.price_amount }}</td><td class="p-3 text-right font-mono">{{ row.sku.cost_price_amount }}</td>
+     <td class="p-3"><Input type="number" min="0.01" step="0.01" :aria-label="`${title(row.product)} ${row.sku.sku_code} ${t(`${key}.fixed`)}`" :model-value="fixedRule(row.product.id, row.sku.id)?.value ?? ''" :placeholder="t(`${key}.tableInherit`)" @update:model-value="value => setFixedPrice(row.product.id, row.sku.id, value)" /></td>
+    </tr><tr v-if="loaded && !catalogRows.length"><td colspan="5" class="p-4 text-muted-foreground">{{ t(`${key}.empty`) }}</td></tr></tbody>
+   </table>
+  </div>
+  <p class="text-xs text-muted-foreground">{{ t(`${key}.tableHint`) }}</p>
+  <details><summary class="cursor-pointer text-sm font-medium">{{ t(`${key}.advanced`) }}</summary>
   <div v-for="(rule, index) in rules" :key="index" class="rounded-lg border border-border p-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
    <div class="space-y-2"><Label>{{ t(`${key}.product`) }}</Label><Select :model-value="String(rule.product_id)" @update:model-value="value => changeProduct(rule, value)"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="p in products" :key="p.id" :value="String(p.id)">{{ title(p) }}</SelectItem></SelectContent></Select></div>
    <div class="space-y-2"><Label>{{ t(`${key}.sku`) }}</Label><Select :model-value="String(rule.sku_id)" @update:model-value="value => rule.sku_id = Number(value)"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">{{ t(`${key}.allSkus`) }}</SelectItem><SelectItem v-for="s in skusFor(rule.product_id)" :key="s.id" :value="String(s.id)">{{ s.sku_code || `#${s.id}` }}</SelectItem></SelectContent></Select></div>
@@ -82,7 +107,8 @@ const changeProduct = async (rule: ResellerSupplyPricing['overrides'][number], v
    <div class="space-y-2"><Label>{{ rule.mode === 'fixed' ? t(`${key}.amount`) : t(`${key}.percent`) }}</Label><Input v-model="rule.value" type="number" min="0" step="0.01" /></div>
    <div class="flex items-end"><Button variant="outline" @click="rules.splice(index, 1)">{{ t(`${key}.remove`) }}</Button></div>
   </div>
-  <div class="flex flex-wrap gap-2"><Button variant="outline" :disabled="!loaded" @click="addRule">{{ t(`${key}.add`) }}</Button><Button :disabled="saving || !valid" @click="save">{{ t(`${key}.save`) }}</Button></div>
+  <Button class="mt-3" variant="outline" :disabled="!loaded" @click="addRule">{{ t(`${key}.add`) }}</Button></details>
+  <div class="flex flex-wrap gap-2"><Button :disabled="saving || !loaded || !valid" @click="save">{{ t(`${key}.save`) }}</Button></div>
   <p class="text-xs text-muted-foreground">{{ t(`${key}.priority`) }}</p>
  </section>
 </template>

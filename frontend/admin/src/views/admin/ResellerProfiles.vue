@@ -13,6 +13,7 @@ import {
   RESELLER_SETTLEMENT_STATUS_NORMAL,
 } from '@/constants/reseller'
 import IdCell from '@/components/IdCell.vue'
+import ResellerSupplyPricing from '@/components/admin/ResellerSupplyPricing.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -37,6 +38,27 @@ const selectedProfile = ref<AdminResellerProfile | null>(null)
 const showApproveDialog = ref(false)
 const showReasonDialog = ref(false)
 const showEditDialog = ref(false)
+const showPricingDialog = ref(false)
+const pricingLoading = ref(false)
+const pricingProfile = ref<AdminResellerProfile | null>(null)
+const openPricingDialog = async (row: AdminResellerProfile) => {
+  pricingLoading.value = true
+  pricingProfile.value = null
+  showPricingDialog.value = true
+  try {
+    const response = await adminAPI.getResellerProfile(row.id)
+    pricingProfile.value = response.data.data.profile
+  } catch (error: any) {
+    showPricingDialog.value = false
+    notifyError(error?.message || t('admin.resellerSupply.failed'))
+  } finally {
+    pricingLoading.value = false
+  }
+}
+const pricingSaved = () => {
+  showPricingDialog.value = false
+  refreshCurrentPage()
+}
 const reasonAction = ref<'reject' | 'disable'>('reject')
 const rows = ref<AdminResellerProfile[]>([])
 const pagination = ref({
@@ -355,6 +377,7 @@ onMounted(() => {
               >
                 #{{ item.user_id }}
               </a>
+              <div class="mt-2"><Button size="sm" :disabled="pricingLoading" @click="openPricingDialog(item)">{{ t('admin.resellerSupply.entry') }}</Button></div>
             </TableCell>
             <TableCell class="px-6 py-4 text-xs">
               <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="statusClass(item.status)">
@@ -437,6 +460,16 @@ onMounted(() => {
         @change-page-size="changePageSize"
       />
     </div>
+
+    <Dialog v-model:open="showPricingDialog">
+      <DialogScrollContent class="w-[calc(100vw-1rem)] max-w-6xl p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle>{{ t('admin.resellerSupply.entry') }}</DialogTitle>
+        </DialogHeader>
+        <p v-if="pricingLoading" class="py-8 text-center text-sm text-muted-foreground">{{ t('admin.common.loading') }}</p>
+        <ResellerSupplyPricing v-else-if="pricingProfile" :key="pricingProfile.id" :profile="pricingProfile" @saved="pricingSaved" />
+      </DialogScrollContent>
+    </Dialog>
 
     <Dialog v-model:open="showApproveDialog">
       <DialogScrollContent class="w-[calc(100vw-1rem)] max-w-md p-4 sm:p-6">
