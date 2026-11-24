@@ -2,10 +2,16 @@ package middleware
 
 import (
 	"encoding/json"
+	"github.com/dujiao-next/internal/constants"
+	usercontract "github.com/dujiao-next/internal/modules/identity/user/contract"
+	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
+	userauth "github.com/dujiao-next/internal/modules/identity/userauth/application"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -96,5 +102,57 @@ func TestJWTAuthMiddlewareMissingSecret(t *testing.T) {
 	}
 	if resp.StatusCode != 401 {
 		t.Fatalf("status_code want 401 got %d", resp.StatusCode)
+	}
+}
+
+type catalogUsers struct {
+	usercontract.Store
+	level uint
+}
+
+func (s *catalogUsers) GetByID(id uint) (*userdomain.User, error) {
+	return &userdomain.User{ID: id, Status: constants.UserStatusActive, MemberLevelID: s.level}, nil
+}
+func TestCatalogViewerUsesAuthenticatedCurrentMembership(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	users := &catalogUsers{level: 2}
+	secret := "catalog-test-only"
+	claims := userauth.UserJWTClaims{UserID: 917231, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), IssuedAt: jwt.NewNumericDate(time.Now())}}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := gin.New()
+	r.Use(OptionalUserJWTAuthMiddleware(secret, users), CatalogMemberLevelMiddleware(users))
+	r.GET("/products", func(c *gin.Context) { c.JSON(200, gin.H{"level": c.GetUint("catalog_member_level_id")}) })
+	for _, tc := range []struct {
+		auth     string
+		level    uint
+		rejected bool
+	}{{"", 0, false}, {"Bearer invalid", 0, true}, {"Bearer " + token, 2, false}} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/products?member_level_id=999", nil)
+		req.Header.Set("Authorization", tc.auth)
+		req.Header.Set("X-Member-Level", "999")
+		r.ServeHTTP(w, req)
+		var body map[string]any
+		json.Unmarshal(w.Body.Bytes(), &body)
+		if tc.rejected {
+			if body["status_code"] != float64(401) {
+				t.Fatalf("invalid token accepted: %s", w.Body.String())
+			}
+			continue
+		}
+		if body["level"] != float64(tc.level) || w.Header().Get("Cache-Control") != "private, no-store" || w.Header().Get("Vary") != "Authorization" {
+			t.Fatalf("wrong privacy response: %s %v", w.Body.String(), w.Header())
+		}
+	}
+	users.level = 1
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/products", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+	if w.Body.String() != "{\"level\":1}" {
+		t.Fatalf("downgrade retained previous pricing: %s", w.Body.String())
 	}
 }

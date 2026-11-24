@@ -198,3 +198,41 @@ func TestToInt64(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogLimitSharesListAndDetailButNotOtherTraffic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	if err := r.SetTrustedProxies(nil); err != nil {
+		t.Fatal(err)
+	}
+	public := r.Group("/public", CatalogReadRateLimitMiddleware(nil, "catalog-test"))
+	public.GET("/products", func(c *gin.Context) { c.Status(204) })
+	public.GET("/products/:slug", func(c *gin.Context) { c.Status(204) })
+	r.POST("/payments/callback", func(c *gin.Context) { c.Status(204) })
+	r.GET("/upstream/products", func(c *gin.Context) { c.Status(204) })
+	request := func(method, path, ip string) int {
+		req := httptest.NewRequest(method, path, nil)
+		req.RemoteAddr = ip + ":1234"
+		req.Header.Set("X-Forwarded-For", "8.8.8.8")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w.Code
+	}
+	for i := 0; i < 120; i++ {
+		if got := request("GET", "/public/products", "203.0.113.1"); got != 204 {
+			t.Fatalf("normal browse %d: %d", i, got)
+		}
+	}
+	if got := request("GET", "/public/products/one", "203.0.113.1"); got != 429 {
+		t.Fatalf("detail bypassed limit: %d", got)
+	}
+	if got := request("GET", "/public/products", "203.0.113.2"); got != 204 {
+		t.Fatalf("other visitor affected: %d", got)
+	}
+	if got := request("POST", "/payments/callback", "203.0.113.1"); got != 204 {
+		t.Fatalf("callback affected: %d", got)
+	}
+	if got := request("GET", "/upstream/products", "203.0.113.1"); got != 204 {
+		t.Fatalf("procurement affected: %d", got)
+	}
+}

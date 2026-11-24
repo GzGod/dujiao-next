@@ -139,7 +139,7 @@ func (h *PublicHandler) GetProducts(c *gin.Context) {
 
 	decorated := make([]productpresenter.Product, 0, len(products))
 	for i := range products {
-		item, derr := h.decoratePublicProductForTenant(&products[i], h.promotions, tenant, resellerBatch)
+		item, derr := h.decoratePublicProductForTenant(&products[i], h.promotions, tenant, resellerBatch, c.GetUint("catalog_member_level_id"))
 		if derr != nil {
 			if errors.Is(derr, productcontract.ErrResellerProductNotListed) {
 				continue
@@ -189,7 +189,7 @@ func (h *PublicHandler) GetProductBySlug(c *gin.Context) {
 		}
 	}
 
-	decorated, derr := h.decoratePublicProductForTenant(product, h.promotions, tenant, resellerBatch)
+	decorated, derr := h.decoratePublicProductForTenant(product, h.promotions, tenant, resellerBatch, c.GetUint("catalog_member_level_id"))
 	if derr != nil {
 		if errors.Is(derr, productcontract.ErrResellerProductNotListed) {
 			ginutil.RespondError(c, response.CodeNotFound, "error.product_not_found", nil)

@@ -77,7 +77,12 @@ func registerStorefrontRoutes(
 	{
 		publicconfigtransport.RegisterPublicRoutes(public, publicConfigHandler)
 		public.GET("/reseller-redemption", userResellerHandler.RedemptionSite)
-		producthttp.RegisterPublicRoutes(public, publicCatalogHandler)
+		// Catalogue traffic has its own budget; callbacks, login and signed
+		// procurement APIs keep their existing independent limits.
+		{
+			public := public.Group("", middleware.CatalogReadRateLimitMiddleware(redisClient, guestReadRule.Prefix), middleware.OptionalUserJWTAuthMiddleware(cfg.UserJWT.SecretKey, c.UserStore), middleware.CatalogMemberLevelMiddleware(c.UserStore))
+			producthttp.RegisterPublicRoutes(public, publicCatalogHandler)
+		}
 		categoryhttp.RegisterPublicRoutes(public, publicCategoryHandler)
 		contenttransport.RegisterPublicRoutes(public, publicContentHandler)
 		captchatransport.RegisterPublicRoutes(public, captchatransport.NewPublicHandler(c.CaptchaService))

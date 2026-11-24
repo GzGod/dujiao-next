@@ -171,11 +171,14 @@ func (h *PublicHandler) decoratePublicProduct(product *productdomain.Product, pr
 	if len(userMemberLevelID) > 0 {
 		memberLevelID = userMemberLevelID[0]
 	}
-	if h.memberLevels != nil {
+	if memberLevelID > 0 && h.memberLevels != nil {
 		levelPrices, _ := h.memberLevels.GetLevelPricesByProduct(product.ID)
 		if len(levelPrices) > 0 {
 			views := make([]productpresenter.MemberLevelPrice, 0, len(levelPrices))
 			for _, lp := range levelPrices {
+				if lp.MemberLevelID != memberLevelID {
+					continue
+				}
 				views = append(views, productpresenter.MemberLevelPrice{
 					MemberLevelID: lp.MemberLevelID,
 					SKUID:         lp.SKUID,

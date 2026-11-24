@@ -2,6 +2,7 @@ package producthttp
 
 import (
 	"errors"
+	memberdomain "github.com/dujiao-next/internal/modules/memberlevel/domain"
 	"testing"
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
@@ -182,5 +183,31 @@ func TestDecoratePublicProductForTenantInvalidDisplayPricingIsHidden(t *testing.
 				t.Fatalf("expected ErrResellerProductNotListed, got %v", err)
 			}
 		})
+	}
+}
+
+type privacyMemberPrices struct{ reads int }
+
+func (p *privacyMemberPrices) GetLevelPricesByProduct(uint) ([]memberdomain.MemberLevelPrice, error) {
+	p.reads++
+	return []memberdomain.MemberLevelPrice{
+		{MemberLevelID: 1, PriceAmount: money.FromDecimal(decimal.NewFromInt(90))},
+		{MemberLevelID: 2, PriceAmount: money.FromDecimal(decimal.NewFromInt(80))},
+	}, nil
+}
+func (*privacyMemberPrices) ResolveMemberPrice(level, product, sku uint, base, cost decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
+	return decimal.NewFromInt(90), decimal.Zero
+}
+func TestCatalogPricesOnlyExposeCurrentMembership(t *testing.T) {
+	prices := &privacyMemberPrices{}
+	h := &PublicHandler{memberLevels: prices}
+	product := &productdomain.Product{ID: 1, PriceAmount: money.FromDecimal(decimal.NewFromInt(100)), SKUs: []productdomain.ProductSKU{{ID: 11, IsActive: true, PriceAmount: money.FromDecimal(decimal.NewFromInt(100))}}}
+	anonymous, err := h.decoratePublicProduct(product, nil)
+	if err != nil || len(anonymous.MemberPrices) != 0 || anonymous.SKUs[0].MemberPriceAmount != nil || prices.reads != 0 {
+		t.Fatalf("anonymous pricing leaked: %+v err=%v", anonymous, err)
+	}
+	own, err := h.decoratePublicProduct(product, nil, 1)
+	if err != nil || len(own.MemberPrices) != 1 || own.MemberPrices[0].MemberLevelID != 1 || own.SKUs[0].MemberPriceAmount == nil {
+		t.Fatalf("own pricing missing or another tier leaked: %+v err=%v", own, err)
 	}
 }
