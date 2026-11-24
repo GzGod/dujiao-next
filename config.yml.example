@@ -189,3 +189,12 @@ web:
   # 强烈建议改成不易猜测的字符串以降低自动化扫描风险
   # 例如: "/dj-mgmt-7x9k2" 或 "/console-private"
   admin_path: "/admin"
+
+# Independent manual-delivery Telegram bot (server environment variables only):
+# DELIVERY_TELEGRAM_BOT_USERNAME: BotFather username, without @.
+# DELIVERY_TELEGRAM_BOT_TOKEN: BotFather token; never put it in frontend variables.
+# DELIVERY_TELEGRAM_LINK_SECRET: independent random secret, at least 32 characters.
+# DELIVERY_TELEGRAM_WEBHOOK_SECRET: independent random secret, at least 32 characters.
+# Register the bot webhook at https://xuegaogx.cc/api/v1/telegram-delivery/webhook
+# with Telegram setWebhook secret_token = DELIVERY_TELEGRAM_WEBHOOK_SECRET.
+# No delivery links are enabled until all four environment variables are set.

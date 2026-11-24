@@ -2286,6 +2286,8 @@
     }
   },
   "paidSupport": {
+    "botPrompt": "Payment confirmed. Start the delivery bot to link this order and receive your items.",
+    "botClaim": "Receive your order in Telegram",
     "claudeTitle": "Claude payment received — contact us on Telegram",
     "claudePrompt": "Contact {'@'}xuegaozhanshen on Telegram with your order number to arrange manual delivery of your Claude account. No redemption site is needed. Payment does not mean the account has been delivered.",
     "title": "Payment successful",

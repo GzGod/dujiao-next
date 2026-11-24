@@ -25,6 +25,16 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const deliveredViaTG = ref(false)
+const botStatus = ref<any>(null)
+const botLoading = ref(false)
+const botPayload = ref('')
+const sendViaBot = ref(false)
+const loadBotStatus = async (id: number) => {
+ botLoading.value = true
+ try { botStatus.value = (await adminAPI.getTelegramDelivery(id)).data.data; sendViaBot.value = Boolean(botStatus.value?.enabled) }
+ catch { botStatus.value = null }
+ finally { botLoading.value = false }
+}
 const isClaude = computed(() => selectedOrder.value?.items?.some((item) => /claude/i.test(JSON.stringify(item.title))) || false)
 const detailLoading = ref(false)
 const detailError = ref('')
@@ -73,6 +83,9 @@ const hasFulfillmentSubmitData = () => {
 
 const resetFulfillmentForm = () => {
   deliveredViaTG.value = false
+ botStatus.value = null
+ botPayload.value = ''
+ sendViaBot.value = false
   fulfillmentForm.note = ''
   fulfillmentForm.entries = [createEmptyDeliveryEntry()]
   fulfillmentError.value = ''
@@ -86,6 +99,7 @@ const fetchOrderDetail = async (orderId: number) => {
   try {
     const response = await adminAPI.getOrder(orderId)
     selectedOrder.value = response.data.data
+ await loadBotStatus(orderId)
   } catch (err: any) {
     detailError.value = err?.message || t('admin.orders.detailFetchFailed')
   } finally {
@@ -97,17 +111,20 @@ const submitFulfillment = async () => {
   if (!selectedOrder.value) return
   fulfillmentError.value = ''
   fulfillmentSuccess.value = ''
-  if (!hasFulfillmentSubmitData()) {
+  if (sendViaBot.value ? !botPayload.value.trim() : !hasFulfillmentSubmitData()) {
     fulfillmentError.value = t('admin.orders.fulfillmentSubmitRequired')
     return
   }
   fulfillmentSubmitting.value = true
   try {
-    await adminAPI.createFulfillment({
+    if (sendViaBot.value) {
+     await adminAPI.sendTelegramDelivery(selectedOrder.value.id, botPayload.value)
+    } else await adminAPI.createFulfillment({
       order_id: Number(selectedOrder.value.id),
       delivery_data: buildDeliveryDataPayload(),
     })
     fulfillmentSuccess.value = t('admin.orders.fulfillmentSuccess')
+    await loadBotStatus(selectedOrder.value.id)
     emit('success', props.parentId)
   } catch (err: any) {
     fulfillmentError.value = err?.message || t('admin.orders.fulfillmentFailed')
@@ -178,6 +195,14 @@ watch(
           </div>
 
           <form class="space-y-4" @submit.prevent="submitFulfillment">
+            <div v-if="botLoading" class="text-sm text-muted-foreground">{{ t('admin.orders.botLoading') }}</div>
+            <div v-if="botStatus?.enabled" class="space-y-3 rounded-xl border border-primary/30 p-4">
+              <label class="flex gap-2 text-sm"><input type="checkbox" v-model="sendViaBot" />{{ t('admin.orders.botSend') }}</label>
+              <p class="text-sm">{{ botStatus.binding?.bound_at ? t('admin.orders.botBound', { username: [botStatus.binding.username, botStatus.recipient].filter(Boolean).join(' · '), state: botStatus.binding.state }) : t('admin.orders.botUnbound') }}</p>
+              <Textarea v-if="sendViaBot" v-model="botPayload" rows="8" maxlength="3000" :placeholder="t('admin.orders.botPayload')" />
+              <p class="text-xs text-muted-foreground">{{ t('admin.orders.botHint') }}</p>
+            </div>
+            <template v-if="!sendViaBot">
             <label v-if="isClaude" class="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
               <input v-model="deliveredViaTG" type="checkbox" class="mt-1" />
               <span><strong>{{ t('admin.orders.tgDeliveryConfirm') }}</strong><span class="mt-1 block text-muted-foreground">{{ t('admin.orders.tgDeliveryHint') }}</span></span>
@@ -209,6 +234,7 @@ watch(
               </div>
             </div>
 
+            </template>
             <div v-if="fulfillmentError" class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {{ fulfillmentError }}
             </div>
@@ -220,7 +246,7 @@ watch(
               <Button class="w-full sm:w-auto" type="button" variant="outline" size="sm" @click="resetFulfillmentForm">
                 {{ t('admin.common.reset') }}
               </Button>
-              <Button class="w-full sm:w-auto" type="submit" size="sm" :disabled="fulfillmentSubmitting">
+              <Button class="w-full sm:w-auto" type="submit" size="sm" :disabled="fulfillmentSubmitting || botLoading || (sendViaBot && !botStatus?.binding?.bound_at)">
                 {{ fulfillmentSubmitting ? t('admin.orders.fulfillmentSubmitting') : t('admin.orders.fulfillmentSubmit') }}
               </Button>
             </div>

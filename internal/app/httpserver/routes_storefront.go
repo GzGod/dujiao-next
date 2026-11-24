@@ -4,6 +4,7 @@ import (
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	affiliatebootstrap "github.com/dujiao-next/internal/bootstrap/affiliate"
+	fulfillmentwiring "github.com/dujiao-next/internal/bootstrap/fulfillment"
 	"github.com/dujiao-next/internal/config"
 	affiliatetransport "github.com/dujiao-next/internal/modules/affiliate/transport/http"
 	apicredentialtransport "github.com/dujiao-next/internal/modules/apicredential/transport/http"
@@ -96,6 +97,7 @@ func registerStorefrontRoutes(
 	guestWrite := guest.Group("")
 	guestWrite.Use(middleware.RateLimitMiddleware(redisClient, guestWriteRule, middleware.KeyByIP))
 	{
+		fulfillmentwiring.NewTelegramDeliveryHandler(c).RegisterGuest(guestWrite)
 		ordertransport.RegisterGuestCreateRoute(guestWrite, orderCreateHandler)
 		ordertransport.RegisterGuestCreateAndPayRoute(guestWrite, orderCreateHandler)
 		paymenttransport.RegisterGuestWriteRoutes(guestWrite, paymentWriteHandler)
@@ -147,6 +149,7 @@ func registerStorefrontRoutes(
 		ordertransport.RegisterUserCreateAndPayRoute(user, orderCreateHandler)
 		ordertransport.RegisterUserPreviewRoute(user, orderPreviewHandler)
 		ordertransport.RegisterUserPaymentChannelsRoute(user, userOrderHandler)
+		fulfillmentwiring.NewTelegramDeliveryHandler(c).RegisterUser(user)
 		ordertransport.RegisterUserReadRoutes(user, userOrderHandler)
 		ordertransport.RegisterUserCancelRoute(user, userOrderHandler)
 		paymenttransport.RegisterUserWriteRoutes(user, paymentWriteHandler)

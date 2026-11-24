@@ -4,6 +4,7 @@ import (
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	affiliatebootstrap "github.com/dujiao-next/internal/bootstrap/affiliate"
+	fulfillmentwiring "github.com/dujiao-next/internal/bootstrap/fulfillment"
 	settingsbootstrap "github.com/dujiao-next/internal/bootstrap/settingshttp"
 	upstreamwiring "github.com/dujiao-next/internal/bootstrap/upstreamapi"
 	"github.com/dujiao-next/internal/config"
@@ -156,6 +157,7 @@ func registerAdminRoutes(
 	ordertransport.RegisterAdminRefundWriteRoutes(authorized, adminOrderRefundHandler)
 	ordertransport.RegisterAdminRefundRoutes(authorized, adminOrderRefundHandler)
 	fulfillmenttransport.RegisterAdminRoutes(authorized, adminFulfillmentHandler)
+	fulfillmentwiring.NewTelegramDeliveryHandler(c).RegisterAdmin(authorized)
 	cardsecrettransport.RegisterAdminRoutes(authorized, adminCardSecretHandler)
 	giftcardtransport.RegisterAdminRoutes(authorized, adminGiftCardHandler)
 	invitecodetransport.RegisterAdminRoutes(authorized, invitecodetransport.NewAdminHandler(c.InviteCodeService, c.UserStore))

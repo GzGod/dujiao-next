@@ -363,6 +363,8 @@ export const adminAPI = {
   deleteMedia: (id: number) => api.delete(`/admin/media/${id}`),
   batchDeleteMedia: (ids: number[]) => api.post('/admin/media/batch-delete', { ids }),
 
+  getTelegramDelivery: (id: number) => api.get(`/admin/orders/${id}/telegram-delivery`),
+  sendTelegramDelivery: (id: number, payload: string) => api.post(`/admin/orders/${id}/telegram-delivery`, { payload }),
   getProducts: (params?: Record<string, unknown>) => api.get('/admin/products', { params }),
   getProduct: (id: number) => api.get(`/admin/products/${id}`),
   createProduct: (data: Partial<AdminProduct>) => api.post('/admin/products', data),

@@ -72,6 +72,7 @@ func AutoMigrate() error {
 		&giftcarddomain.GiftCard{},
 		&giftcarddomain.GiftCardBatch{},
 		&fulfillmentdomain.Fulfillment{},
+		&fulfillmentdomain.TelegramDelivery{},
 		&coupondomain.Coupon{},
 		&coupondomain.CouponUsage{},
 		&promotiondomain.Promotion{},

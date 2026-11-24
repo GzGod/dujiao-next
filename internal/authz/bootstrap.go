@@ -110,6 +110,8 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/order-refunds", Action: "GET"},
 				{Object: "/admin/order-refunds/:id", Action: "GET"},
 				{Object: "/admin/fulfillments", Action: "POST"},
+				{Object: "/admin/orders/:id/telegram-delivery", Action: "GET"},
+				{Object: "/admin/orders/:id/telegram-delivery", Action: "POST"},
 				{Object: "/admin/users", Action: "GET"},
 				{Object: "/admin/users/:id", Action: "GET"},
 				{Object: "/admin/users/:id", Action: "PUT"},
