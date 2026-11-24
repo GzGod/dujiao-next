@@ -43,7 +43,7 @@ interface ManualFormProduct {
  * 结算页共享逻辑（classic + vault 双模板共用）。
  * 完整保留原 views/Checkout.vue 的行为，仅抽离为 composable。
  */
-export function useCheckout() {
+export function useCheckout(options: { buyNow?: boolean; requireAgreement?: boolean } = {}) {
   const router = useRouter()
   const route = useRoute()
   const cartStore = useCartStore()
@@ -55,7 +55,7 @@ export function useCheckout() {
   const { getLocalizedText, siteCurrency, formatPrice } = useLocalized()
   const { resolveWholesalePriceAmount } = useProductLabels()
 
-  const isBuyNowMode = computed(() => route.query.mode === 'buynow')
+  const isBuyNowMode = computed(() => options.buyNow || route.query.mode === 'buynow')
   const cartItems = computed<CartItem[]>(() => {
     if (isBuyNowMode.value) {
       return buyNowStore.item ? [buyNowStore.item] : []
@@ -63,6 +63,7 @@ export function useCheckout() {
     return cartStore.items
   })
   const totalItems = computed(() => cartItems.value.reduce((sum, item) => sum + item.quantity, 0))
+  const agreementAccepted = ref(false)
   const couponCode = ref('')
   const normalizedCouponCode = computed(() => couponCode.value.trim())
   const submitting = ref(false)
@@ -577,6 +578,7 @@ export function useCheckout() {
   }
 
   const canSubmit = computed(() => {
+    if (options.requireAgreement && !agreementAccepted.value) return false
     if (syncingStock.value) return false
     if (submitting.value) return false
     if (cartItems.value.length === 0) return false
@@ -815,6 +817,10 @@ export function useCheckout() {
         return
       }
 
+      if (options.requireAgreement && !agreementAccepted.value) {
+        error.value = t('checkout.agreementRequired')
+        return
+      }
       const payload = {
         ...buildOrderPayload(),
         channel_id: requiresOnlineChannel.value ? (selectedChannelId.value || undefined) : undefined,
@@ -915,6 +921,8 @@ export function useCheckout() {
       walletLoading.value = false
     }
   }
+
+  watch(() => userAuthStore.isAuthenticated, () => { void loadWalletBalance() })
 
   onMounted(async () => {
     if (!appStore.config) {
@@ -1103,6 +1111,7 @@ export function useCheckout() {
   }
 
   return {
+    agreementAccepted,
     // stores / helpers
     userAuthStore,
     getLocalizedText,

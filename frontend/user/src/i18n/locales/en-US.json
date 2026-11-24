@@ -1204,6 +1204,10 @@
     "minPurchaseNotMet": "This product requires at least {count} per order"
   },
   "checkout": {
+    "agreement": "I have read and agree to the {terms} and {privacy}, and understand this product’s delivery and after-sales conditions.",
+    "agreementTerms": "Terms of Service",
+    "agreementPrivacy": "Privacy Policy",
+    "agreementRequired": "Please read and agree to the Terms of Service and Privacy Policy.",
     "title": "Checkout",
     "subtitle": "Review order and submit",
     "empty": "Your cart is empty",
@@ -2110,6 +2114,12 @@
     }
   },
   "xgai": {
+    "shop": {
+      "title": "Choose your product",
+      "description": "GPT top-ups for your own account and manually delivered Claude accounts. Buy with an email and order password.",
+      "orders": "Find order",
+      "help": "Purchase steps, account check and help"
+},
     "theme": {
       "light": "Switch to light mode",
       "dark": "Switch to dark mode"

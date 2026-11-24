@@ -106,6 +106,7 @@
     </div>
 
     <ProductQuickBuy
+      inline-checkout
       v-if="quickBuyProduct"
       :product="quickBuyProduct"
       :visible="quickBuyVisible"

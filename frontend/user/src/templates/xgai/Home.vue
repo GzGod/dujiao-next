@@ -1,93 +1,13 @@
 <template>
   <div class="xhome">
-    <!-- Hero -->
-    <section class="xhero">
-      <div class="xhero__glow" aria-hidden="true" />
-      <div class="x-container xhero__layout">
-        <div class="xhero__copy">
-          <div class="xhero__badge">
-            <span>{{ t('xgai.hero.badgeLead') }}</span>
-            <i />
-            {{ t('xgai.hero.badgeTail') }}
-          </div>
-          <h1>
-            {{ t('xgai.hero.titleLead') }}<br />
-            <em>{{ t('xgai.hero.titleAccent') }}</em>
-          </h1>
-          <p>{{ t('xgai.hero.lede') }}</p>
-          <div class="xhero__actions">
-            <a href="#products" class="x-btn x-btn--primary x-btn--lg" @click.prevent="scrollTo('products')">
-              {{ t('xgai.hero.primary') }} <ArrowRight />
-            </a>
-            <a href="#process" class="xhero__secondary" @click.prevent="scrollTo('process')">
-              <span aria-hidden="true">▶</span> {{ t('xgai.hero.secondary') }}
-            </a>
-          </div>
-          <div class="xhero__proof">
-            <span v-for="item in heroProof" :key="item"><Check /> {{ item }}</span>
-          </div>
-        </div>
-
-        <!-- 套餐推荐：按使用频率映射到真实商品，价格实时 -->
-        <div class="xrec x-glass">
-          <div class="xrec__top">
-            <span>
-              <small>{{ t('xgai.rec.eyebrow') }}</small>
-              <b>{{ t('xgai.rec.title') }}</b>
-            </span>
-          </div>
-          <p class="xrec__q">{{ t('xgai.rec.question') }}</p>
-          <div class="xrec__options" role="radiogroup">
-            <button
-              v-for="option in usageOptions"
-              :key="option.value"
-              type="button"
-              role="radio"
-              :aria-checked="usage === option.value"
-              :class="{ 'is-active': usage === option.value }"
-              @click="usage = option.value"
-            >
-              <i><Check v-if="usage === option.value" /></i>
-              <span>
-                <b>{{ option.title }}</b>
-                <small>{{ option.detail }}</small>
-              </span>
-            </button>
-          </div>
-          <div class="xrec__result">
-            <span>
-              <small>{{ t('xgai.rec.for') }}</small>
-              <b>{{ recommendedTitle }}</b>
-              <p>{{ t(`xgai.rec.reason.${usage}`) }}</p>
-            </span>
-            <strong v-if="recommendedProduct"><i>¥</i>{{ formatPrice(recommendedProduct.price_amount) }}</strong>
-          </div>
-          <button type="button" class="x-btn x-btn--primary x-btn--block" :disabled="!recommendedProduct" @click="recommendedProduct && goToProduct(recommendedProduct.slug)">
-            {{ t('xgai.rec.cta') }} <ArrowRight />
-          </button>
-          <small class="xrec__note">{{ t('xgai.rec.note') }}</small>
-        </div>
-      </div>
-    </section>
-
-    <!-- 信任条：只写真实能力，不放编造的数字 -->
-    <section class="xtrust">
-      <div class="x-container xtrust__row">
-        <div v-for="item in trustItems" :key="item.title">
-          <strong>{{ item.title }}</strong>
-          <span>{{ item.text }}</span>
-        </div>
-      </div>
+    <section class="xshop-intro x-container">
+      <div><small class="x-eyebrow">{{ t('xgai.products.eyebrow') }}</small><h1>{{ t('xgai.shop.title') }}</h1><p>{{ t('xgai.shop.description') }}</p></div>
+      <div class="xshop-intro__links"><a :href="'https://redeem.xuegaogx.cc/'" class="x-btn x-btn--primary">{{ t('xgai.nav.redeem') }} <ArrowUpRight /></a><RouterLink :to="userAuthStore.isAuthenticated ? '/me/orders' : '/guest/orders'" class="x-btn">{{ t('xgai.shop.orders') }} <ArrowRight /></RouterLink></div>
     </section>
 
     <!-- 商品 -->
     <section id="products" class="x-container x-section xprod">
       <div class="xprod__head">
-        <span>
-          <small class="x-eyebrow">{{ t('xgai.products.eyebrow') }}</small>
-          <h2 class="x-h2">{{ t('xgai.products.title') }}</h2>
-          <p class="x-lede">{{ t('xgai.products.lede') }}</p>
-        </span>
         <div class="x-segment" role="group" :aria-label="t('xgai.products.filter')">
           <button v-for="item in filters" :key="item.value" type="button" :class="{ 'is-active': filter === item.value }" @click="filter = item.value">
             {{ item.label }}
@@ -103,7 +23,7 @@
           v-for="product in visibleProducts"
           :key="product.id"
           :product="product"
-          :featured="product.id === featuredId"
+          :featured="false"
           @open="goToProduct"
           @buy="openQuickBuy"
         />
@@ -119,6 +39,7 @@
       </div>
     </section>
 
+    <details class="xshop-help x-container"><summary>{{ t('xgai.shop.help') }}</summary>
     <!-- 账号检测 -->
     <section id="checker" class="xcheck">
       <div class="x-container xcheck__layout">
@@ -247,7 +168,10 @@
       </div>
     </section>
 
+    </details>
+
     <ProductQuickBuy
+      inline-checkout
       v-if="quickBuyProduct"
       :product="quickBuyProduct"
       :visible="quickBuyVisible"
@@ -261,7 +185,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
-  ArrowRight, ArrowUpRight, Check, ClipboardList, CreditCard, ExternalLink, ListChecks, PackageCheck,
+  ArrowRight, ArrowUpRight, ClipboardList, CreditCard, ExternalLink, ListChecks, PackageCheck,
   ScanSearch, ShieldCheck, Wallet,
 } from 'lucide-vue-next'
 import { productAPI } from '../../api'
@@ -288,55 +212,22 @@ usePageSeo({ title: () => t('xgai.seo.title'), description: () => t('xgai.seo.de
 // ---------- 商品 ----------
 const products = ref<any[]>([])
 const loading = ref(true)
-type Filter = 'all' | AiBrand
+type Filter = 'all' | AiBrand | 'claude'
 const filter = ref<Filter>('all')
 
-const titleOf = (p: any) => getLocalizedText(p?.title) || ''
-const findByTitle = (pattern: RegExp) =>
-  products.value
-    .filter((p) => pattern.test(titleOf(p)))
-    .sort((a, b) => Number(a.price_amount || 0) - Number(b.price_amount || 0))[0] || null
-
+const findByTitle = (pattern: RegExp) => products.value.filter(p => pattern.test(getLocalizedText(p.title))).sort((a,b) => Number(a.price_amount)-Number(b.price_amount))[0] || null
 const brandsPresent = computed(() => new Set(products.value.map((p) => detectAiBrand(p))))
 const filters = computed(() => {
   const list: { value: Filter; label: string }[] = [{ value: 'all', label: t('xgai.products.all') }]
   if (brandsPresent.value.has('openai')) list.push({ value: 'openai', label: 'ChatGPT' })
+  if (products.value.some(p => /claude/i.test(getLocalizedText(p.title)))) list.push({ value: 'claude', label: 'Claude' })
   if (brandsPresent.value.has('other')) list.push({ value: 'other', label: t('xgai.products.other') })
   return list
 })
 const visibleProducts = computed(() => {
-  const list = filter.value === 'all' ? products.value : products.value.filter((p) => detectAiBrand(p) === filter.value)
+  const list = filter.value === 'all' ? products.value : products.value.filter((p) => filter.value === 'claude' ? /claude/i.test(getLocalizedText(p.title)) : filter.value === 'other' ? detectAiBrand(p) === 'other' && !/claude/i.test(getLocalizedText(p.title)) : detectAiBrand(p) === filter.value)
   return sortByBrandThenPrice(list)
 })
-// 「最多人选」只是视觉强调，用 GPT Plus 这款主力商品，不附加任何销量数字
-const featuredId = computed(() => findByTitle(/gpt\s*plus/i)?.id ?? null)
-
-const formatPrice = (amount: unknown) => {
-  const n = Number(amount)
-  if (!Number.isFinite(n)) return '—'
-  return Number.isInteger(n) ? String(n) : n.toFixed(2)
-}
-
-// ---------- 套餐推荐 ----------
-type Usage = 'light' | 'daily' | 'pro'
-const usage = ref<Usage>('daily')
-const usageOptions = computed(() => ([
-  { value: 'light' as const, title: t('xgai.rec.light'), detail: t('xgai.rec.lightDetail') },
-  { value: 'daily' as const, title: t('xgai.rec.daily'), detail: t('xgai.rec.dailyDetail') },
-  { value: 'pro' as const, title: t('xgai.rec.pro'), detail: t('xgai.rec.proDetail') },
-]))
-const usagePattern: Record<Usage, RegExp> = { light: /gpt\s*go/i, daily: /gpt\s*plus/i, pro: /gpt\s*pro/i }
-const recommendedProduct = computed(() => findByTitle(usagePattern[usage.value]))
-const recommendedTitle = computed(() => (recommendedProduct.value ? titleOf(recommendedProduct.value) : '—'))
-
-// ---------- 首页文案块（全部为真实能力，不含编造数据） ----------
-const heroProof = computed(() => [t('xgai.hero.proof1'), t('xgai.hero.proof2'), t('xgai.hero.proof3')])
-const trustItems = computed(() => [
-  { title: t('xgai.trust.payTitle'), text: t('xgai.trust.payText') },
-  { title: t('xgai.trust.autoTitle'), text: t('xgai.trust.autoText') },
-  { title: t('xgai.trust.ownTitle'), text: t('xgai.trust.ownText') },
-  { title: t('xgai.trust.trackTitle'), text: t('xgai.trust.trackText') },
-])
 const processSteps = computed(() => [
   { icon: ListChecks, title: t('xgai.process.s1t'), text: t('xgai.process.s1') },
   { icon: ClipboardList, title: t('xgai.process.s2t'), text: t('xgai.process.s2') },
@@ -401,7 +292,10 @@ const goToProduct = (slug: string) => {
   if (slug) router.push(`/products/${slug}`)
 }
 const scrollTo = (id: string) => {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const target = document.getElementById(id)
+  const disclosure = target?.closest('details')
+  if (disclosure) disclosure.open = true
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 onMounted(async () => {
@@ -415,3 +309,17 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.xshop-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:24px;padding-block:28px;border-bottom:1px solid var(--x-line)}
+.xshop-intro h1{font-size:28px;line-height:1.3;margin:8px 0;color:var(--x-ink);letter-spacing:-.025em}
+.xshop-intro p{margin:0;color:var(--x-ink-3);font-size:14px;line-height:1.6}
+.xshop-intro__links{display:flex;gap:12px;flex-shrink:0}.xshop-intro__links .x-btn{border:1px solid var(--x-line)}
+.xhome .xprod{padding-block:24px 32px}.xhome .xprod__head{margin-bottom:20px;display:flex;justify-content:flex-start}.xhome .xprod__grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.xhome :deep(.xpc){height:340px;min-height:340px;padding:20px;background:var(--x-surface);box-shadow:none;transition:border-color .3s,box-shadow .3s}.xhome :deep(.xpc:hover){transform:none;box-shadow:none;border-color:var(--x-blue)}
+.xhome :deep(.xpc--expanded){box-shadow:0 12px 32px rgba(0,70,150,.12);border-color:var(--x-blue)}.xhome :deep(.xpc__name b){font-size:16px;line-height:1.5;white-space:normal;overflow:visible;text-overflow:clip}.xhome :deep(.xpc__brand){align-items:flex-start;min-height:96px}.xhome :deep(.xpc__price strong){font-size:30px}
+.xshop-help{padding-block:20px 40px}.xshop-help>summary{cursor:pointer;color:var(--x-ink-2);font-size:14px;padding:16px 0;border-top:1px solid var(--x-line)}
+@media(max-width:1100px){.xhome .xprod__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.xshop-intro{align-items:flex-start;flex-direction:column;margin-top:8px;padding-block:20px}.xshop-intro h1{font-size:24px}.xhome .xprod__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.xhome :deep(.xpc){padding:16px}.xshop-intro__links{flex-wrap:wrap}}
+@media(max-width:440px){.xhome .xprod__grid{grid-template-columns:1fr}.xshop-intro h1{font-size:22px}}
+</style>

@@ -1156,6 +1156,10 @@
     "minPurchaseNotMet": "该商品单次下单至少需购买 {count} 件"
   },
   "checkout": {
+    "agreement": "我已阅读并同意{terms}{privacy}，并已了解本商品的交付及售后条件。",
+    "agreementTerms": "《服务协议》",
+    "agreementPrivacy": "《隐私政策》",
+    "agreementRequired": "请先阅读并同意服务协议及隐私政策。",
     "title": "订单结算",
     "subtitle": "确认订单信息并提交",
     "empty": "购物车为空",
@@ -2110,6 +2114,12 @@
     }
   },
   "xgai": {
+    "shop": {
+      "title": "选择商品，直接下单",
+      "description": "GPT 充值到自己的账号，Claude 成品号人工交付。免注册，留邮箱和查单密码即可购买。",
+      "orders": "查询订单",
+      "help": "购买流程、账号检测与常见帮助"
+},
     "theme": {
       "light": "切换到日间模式",
       "dark": "切换到夜间模式"

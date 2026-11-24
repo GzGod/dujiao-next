@@ -13,11 +13,7 @@ export function useLegal(type: () => 'terms' | 'privacy') {
   const { t } = useI18n()
   const appStore = useAppStore()
 
-  usePageSeo({
-    title: () => type() === 'terms' ? t('footer.terms') : t('footer.privacy'),
-    canonicalPath: () => type() === 'terms' ? '/terms' : '/privacy',
-    noindex: () => !loading.value && !content.value.trim(),
-  })
+
 
   const loading = computed(() => appStore.loading)
   const locale = computed(() => appStore.locale)
@@ -39,6 +35,12 @@ export function useLegal(type: () => 'terms' | 'privacy') {
       return processHtmlForDisplay(legal.privacy[lang] || '')
     }
     return ''
+  })
+
+  usePageSeo({
+    title: () => type() === 'terms' ? t('footer.terms') : t('footer.privacy'),
+    canonicalPath: () => type() === 'terms' ? '/terms' : '/privacy',
+    noindex: () => !loading.value && !content.value.trim(),
   })
 
   return {

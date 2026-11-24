@@ -1,7 +1,7 @@
 <template>
-  <div class="xck">
+  <div class="xck" :class="{ 'xck--embedded': embedded }">
     <!-- 面包屑 -->
-    <nav class="x-container xck__crumb" :aria-label="t('checkout.title')">
+    <nav v-if="!embedded" class="x-container xck__crumb" :aria-label="t('checkout.title')">
       <RouterLink to="/">{{ t('nav.home') }}</RouterLink>
       <span>/</span>
       <RouterLink v-if="!isBuyNowMode" to="/cart">{{ t('cart.title') }}</RouterLink>
@@ -9,13 +9,13 @@
       <b>{{ t('checkout.title') }}</b>
     </nav>
 
-    <div class="x-container xck__head">
+    <div v-if="!embedded" class="x-container xck__head">
       <h1>{{ t('checkout.title') }}</h1>
       <p class="xck__sub">{{ t('checkout.subtitle') }}</p>
     </div>
 
     <!-- 步骤条 -->
-    <div class="x-container xck__steps">
+    <div v-if="!embedded" class="x-container xck__steps">
       <XgaiCheckoutSteps current="checkout" :skip-cart="isBuyNowMode" />
     </div>
 
@@ -30,7 +30,7 @@
       <!-- 左栏 -->
       <div class="xck__main">
         <!-- 商品列表 -->
-        <section class="xck__card">
+        <section v-if="!embedded" class="xck__card">
           <h2>{{ t('checkout.itemsTitle') }}</h2>
           <div class="xck__items">
             <div
@@ -70,7 +70,7 @@
         />
 
         <!-- 优惠码 -->
-        <section v-if="!isResellerTenant" class="xck__card">
+        <section v-if="!isResellerTenant" class="xck__card" :class="{ 'xck__coupon--compact': embedded }">
           <h2>{{ t('checkout.couponTitle') }}</h2>
           <input
             v-model="couponCode"
@@ -89,7 +89,8 @@
               :class="{ 'is-active': checkoutMode === 'guest' }"
               @click="checkoutMode = 'guest'"
             >{{ t('checkout.guestPurchase') }}</button>
-            <RouterLink to="/auth/login" class="xck__mode-login">{{ t('checkout.memberPurchase') }}</RouterLink>
+            <button v-if="embedded" type="button" class="xck__mode-login" @click="emit('login')">{{ t('checkout.memberPurchase') }}</button>
+            <RouterLink v-else to="/auth/login" class="xck__mode-login">{{ t('checkout.memberPurchase') }}</RouterLink>
           </div>
 
           <template v-if="checkoutMode === 'guest'">
@@ -112,13 +113,14 @@
                 :site-key="guestTurnstileSiteKey"
               />
             </div>
-            <div class="xck__guest-note">
-              <p><b>{{ t('checkout.guestInstructions.title') }}</b></p>
+            <component :is="embedded ? 'details' : 'div'" class="xck__guest-note">
+              <summary v-if="embedded">{{ t('checkout.guestInstructions.title') }}</summary>
+              <p v-else><b>{{ t('checkout.guestInstructions.title') }}</b></p>
               <ul>
                 <li>{{ t('checkout.guestInstructions.email') }}</li>
                 <li>{{ t('checkout.guestInstructions.password') }}</li>
               </ul>
-            </div>
+            </component>
             <p v-if="guestEmail && !guestEmailValid" class="xck__field-error">{{ t('error.email_invalid') }}</p>
           </template>
         </section>
@@ -131,15 +133,15 @@
           <p class="xck__summary-hint">{{ t('checkout.submitHint') }}</p>
 
           <div class="xck__rows">
-            <div><span>{{ t('cart.itemsCount') }}</span><span>{{ totalItems }}</span></div>
-            <div><span>{{ t('checkout.previewOriginal') }}</span><span>{{ formatPrice(previewOriginal, previewCurrency) }}</span></div>
+            <div v-if="!embedded"><span>{{ t('cart.itemsCount') }}</span><span>{{ totalItems }}</span></div>
+            <div v-if="!embedded"><span>{{ t('checkout.previewOriginal') }}</span><span>{{ formatPrice(previewOriginal, previewCurrency) }}</span></div>
             <template v-if="!isResellerTenant">
-              <div><span>{{ t('checkout.previewCoupon') }}</span><span :class="{ 'is-blue': hasPositiveAmount(previewCoupon) }">{{ formatDiscountPrice(previewCoupon, previewCurrency) }}</span></div>
-              <div><span>{{ t('checkout.previewPromotion') }}</span><span :class="{ 'is-blue': hasPositiveAmount(previewPromotion) }">{{ formatDiscountPrice(previewPromotion, previewCurrency) }}</span></div>
-              <div><span>{{ t('checkout.previewWholesale') }}</span><span :class="{ 'is-green': hasPositiveAmount(previewWholesale) }">{{ formatDiscountPrice(previewWholesale, previewCurrency) }}</span></div>
+              <div v-if="!embedded || hasPositiveAmount(previewCoupon)"><span>{{ t('checkout.previewCoupon') }}</span><span :class="{ 'is-blue': hasPositiveAmount(previewCoupon) }">{{ formatDiscountPrice(previewCoupon, previewCurrency) }}</span></div>
+              <div v-if="!embedded || hasPositiveAmount(previewPromotion)"><span>{{ t('checkout.previewPromotion') }}</span><span :class="{ 'is-blue': hasPositiveAmount(previewPromotion) }">{{ formatDiscountPrice(previewPromotion, previewCurrency) }}</span></div>
+              <div v-if="!embedded || hasPositiveAmount(previewWholesale)"><span>{{ t('checkout.previewWholesale') }}</span><span :class="{ 'is-green': hasPositiveAmount(previewWholesale) }">{{ formatDiscountPrice(previewWholesale, previewCurrency) }}</span></div>
             </template>
             <div v-if="Number(previewMemberDiscount) > 0"><span>{{ t('checkout.previewMemberDiscount') }}</span><span class="is-gold">-{{ formatPrice(previewMemberDiscount, previewCurrency) }}</span></div>
-            <div class="is-total"><span>{{ t('checkout.previewTotal') }}</span><span>{{ formatPrice(previewTotal, previewCurrency) }}</span></div>
+            <div class="is-total"><span>{{ t('checkout.previewTotal') }}</span><span>{{ formatPrice(previewTotal, previewCurrency) }}</span><slot name="quantity" /></div>
           </div>
 
           <div v-if="previewLoading || couponRefreshing" class="xck__preview-status">{{ previewStatusText }}</div>
@@ -173,13 +175,18 @@
                   v-for="channel in paymentChannels"
                   :key="channel.id"
                   type="button"
+                  :aria-label="channel.name"
+                  :aria-pressed="selectedChannelId === channel.id"
                   :class="{ 'is-active': selectedChannelId === channel.id && !isChannelDisabledForAmount(channel), 'is-disabled': isChannelDisabledForAmount(channel) }"
                   :disabled="isChannelDisabledForAmount(channel)"
-                  :title="isChannelDisabledForAmount(channel) ? channelAmountLimitHint(channel) : ''"
+                  :title="isChannelDisabledForAmount(channel) ? channelAmountLimitHint(channel) : channel.name"
                   @click="handleSelectChannel(channel)"
                 >
-                  <img v-if="channel.icon" :src="getImageUrl(channel.icon)" loading="lazy" alt="" />
-                  <span>{{ channel.name }}</span>
+                  <template v-if="embedded && String(channel.channel_type).includes('alipay')">
+                    <img src="/images/payments/alipay.ico" alt="" /><span class="xck__channel-name">{{ channel.name }}</span>
+                  </template>
+                  <span v-else-if="embedded && /usdt|usdc|crypto|epusdt|bepusdt|tokenpay/i.test([channel.name, channel.provider_type, channel.channel_type].join(' '))" class="xck__coin-pair" aria-hidden="true"><img src="/images/payments/usdt.svg" alt="" /><span>/</span><img src="/images/payments/usdc.svg" alt="" /></span>
+                  <template v-else><img v-if="channel.icon" :src="getImageUrl(channel.icon)" alt="" /><span>{{ channel.name }}</span></template>
                   <small v-if="channel.fee_policy === 'customer_surcharge'" class="is-warn">{{ t('payment.feeLabel') }}：{{ formatChannelFeeRate(channel) }}</small>
                   <small v-if="isChannelDisabledForAmount(channel)" class="is-warn">{{ channelAmountLimitHint(channel) }}</small>
                 </button>
@@ -189,6 +196,13 @@
             <div v-if="!requiresOnlineChannel" class="xck__wallet-covers">{{ t('checkout.walletCoversAll') }}</div>
           </div>
 
+          <label class="xck__agreement">
+            <input v-model="agreementAccepted" type="checkbox" :disabled="submitting" />
+            <i18n-t keypath="checkout.agreement" tag="span">
+              <template #terms><RouterLink to="/terms" target="_blank" rel="noopener noreferrer">{{ t('checkout.agreementTerms') }}</RouterLink></template>
+              <template #privacy><RouterLink to="/privacy" target="_blank" rel="noopener noreferrer">{{ t('checkout.agreementPrivacy') }}</RouterLink></template>
+            </i18n-t>
+          </label>
           <button
             type="button"
             class="x-btn x-btn--primary x-btn--lg x-btn--block"
@@ -204,6 +218,7 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Package, ShoppingCart } from 'lucide-vue-next'
 import ImageCaptcha from '../../components/captcha/ImageCaptcha.vue'
@@ -213,10 +228,12 @@ import XgaiCheckoutSteps from './components/XgaiCheckoutSteps.vue'
 import { useCheckout } from '../../composables/useCheckout'
 import './styles/xgai-checkout.css'
 
+const props = defineProps<{ embedded?: boolean }>()
+const emit = defineEmits<{ busy: [value: boolean]; login: [] }>()
 const { t } = useI18n()
 
 const {
-  userAuthStore, getLocalizedText, formatPrice, getImageUrl,
+  agreementAccepted, userAuthStore, getLocalizedText, formatPrice, getImageUrl,
   isBuyNowMode, cartItems, totalItems, cartItemKey, checkoutItemImage, itemSkuDisplay,
   itemStockExceeded, itemStockHint,
   checkoutItemCurrency, checkoutItemPriceParts, checkoutItemOriginalPriceParts, checkoutItemHasPriceDiscount,
@@ -232,9 +249,57 @@ const {
   requiresOnlineChannel, paymentChannels, selectedChannelId, isChannelDisabledForAmount, channelAmountLimitHint,
   handleSelectChannel, formatChannelFeeRate, formatChannelFixedFee,
   submitting, canSubmit, handleSubmit,
-} = useCheckout()
+} = useCheckout({ buyNow: props.embedded, requireAgreement: true })
+
+watch(submitting, value => emit('busy', value))
 
 void guestImageCaptchaRef
 void guestTurnstileRef
 void formatChannelFixedFee
 </script>
+
+<style scoped>
+.xck--embedded .x-container { width: 100%; max-width: none; padding-inline: 0; }
+.xck--embedded .xck__layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding-bottom: 0; }
+.xck--embedded .xck__main, .xck--embedded .xck__aside, .xck--embedded .xck__summary { display: contents; }
+.xck--embedded .xck__rows { order: 0; gap: 8px; }
+.xck--embedded :deep(.quick-buy-checkout__quantity) { order: 1; }
+.xck--embedded .xck__pay-section { order: 2; margin: 0; padding: 0; border: 0; }
+.xck--embedded .xck__main > * { order: 3; }
+.xck--embedded .xck__main > .xck__coupon--compact { order: 4; }
+.xck--embedded .xck__summary > button { order: 6; }
+.xck--embedded .xck__alert, .xck--embedded .xck__preview-status { order: 5; margin: 0; padding: 8px 10px; font-size: 12px; }
+.xck--embedded .xck__card { padding: 0; border: 0; box-shadow: none; background: transparent; }
+.xck--embedded .xck__summary > h2, .xck--embedded .xck__summary-hint { display: none; }
+.xck--embedded .xck__rows .is-total { margin-top: 0; padding-top: 0; border-top: 0; }
+.xck--embedded .xck__rows .is-total span:last-child { font-size: 32px; }
+.xck--embedded .xck__guest { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; }
+.xck--embedded .xck__guest-note { font-size: 11px; margin-top: 8px; }
+.xck--embedded .xck__card h2, .xck--embedded .xck__pay-section h3 { margin-bottom: 10px; font-size: 14px; }
+.xck--embedded .xck__channels { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.xck--embedded .xck__channels button { min-height: 44px; padding: 8px 10px; gap: 8px; flex-wrap: nowrap; }
+.xck--embedded .xck__rows > div:not(.is-total) { font-size: 12px; }
+.xck--embedded .xck__rows > .is-total { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 12px; }
+.xck--embedded .xck__rows > .is-total > span:first-child { flex-basis: 100%; font-size: 12px; }
+.xck--embedded .xck__rows > .is-total > span:nth-child(2) { font-size: 34px; color: var(--x-blue); font-weight: 700; letter-spacing: -.04em; }
+.xck--embedded :deep(.quick-buy-checkout__quantity) { margin-left: auto; padding: 0; border: 0; gap: 8px; }
+.xck--embedded :deep(.quick-buy-checkout__quantity > span) { display: none; }
+.xck--embedded :deep(.quick-buy-checkout__quantity button) { width: 28px; height: 30px; }
+.xck--embedded :deep(.quick-buy-checkout__quantity input) { width: 32px; height: 30px; }
+.xck--embedded .xck__input { height: 36px; padding: 0 10px; border-radius: 10px; font-size: 12px; min-width: 0; }
+.xck--embedded .xck__mode-tabs { padding: 3px; margin-bottom: 10px; }
+.xck--embedded .xck__mode-tabs button, .xck--embedded .xck__mode-login { padding: 5px 10px; font-size: 12px; }
+.xck--embedded .xck__guest-note { padding: 6px 10px; }
+.xck--embedded .xck__payment-icon { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; }
+.xck__payment-icon svg { width: 28px; height: 28px; }
+.xck__payment-icon.is-alipay { color: #1677ff; }
+.xck__payment-icon.is-crypto { color: #26a17b; }
+.xck--embedded .xck__channel-name { font-size: 11px; line-height: 1.4; }
+.xck--embedded .xck__summary > button { position: sticky; bottom: 0; min-height: 42px; padding-block: 10px; box-shadow: 0 0 0 10px var(--x-bg); }
+.xck__coin-pair { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; color: var(--x-ink-4); }
+.xck--embedded .xck__channels img { width: 26px; height: 26px; }
+.xck__agreement { display: flex; align-items: flex-start; gap: 8px; margin-block: 14px; font-size: 12px; line-height: 1.7; color: var(--x-ink-2); }
+.xck__agreement input { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 3px; accent-color: var(--x-blue); }
+.xck__agreement a { color: var(--x-blue); }
+.xck--embedded .xck__agreement { order: 5; margin: 0; }
+</style>

@@ -1204,6 +1204,10 @@
     "minPurchaseNotMet": "該商品單次下單至少需購買 {count} 件"
   },
   "checkout": {
+    "agreement": "我已閱讀並同意{terms}{privacy}，並已了解本商品的交付及售後條件。",
+    "agreementTerms": "《服務協議》",
+    "agreementPrivacy": "《隱私政策》",
+    "agreementRequired": "請先閱讀並同意服務協議及隱私政策。",
     "title": "訂單結算",
     "subtitle": "確認訂單資訊並提交",
     "empty": "購物車為空",
@@ -2110,6 +2114,12 @@
     }
   },
   "xgai": {
+    "shop": {
+      "title": "選擇商品，直接下單",
+      "description": "GPT 儲值到自己的帳號，Claude 成品帳號人工交付。免註冊，留下信箱和查單密碼即可購買。",
+      "orders": "查詢訂單",
+      "help": "購買流程、帳號檢測與常見說明"
+},
     "theme": {
       "light": "切換至日間模式",
       "dark": "切換至夜間模式"

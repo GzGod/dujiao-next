@@ -1,7 +1,7 @@
 <template>
-  <div class="xauth">
+  <div class="xauth" :class="{ 'xauth--embedded': embedded }">
     <div class="xauth__wrap">
-      <div class="xauth__bar">
+      <div v-if="!embedded" class="xauth__bar">
         <RouterLink to="/" class="xauth__back">
           <ArrowLeft aria-hidden="true" /> {{ t('auth.login.backHome') }}
         </RouterLink>
@@ -218,6 +218,8 @@ import InviteCodeDialog from '../../../components/InviteCodeDialog.vue'
 import { useLogin } from '../../../composables/useLogin'
 import '../styles/xgai-auth.css'
 
+const props = defineProps<{ embedded?: boolean }>()
+const emit = defineEmits<{ success: [] }>()
 const { t } = useI18n()
 
 const {
@@ -234,9 +236,15 @@ const {
   prepareGoogleRedirectLogin, showGoogleLogin, showThirdPartyLogin,
   handleGoogleCredential, handleGoogleScriptError,
   handleLogin,
-} = useLogin()
+} = useLogin({ onSuccess: props.embedded ? () => emit('success') : undefined })
 
 void imageCaptchaRef
 void turnstileRef
 void telegramWidgetRef
 </script>
+
+<style scoped>
+.xauth--embedded { min-height: 0; padding: 24px 0; }
+.xauth--embedded .xauth__card { padding: 24px; box-shadow: none; }
+.xauth--embedded .xauth__title { font-size: 25px; }
+</style>
