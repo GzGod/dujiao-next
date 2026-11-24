@@ -1,8 +1,9 @@
 <template>
-  <article ref="card" class="xpc" :class="{ 'xpc--featured': featured, 'xpc--disabled': soldOut, 'xpc--expanded': expanded }" tabindex="0" :aria-label="title" @mouseenter="schedulePreview" @mouseleave="leaveCard" @focusout="cancelPreview" @keydown.enter.self="openPreview" @click="onCardClick">
+  <article ref="card" class="xpc" :class="{ 'xpc--featured': featured, 'xpc--disabled': soldOut }" tabindex="0" :aria-label="title" @pointermove="moveLight" @pointerleave="glassActive=false; resetLight()" @mouseenter="glassActive=true; schedulePreview()" @mouseleave="leaveCard" @focusin="glassActive=true" @focusout="leaveFocus" @keydown.enter.self="openPreview" @click="onCardClick">
+    <Transition name="glass-light"><GlassSurface v-if="glassActive" :radius="20" :intensity=".42" /></Transition>
     <span v-if="featured" class="xpc__badge">{{ t('xgai.card.popular') }}</span>
     <div class="xpc__brand">
-      <span class="xpc__icon" :class="`xpc__icon--${brand}`">
+      <span class="xpc__icon" :class="[`xpc__icon--${brand}`, { 'xpc__icon--artwork': productArtworkUrl(product) }]">
         <img v-if="logo" :src="logo" alt="" />
         <span v-else>{{ title.slice(0, 1) }}</span>
       </span>
@@ -26,151 +27,62 @@
     </button>
   </article>
 
-  <dialog ref="preview" class="xpc-preview" :aria-label="title" @cancel.prevent="closePreview" @click="onBackdrop">
-    <section class="xpc-preview__layout">
-      <button class="xpc-paper__close" type="button" :aria-label="t('announcement.close')" @click="closePreview"><X /></button>
-      <div class="xpc__brand" data-morph="brand">
-        <span class="xpc__icon" :class="`xpc__icon--${brand}`"><img v-if="logo" :src="logo" alt="" /><span v-else>{{ title.slice(0, 1) }}</span></span>
-        <span class="xpc__name"><small>{{ brandLabel }}</small><b>{{ title }}</b></span>
-      </div>
-      <div class="xpc-preview__description">
-        <p class="xpc-paper__note">{{ note }}</p>
-        <div v-if="richContent" class="xpc-paper__content" v-html="richContent" />
-      </div>
-      <div class="xpc__price" data-morph="price"><strong><i>{{ symbol }}</i>{{ priceText }}</strong><span v-if="originalText" class="xpc__was">{{ symbol }}{{ originalText }}</span><del v-if="official">{{ t('xgai.card.official', { cny: official.officialCny }) }}</del></div>
-      <p class="xpc__save" :class="{ 'xpc__save--muted': !official }" data-morph="save">{{ official ? t('xgai.card.save', { amount: official.savingCny }) : stockText }}</p>
-      <button class="xpc__cta" data-morph="cta" :disabled="soldOut" @click="buy">{{ soldOut ? t('xg.stock.out') : t('xgai.card.choose') }} <ArrowRight /></button>
-    </section>
-  </dialog>
-
 </template>
 
 <script setup lang="ts">
-import { computed, ref, nextTick, onBeforeUnmount } from 'vue'
+import { computed, ref, onBeforeUnmount } from 'vue'
+import '../styles/glass-commerce.css'
+import GlassSurface from './GlassSurface.vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowRight, X } from 'lucide-vue-next'
+import { ArrowRight } from 'lucide-vue-next'
 import { useLocalized } from '../../../composables/useProduct'
 import { getFirstImageUrl } from '../../../utils/image'
 import { amountToCents, centsToAmount } from '../../../utils/money'
-import { brandLogoUrl, detectAiBrand } from '../../../utils/aiBrand'
+import { brandLogoUrl, detectAiBrand, productArtworkUrl } from '../../../utils/aiBrand'
 import { compareWithOfficial } from '../../../utils/officialPrice'
-import { productAPI } from '../../../api/product'
-import { processHtmlForDisplay } from '../../../utils/content'
 
 const props = defineProps<{ product: any; featured?: boolean }>()
-const emit = defineEmits<{ open: [slug: string]; buy: [product: any] }>()
+const emit = defineEmits<{ open: [slug: string]; buy: [product: any, source?: HTMLElement] }>()
 
-const expanded = ref(false)
-const detail = ref<any>(null)
-const richContent = computed(() => processHtmlForDisplay(getLocalizedText(detail.value?.content || props.product?.content) || ''))
-let detailRequested = false
-const preview = ref<HTMLDialogElement | null>(null)
 const card = ref<HTMLElement | null>(null)
+const glassActive=ref(false)
+const leaveFocus=(event:FocusEvent)=>{
+ if(card.value?.contains(event.relatedTarget as Node))return
+ glassActive.value=false;cancelPreview()
+}
+let lightFrame=0
+const moveLight=(event:PointerEvent)=>{
+ if(event.pointerType==='touch'||lightFrame)return
+ const x=event.clientX,y=event.clientY
+ lightFrame=requestAnimationFrame(()=>{lightFrame=0;const el=card.value;if(!el)return;const r=el.getBoundingClientRect();el.style.setProperty('--glass-x',`${x-r.left}px`);el.style.setProperty('--glass-y',`${y-r.top}px`)})
+}
+const resetLight=()=>{cancelAnimationFrame(lightFrame);lightFrame=0;card.value?.style.removeProperty('--glass-x');card.value?.style.removeProperty('--glass-y')}
+onBeforeUnmount(()=>cancelAnimationFrame(lightFrame))
 let previewTimer: ReturnType<typeof setTimeout> | undefined
-const cancelPreview = () => { clearTimeout(previewTimer); previewTimer = undefined }
-let morph: Animation | undefined
-let closing = false
 let hoverReady = true
-const leaveCard = () => { cancelPreview(); hoverReady = true }
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const morphParts = ['brand', 'price', 'save', 'cta'] as const
-const sourceSelector = { brand: '.xpc__brand', price: '.xpc__price', save: '.xpc__save', cta: '.xpc__cta' }
+const cancelPreview = () => { clearTimeout(previewTimer); previewTimer = undefined }
+const leaveCard = () => { cancelPreview(); hoverReady = true; if (card.value) delete card.value.dataset.revealCooldown }
 const openPreview = () => {
   cancelPreview()
-  const panel = preview.value
-  const source = card.value
-  if (!panel || !source || document.querySelector('dialog[open], [aria-modal="true"]')) return
-  const start = source.getBoundingClientRect()
-  const style = getComputedStyle(source)
-  panel.style.setProperty('--card-padding', style.paddingTop)
-  panel.style.setProperty('--card-radius', style.borderRadius)
-  panel.style.setProperty('--brand-width', `${start.width - parseFloat(style.paddingLeft) * 2 - 2}px`)
-  panel.showModal()
-  const end = panel.getBoundingClientRect()
-  panel.style.setProperty('--layout-width', `${end.width - 2}px`)
-  panel.style.setProperty('--layout-height', `${end.height - 2}px`)
-  const targets = new Map(morphParts.map(part => [part, panel.querySelector(`[data-morph="${part}"]`)!.getBoundingClientRect()]))
-  const duration = reduceMotion() ? 0 : 680
-  const timing = { duration, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'both' as FillMode }
-  // Animate the actual card bounds: no rotation, image scaling or shape substitution.
-  morph = panel.animate([
-    { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: style.borderRadius },
-    { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: style.borderRadius },
-  ], timing)
-  morphParts.forEach(part => {
-    const from = source.querySelector(sourceSelector[part])?.getBoundingClientRect()
-    const node = panel.querySelector<HTMLElement>(`[data-morph="${part}"]`)
-    if (!from || !node) return
-    const to = targets.get(part)!
-    node.animate([
-      { width: `${from.width}px`, transform: `translate(${from.left - start.left - (to.left - end.left)}px, ${from.top - start.top - (to.top - end.top)}px)` },
-      { width: `${to.width}px`, transform: 'translate(0, 0)' },
-    ], timing)
-  })
-  expanded.value = true
-  const opening = morph
-  opening.onfinish = () => { opening.cancel(); if (morph === opening) morph = undefined }
-  if (!detailRequested) {
-    detailRequested = true
-    productAPI.detail(props.product.slug).then(response => { detail.value = response.data.data }).catch(() => { detailRequested = false })
-  }
+  if (!hoverReady || document.querySelector('dialog[open], [aria-modal="true"]')) return
+  hoverReady = false
+  emit('buy', props.product, card.value || undefined)
 }
 const schedulePreview = () => {
   cancelPreview()
-  if (hoverReady && !closing && !expanded.value && window.matchMedia('(hover: hover)').matches) previewTimer = setTimeout(openPreview, 1000)
+  if (hoverReady && !card.value?.dataset.revealCooldown && window.matchMedia('(hover: hover)').matches) previewTimer = setTimeout(openPreview, 1000)
 }
-const closePreview = (after?: unknown) => {
-  cancelPreview()
-  const panel = preview.value
-  const source = card.value
-  if (!panel?.open || !source || closing) { if (!closing && typeof after === 'function') after(); return }
-  closing = true
-  hoverReady = false
-  const start = panel.getBoundingClientRect()
-  const end = source.getBoundingClientRect()
-  const partStarts = new Map(morphParts.map(part => [part, panel.querySelector(`[data-morph="${part}"]`)!.getBoundingClientRect()]))
-  const panelShadow = getComputedStyle(panel).boxShadow
-  const cardShadow = getComputedStyle(source).boxShadow
-  if (morph) { morph.onfinish = null; morph.cancel() }
-  const duration = reduceMotion() ? 0 : 480
-  panel.classList.add('xpc-preview--closing')
-  morph = panel.animate([
-    { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, boxShadow: panelShadow },
-    { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, boxShadow: cardShadow },
-  ], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' })
-  morphParts.forEach(part => {
-    const node = panel.querySelector<HTMLElement>(`[data-morph="${part}"]`)
-    const to = source.querySelector(sourceSelector[part])?.getBoundingClientRect()
-    if (!node || !to) return
-    const from = partStarts.get(part)!
-    node.animate([{ width: `${from.width}px`, transform: 'translate(0,0)' }, { width: `${to.width}px`, transform: `translate(${to.left - end.left - (from.left - start.left)}px, ${to.top - end.top - (from.top - start.top)}px)` }], { duration, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' })
-  })
-  morph.onfinish = async () => {
-    // Restore the real card before removing its animated copy to avoid an empty frame.
-    expanded.value = false
-    await nextTick()
-    panel.close()
-    panel.getAnimations({ subtree: true }).forEach(animation => animation.cancel())
-    panel.classList.remove('xpc-preview--closing')
-    expanded.value = false
-    closing = false
-    morph = undefined
-    if (typeof after === 'function') after()
-  }
-}
-const onBackdrop = (event: MouseEvent) => { if (event.target === preview.value) closePreview() }
-const onCardClick = () => openPreview()
-const buy = () => closePreview(() => emit('buy', props.product))
-onBeforeUnmount(() => { cancelPreview(); morph?.cancel(); preview.value?.close() })
+const onCardClick = () => { hoverReady = true; openPreview() }
+const buy = () => { hoverReady = true; openPreview() }
+onBeforeUnmount(cancelPreview)
 const { t } = useI18n()
 const { getLocalizedText, siteCurrency } = useLocalized()
 
 const title = computed(() => getLocalizedText(props.product?.title) || '')
 const brand = computed(() => detectAiBrand(props.product))
 const brandLabel = computed(() => (brand.value === 'openai' ? 'OPENAI' : brand.value === 'grok' ? 'xAI' : getLocalizedText(props.product?.category?.name) || ''))
-const logo = computed(() => brandLogoUrl(brand.value) || getFirstImageUrl(props.product?.images))
+const logo = computed(() => productArtworkUrl(props.product) || brandLogoUrl(brand.value) || getFirstImageUrl(props.product?.images))
 // 只用商品自带的简介；没有就用通用的交付说明，不编卖点
-const note = computed(() => getLocalizedText(props.product?.description) || t('xg.card.auto'))
 const soldOut = computed(() => Boolean(props.product?.is_sold_out || props.product?.stock_status === 'out_of_stock'))
 const stockText = computed(() => (soldOut.value ? t('xg.stock.out') : t('xg.stock.in')))
 const symbol = computed(() => (String(siteCurrency.value || 'CNY').toUpperCase() === 'CNY' ? '¥' : `${siteCurrency.value} `))
@@ -253,6 +165,7 @@ const official = computed(() => (symbol.value === '¥' ? compareWithOfficial(tit
   font-weight: 700;
 }
 .xpc__icon img { width: 28px; height: 28px; object-fit: contain; }
+.xpc__icon--artwork img { width: 100%; height: 100%; object-fit: cover; }
 .xpc__icon--grok { background: #111; }
 .xpc__icon--grok img { filter: invert(1); }
 .xpc__name {
@@ -277,13 +190,9 @@ const official = computed(() => (symbol.value === '¥' ? compareWithOfficial(tit
   line-height: 1.5;
 }
 
-.xpc--expanded { visibility: hidden; }
-.xpc-preview { position: fixed; inset: auto; left: max(16px, calc(50vw - 310px)); top: max(24px, calc(50dvh - 240px)); width: min(620px, calc(100vw - 32px)); height: min(480px, calc(100dvh - 48px)); max-width: none; max-height: none; box-sizing: border-box; margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--x-line); border-radius: var(--card-radius); color: var(--x-ink); background: var(--x-surface); box-shadow: 0 32px 120px #0003; }
-.xpc-preview::backdrop { background: #1116; animation: xpc-backdrop .68s ease both; }
-.xpc-preview__layout { position: relative; display: flex; flex-direction: column; width: var(--layout-width); height: var(--layout-height); padding: var(--card-padding); box-sizing: border-box; }
-.xpc-preview .xpc__brand { width: var(--brand-width); flex: 0 0 auto; min-height: 96px; align-items: flex-start; }
-.xpc-preview .xpc__name b { font-size: 16px; }
-.xpc-preview .xpc__price { flex: 0 0 auto; }
+.xpc:focus-visible { border-color: var(--x-blue); outline: none; }
+
+.xpc__price { flex: 0 0 auto; }
 .xpc-preview .xpc__cta { flex: 0 0 auto; margin-top: 20px; }
 .xpc-preview__description { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; animation: xpc-content .45s .2s ease both; }
 .xpc-paper__note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.85; color: var(--x-ink-2); }

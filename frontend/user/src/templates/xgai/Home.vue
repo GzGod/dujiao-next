@@ -8,17 +8,13 @@
     <!-- 商品 -->
     <section id="products" class="x-container x-section xprod">
       <div class="xprod__head">
-        <div class="x-segment" role="group" :aria-label="t('xgai.products.filter')">
-          <button v-for="item in filters" :key="item.value" type="button" :class="{ 'is-active': filter === item.value }" @click="filter = item.value">
-            {{ item.label }}
-          </button>
-        </div>
+        <GlassSegment v-model="filter" :options="filters" :label="t('xgai.products.filter')" />
       </div>
 
       <div v-if="loading" class="xprod__grid">
         <div v-for="n in 6" :key="n" class="xprod__skeleton" />
       </div>
-      <div v-else-if="visibleProducts.length" class="xprod__grid">
+      <TransitionGroup v-else-if="visibleProducts.length" tag="div" name="glass-cards" appear class="xprod__grid" :key="filter">
         <XgaiProductCard
           v-for="product in visibleProducts"
           :key="product.id"
@@ -27,7 +23,7 @@
           @open="goToProduct"
           @buy="openQuickBuy"
         />
-      </div>
+      </TransitionGroup>
       <p v-else class="xprod__empty">{{ t('home.featured.empty') }}</p>
 
       <div class="xprod__help">
@@ -174,6 +170,7 @@
       inline-checkout
       v-if="quickBuyProduct"
       :product="quickBuyProduct"
+      :source-element="quickBuySource"
       :visible="quickBuyVisible"
       @update:visible="quickBuyVisible = $event"
     />
@@ -195,7 +192,9 @@ import { useLocalized } from '../../composables/useProduct'
 import { usePageSeo } from '../../composables/usePageSeo'
 import ProductQuickBuy from '../../components/ProductQuickBuy.vue'
 import XgaiProductCard from './components/XgaiProductCard.vue'
-import { detectAiBrand, sortByBrandThenPrice, type AiBrand } from '../../utils/aiBrand'
+import GlassSegment from './components/GlassSegment.vue'
+import './styles/glass-commerce.css'
+import { detectAiBrand, sortByBrandThenPrice, isKycServiceProduct } from '../../utils/aiBrand'
 import { maskEmail, parseChatgptSession, type PlanKind, type SessionCheckError, type SessionCheckResult } from '../../utils/chatgptSession'
 import '../xgai/styles/xgai-home.css'
 
@@ -212,20 +211,18 @@ usePageSeo({ title: () => t('xgai.seo.title'), description: () => t('xgai.seo.de
 // ---------- 商品 ----------
 const products = ref<any[]>([])
 const loading = ref(true)
-type Filter = 'all' | AiBrand | 'claude'
+type Filter = 'all' | 'openai' | 'claude' | 'kyc'
 const filter = ref<Filter>('all')
-
 const findByTitle = (pattern: RegExp) => products.value.filter(p => pattern.test(getLocalizedText(p.title))).sort((a,b) => Number(a.price_amount)-Number(b.price_amount))[0] || null
-const brandsPresent = computed(() => new Set(products.value.map((p) => detectAiBrand(p))))
-const filters = computed(() => {
-  const list: { value: Filter; label: string }[] = [{ value: 'all', label: t('xgai.products.all') }]
-  if (brandsPresent.value.has('openai')) list.push({ value: 'openai', label: 'ChatGPT' })
-  if (products.value.some(p => /claude/i.test(getLocalizedText(p.title)))) list.push({ value: 'claude', label: 'Claude' })
-  if (brandsPresent.value.has('other')) list.push({ value: 'other', label: t('xgai.products.other') })
-  return list
-})
+const isKycProduct = isKycServiceProduct
+const filters = computed(() => [
+  { value: 'all' as Filter, label: t('xgai.products.allProducts') },
+  { value: 'openai' as Filter, label: 'ChatGPT' },
+  { value: 'claude' as Filter, label: 'Claude' },
+  { value: 'kyc' as Filter, label: 'KYC' },
+])
 const visibleProducts = computed(() => {
-  const list = filter.value === 'all' ? products.value : products.value.filter((p) => filter.value === 'claude' ? /claude/i.test(getLocalizedText(p.title)) : filter.value === 'other' ? detectAiBrand(p) === 'other' && !/claude/i.test(getLocalizedText(p.title)) : detectAiBrand(p) === filter.value)
+  const list = products.value.filter(p => filter.value === 'all' || (filter.value === 'kyc' ? isKycProduct(p) : filter.value === 'claude' ? !isKycProduct(p) && /claude/i.test(getLocalizedText(p.title)) : detectAiBrand(p) === 'openai' && !isKycProduct(p)))
   return sortByBrandThenPrice(list)
 })
 const processSteps = computed(() => [
@@ -284,7 +281,9 @@ const formatDate = (iso: string) =>
 // ---------- 交互 ----------
 const quickBuyProduct = ref<any>(null)
 const quickBuyVisible = ref(false)
-const openQuickBuy = (product: any) => {
+const quickBuySource = ref<HTMLElement | undefined>()
+const openQuickBuy = (product: any, source?: HTMLElement) => {
+  quickBuySource.value = source
   quickBuyProduct.value = product
   quickBuyVisible.value = true
 }

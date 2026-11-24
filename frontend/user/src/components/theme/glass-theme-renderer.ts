@@ -58,7 +58,8 @@ const icons = modes.map(icon)
 export function createGlassThemeRenderer(
   canvas: HTMLCanvasElement,
   initial: Theme,
-  initialDark: boolean
+  initialDark: boolean,
+  surface?: () => { x: number; width: number; height: number; radius: number; intensity?: number }
 ) {
   const gl = canvas.getContext('webgl2', {
     antialias: false,
@@ -188,6 +189,9 @@ export function createGlassThemeRenderer(
       return { x: (point.x - 8) * 5.7, y: (point.y - 8) * 5.7, vx: 0, vy: 0 }
     }
   )
+  let surfaceX: number | undefined
+  let surfaceWidth: number | undefined
+  let surfaceVelocity = 0
   const draw = (now: number) => {
     if (destroyed || document.hidden || !visible) return
     const dt = Math.min(1 / 30, Math.max(0, (now - previous) / 1000))
@@ -218,12 +222,32 @@ export function createGlassThemeRenderer(
       canvas.height = height
       gl.viewport(0, 0, width, height)
     }
-    const scale = (rect.width - 24) / 640
+    const geometry = surface?.()
+    let surfaceMoving = false
+    if (geometry) {
+      surfaceX ??= geometry.x
+      const delta = geometry.x - surfaceX
+      surfaceMoving = Math.abs(delta) > .05
+      surfaceWidth ??= geometry.width
+      surfaceMoving ||= Math.abs(geometry.width-surfaceWidth)>.05
+      if (motion.matches) { surfaceX=geometry.x; surfaceWidth=geometry.width }
+      else {
+        for(let step=0;step<4;step++) {
+          surfaceVelocity += (210*(geometry.x-surfaceX)-27*surfaceVelocity)*dt/4
+          surfaceX += surfaceVelocity*dt/4
+        }
+        surfaceWidth += (geometry.width-surfaceWidth)*Math.min(1,dt*16)
+      }
+      surfaceMoving ||= Math.abs(surfaceVelocity)>.05
+      geometry.x = surfaceX
+      geometry.width = surfaceWidth
+    }
+    const scale = geometry ? 1 : (rect.width - 24) / 640
     const cx = rect.width / 2,
       cy = rect.height / 2
     const boxX = cx - 380,
       boxY = cy - 172
-    const kx = cx + (position - 1) * 208
+    const kx = geometry ? geometry.x + geometry.width / 2 + 12 : cx + (position - 1) * 208
     pixels.clearRect(0, 0, 760, 344)
     pixels.fillStyle = '#fff'
     const clamped = Math.max(0, Math.min(2, position)),
@@ -293,6 +317,7 @@ export function createGlassThemeRenderer(
       })
     )
     pixels.globalAlpha = 1
+    if (geometry) { pixels.clearRect(0,0,760,344); glow.clearRect(0,0,380,172) }
     for (let unit = 0; unit < 2; unit++) {
       gl.activeTexture(gl.TEXTURE0 + unit)
       gl.bindTexture(gl.TEXTURE_2D, textures[unit] ?? null)
@@ -309,17 +334,18 @@ export function createGlassThemeRenderer(
     gl.uniform1f((uniforms.uDpr ?? null), dpr)
     gl.uniform1f((uniforms.uScale ?? null), scale)
     gl.uniform2f((uniforms.uC ?? null), cx, cy)
-    gl.uniform2f((uniforms.uTH ?? null), 320, 112)
-    gl.uniform1f((uniforms.uTR ?? null), 72)
+    if (geometry) { pixels.clearRect(0,0,760,344); glow.clearRect(0,0,380,172) }
+    gl.uniform2f((uniforms.uTH ?? null), geometry ? (rect.width-24)/2 : 320, geometry ? (rect.height-24)/2 : 112)
+    gl.uniform1f((uniforms.uTR ?? null), geometry ? geometry.radius : 72)
     const stretch = Math.min(Math.abs(velocity) * 6.5, 16)
     gl.uniform2f((uniforms.uK ?? null), kx, cy)
-    gl.uniform2f((uniforms.uKH ?? null), 99 + stretch, 99 - stretch * 0.45)
-    gl.uniform1f((uniforms.uKR ?? null), 58)
+    gl.uniform2f((uniforms.uKH ?? null), geometry ? geometry.width/2 : 99 + stretch, geometry ? geometry.height/2 : 99 - stretch * 0.45)
+    gl.uniform1f((uniforms.uKR ?? null), geometry ? geometry.radius : 58)
     gl.uniform1f((uniforms.uTheme ?? null), theme)
     gl.uniform1f((uniforms.uTime ?? null), now / 1000)
     gl.uniform1f(
       (uniforms.uLed ?? null),
-      1.89 + Math.min(Math.abs(velocity) * 0.05, 0.18)
+      (geometry ? geometry.intensity ?? .65 : 1.89) + Math.min(Math.abs(velocity) * 0.05, 0.18)
     )
     gl.uniform1f((uniforms.uLift ?? null), 0)
     gl.uniform3f(
@@ -337,16 +363,16 @@ export function createGlassThemeRenderer(
     gl.uniform1f((uniforms.uTheta ?? null), Math.PI / 2 - Math.PI * phase)
     gl.uniform1f((uniforms.uHalfW ?? null), 0.92)
     gl.uniform1f((uniforms.uMode ?? null), 0)
-    gl.uniform2f((uniforms.uStrip ?? null), kx, cy + 112)
-    gl.uniform1f((uniforms.uStripLen ?? null), 120)
-    gl.uniform1f((uniforms.uRefract ?? null), 40)
-    gl.uniform1f((uniforms.uFrost ?? null), 0.76)
-    gl.uniform1f((uniforms.uGlowAmt ?? null), 0.64)
+    gl.uniform2f((uniforms.uStrip ?? null), kx, cy + (geometry ? geometry.height/2 : 112))
+    gl.uniform1f((uniforms.uStripLen ?? null), geometry ? Math.min(geometry.width*.48,96) : 120)
+    gl.uniform1f((uniforms.uRefract ?? null), geometry ? 22 : 40)
+    gl.uniform1f((uniforms.uFrost ?? null), geometry ? .5 : .76)
+    gl.uniform1f((uniforms.uGlowAmt ?? null), geometry ? .38 : .64)
     gl.uniform4f((uniforms.uBox ?? null), boxX, boxY, 760, 344)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
     if (
       !motion.matches &&
-      (dragging ||
+      (surfaceMoving || dragging ||
         moving ||
         Math.abs(position - target) +
           Math.abs(velocity) +

@@ -170,6 +170,9 @@ func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil {
 		t.Fatal(err)
 	}
+	if sender.message.ChatID != "5760638358" || !strings.Contains(sender.message.Text, "42") || !strings.Contains(sender.message.Text, "customer") || !strings.Contains(sender.message.Text, order.OrderNo) || len(sender.message.Buttons) != 2 {
+		t.Fatal("binding did not notify exclusive administrator with identity and order actions")
+	}
 	calls = sender.calls
 	if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil || sender.calls != calls {
 		t.Fatal("repeated start generated notification")

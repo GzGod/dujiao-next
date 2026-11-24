@@ -258,7 +258,7 @@ import {
 } from 'lucide-vue-next'
 import { processHtmlForDisplay } from '../../utils/content'
 import { useProductDetail } from '../../composables/useProductDetail'
-import { brandLogoUrl, detectAiBrand } from '../../utils/aiBrand'
+import { brandLogoUrl, detectAiBrand, productArtworkUrl } from '../../utils/aiBrand'
 import { compareWithOfficial } from '../../utils/officialPrice'
 import './styles/xgai-detail.css'
 import ProductDecisionGuide from './components/ProductDecisionGuide.vue'
@@ -313,14 +313,14 @@ const decisionGuide = computed(() => getProductGuide(product.value?.slug, locale
 const guideLabels = computed(() => productGuideLabels(locale.value))
 const title = computed(() => getLocalizedText(product.value?.title) || '')
 const brand = computed(() => detectAiBrand(product.value))
-const brandLogo = computed(() => brandLogoUrl(brand.value))
+const brandLogo = computed(() => productArtworkUrl(product.value) || brandLogoUrl(brand.value))
 const brandLine = computed(() => {
   if (brand.value === 'openai') return 'OPENAI · CHATGPT'
   if (brand.value === 'grok') return 'xAI · GROK'
   return categoryName.value
 })
 // 品牌商品默认用 logo 视觉（上游图片常常无法访问）；非品牌商品才用商品图
-const showPhoto = computed(() => brand.value === 'other' && Boolean(currentImage.value))
+const showPhoto = computed(() => !productArtworkUrl(product.value) && brand.value === 'other' && Boolean(currentImage.value))
 const lede = computed(() => decisionGuide.value?.summary || getLocalizedText(product.value?.description) || t('xgai.detail.defaultLede'))
 const hasRichContent = computed(() => Boolean(getLocalizedText(product.value?.content)?.trim()))
 

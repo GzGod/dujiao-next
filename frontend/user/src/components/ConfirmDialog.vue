@@ -27,10 +27,12 @@
             ref="dialogRef"
             role="alertdialog"
             aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-message"
             class="relative z-10 w-full max-w-sm rounded-2xl bg-card text-card-foreground border shadow-2xl p-6"
           >
-            <h3 class="text-lg font-bold text-foreground">{{ options.title }}</h3>
-            <p class="mt-2 text-sm text-muted-foreground leading-relaxed">{{ options.message }}</p>
+            <h3 id="confirm-dialog-title" class="text-lg font-bold text-foreground">{{ options.title }}</h3>
+            <p id="confirm-dialog-message" class="mt-2 text-sm text-muted-foreground leading-relaxed">{{ options.message }}</p>
             <div class="mt-6 flex items-center justify-end gap-3">
               <Button variant="secondary" @click="handleCancel">
                 {{ options.cancelText || t('common.cancel') }}
@@ -50,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -62,7 +64,14 @@ const dialogRef = ref<HTMLElement | null>(null)
 
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
+    e.preventDefault()
     handleCancel()
+  }
+  if (e.key === 'Tab') {
+    const buttons = Array.from(dialogRef.value?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])
+    const first = buttons[0], last = buttons[buttons.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() }
   }
 }
 
@@ -76,4 +85,5 @@ watch(visible, async (isVisible) => {
     document.removeEventListener('keydown', onKeydown)
   }
 })
+onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 </script>

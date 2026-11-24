@@ -5,7 +5,7 @@ import { useCartStore, type CartItem } from '../stores/cart'
 import { useBuyNowStore } from '../stores/buyNow'
 import { useAppStore } from '../stores/app'
 import { useUserAuthStore } from '../stores/userAuth'
-import { guestOrderAPI, userOrderAPI, walletAPI, type CaptchaPayload } from '../api'
+import { guestOrderAPI, userOrderAPI, paymentAPI, walletAPI, type CaptchaPayload } from '../api'
 import { debounceAsync } from '../utils/debounce'
 import { type PageAlert } from '../utils/alerts'
 import { amountToCents, basisPointsToPercent, centsToAmount, parseInteger, rateToBasisPoints } from '../utils/money'
@@ -13,6 +13,8 @@ import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
 import { getAffiliateCode, getAffiliateVisitorKey } from '../utils/affiliate'
+import { readPendingOrders, rememberPendingOrder } from '../utils/pendingOrders'
+import { useConfirmDialog } from './useConfirmDialog'
 import { saveGuestOrderAuth } from '../utils/guestOrderAuth'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../components/captcha/TurnstileCaptcha.vue'
@@ -43,7 +45,7 @@ interface ManualFormProduct {
  * 结算页共享逻辑（classic + vault 双模板共用）。
  * 完整保留原 views/Checkout.vue 的行为，仅抽离为 composable。
  */
-export function useCheckout(options: { buyNow?: boolean; requireAgreement?: boolean } = {}) {
+export function useCheckout(options: { buyNow?: boolean; requireAgreement?: boolean; existingOrder?: () => any; onCreated?: (result: any, guest: boolean) => void | Promise<void> } = {}) {
   const router = useRouter()
   const route = useRoute()
   const cartStore = useCartStore()
@@ -800,6 +802,7 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
     }
   }
 
+  const { confirm: confirmNewOrder } = useConfirmDialog()
   const handleSubmit = async () => {
     submitAttempted.value = true
     error.value = ''
@@ -811,6 +814,20 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
 
     submitting.value = true
     try {
+      const existing = options.existingOrder?.()
+      if (existing?.order_no) {
+        const payload = { order_no: existing.order_no, channel_id: requiresOnlineChannel.value ? selectedChannelId.value || undefined : undefined, use_balance: useBalance.value }
+        const response = userAuthStore.isAuthenticated
+          ? await paymentAPI.create(payload)
+          : await guestOrderAPI.createPayment({ ...payload, email: guestEmail.value.trim(), order_password: guestPassword.value })
+        await options.onCreated?.({ ...response.data.data, order_no: existing.order_no, order: existing.order }, !userAuthStore.isAuthenticated)
+        return
+      }
+      const priorOrders = readPendingOrders().filter(row => userAuthStore.isAuthenticated ? !row.guest && row.owner === String(userAuthStore.user?.id || '') : row.guest)
+      if (priorOrders.length && !await confirmNewOrder({
+        title: t('pendingOrders.newTitle'), message: t('pendingOrders.newMessage'),
+        confirmText: t('pendingOrders.createAnyway'), cancelText: t('pendingOrders.reviewFirst'),
+      })) return
       await loadPreviewNow()
       if (previewError.value) {
         error.value = previewError.value
@@ -850,6 +867,15 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
         throw new Error(t('checkout.errors.submitFailed'))
       }
 
+      if (!responseData.order_paid && (!responseData.order?.status || responseData.order.status === 'pending_payment')) {
+        rememberPendingOrder({ orderNo: responseData.order_no, guest: !userAuthStore.isAuthenticated,
+          owner: userAuthStore.isAuthenticated ? String(userAuthStore.user?.id || '') : '',
+          expiresAt: String(responseData.order?.expires_at || responseData.expires_at || ''), createdAt: Date.now() })
+      }
+      if (options.onCreated) {
+        await options.onCreated(responseData, !userAuthStore.isAuthenticated)
+        return
+      }
       clearSourceStore()
 
       // Redirect to the existing Payment page which handles all payment display

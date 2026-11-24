@@ -109,6 +109,7 @@
       inline-checkout
       v-if="quickBuyProduct"
       :product="quickBuyProduct"
+      :source-element="quickBuySource"
       :visible="quickBuyVisible"
       @update:visible="quickBuyVisible = $event"
     />
@@ -137,7 +138,9 @@ const { getLocalizedText } = useLocalized()
 
 const quickBuyProduct = ref<any>(null)
 const quickBuyVisible = ref(false)
-const openQuickBuy = (product: any) => {
+const quickBuySource = ref<HTMLElement | undefined>()
+const openQuickBuy = (product: any, source?: HTMLElement) => {
+  quickBuySource.value = source
   quickBuyProduct.value = product
   quickBuyVisible.value = true
 }

@@ -297,6 +297,12 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		"online_pay_amount":  result.OnlinePayAmount,
 	}
 	if result.Payment != nil {
+		// Match the payment endpoints: the payable amount includes fees and
+		// may use a different settlement currency from the order.
+		resp["payable_amount"] = result.Payment.Amount
+		resp["currency"] = result.Payment.Currency
+		resp["fee_amount"] = result.Payment.FeeAmount
+		resp["fee_policy"] = result.Payment.FeePolicy
 		resp["payment_id"] = result.Payment.ID
 		resp["provider_type"] = result.Payment.ProviderType
 		resp["channel_type"] = result.Payment.ChannelType

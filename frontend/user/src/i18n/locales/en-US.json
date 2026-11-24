@@ -261,6 +261,11 @@
     "addCartLimitExceededWithCart": "This product can be purchased up to {count} per order ({cartCount} already in cart)"
   },
   "quickBuy": {
+    "exitTitle": "Leave checkout?",
+    "exitMessage": "Closing leaves this purchase flow. Unsubmitted information may need to be entered again.",
+    "exitPaymentMessage": "Your order is saved. Leaving does not cancel or refund it. Use order lookup to continue payment or view delivery. Do not pay twice.",
+    "exitConfirm": "Leave checkout",
+    "exitContinue": "Continue purchase",
     "title": "Quick Buy",
     "selectSku": "Select SKU",
     "quantity": "Quantity",
@@ -1271,6 +1276,25 @@
     }
   },
   "payment": {
+    "gptRedeemHint": "Your code is ready. Copy it and open redemption to submit the required account details, then confirm the top-up result.",
+    "gptDeliveryPending": "Payment confirmed. Preparing your redemption code; refresh delivery status shortly.",
+    "gptCopyCode": "Copy redemption code",
+    "gptCodeCopied": "Code copied",
+    "gptRedeemOpen": "Open redemption",
+    "claudeBotHint": "Payment confirmed. Open the Telegram bot to bind this order and receive your Claude account. Payment does not mean delivery is complete.",
+    "claudeBotOpen": "Open Telegram bot for delivery",
+    "claudeBotRetry": "Retry bot delivery link",
+    "inlineBack": "Back",
+    "inlineSuccess": "Payment successful",
+    "inlineSuccessHint": "Payment confirmed. View delivery progress in your order.",
+    "inlineScan": "Scan to pay",
+    "inlineWaiting": "Waiting for payment confirmation",
+    "inlineUnavailable": "Payment details are unavailable. Continue payment from your order.",
+    "inlineMock": "Local mock QR code. Do not transfer real funds.",
+    "inlineRefreshError": "Unable to refresh payment status. Please retry.",
+    "inlineOpenCashier": "Open cashier",
+    "inlineViewOrder": "View order",
+    "inlinePreparing": "Preparing payment details…",
     "title": "Payment",
     "subtitle": "Choose payment method and proceed",
     "backToOrders": "Back to orders",
@@ -2119,7 +2143,7 @@
       "description": "GPT top-ups for your own account and manually delivered Claude accounts. Buy with an email and order password.",
       "orders": "Find order",
       "help": "Purchase steps, account check and help"
-},
+    },
     "theme": {
       "light": "Switch to light mode",
       "dark": "Switch to dark mode"
@@ -2180,6 +2204,7 @@
       "trackText": "Progress and result live in your order"
     },
     "products": {
+      "allProducts": "All products",
       "eyebrow": "Plans",
       "title": "Clear prices, no guesswork",
       "lede": "GPT plans first, each family from lowest price. GPT tops up your own account; Claude is delivered as a separate account.",
@@ -2308,5 +2333,24 @@
   "floatingSupport": {
     "title": "Get help",
     "label": "Contact Telegram support (opens a new tab)"
+  },
+  "pendingOrders": {
+    "dragHint": "Drag to move, click for support; arrow keys also move it",
+    "restoreTitle": "Resume your order",
+    "restoreError": "Unable to restore this order. Check your lookup details or try again later.",
+    "sameOrder": "This is your existing order. Changing payment methods does not create another order. Please do not pay twice.",
+    "title": "An order needs your attention",
+    "hint": "You have {count} orders without confirmed payment. Check them to avoid duplicate purchases.",
+    "unpaid": "Awaiting payment",
+    "unconfirmed": "Payment status unconfirmed",
+    "resume": "Continue payment",
+    "check": "View order",
+    "dismiss": "Remind me later",
+    "badge": "{count} pending",
+    "authHint": "Guests need their checkout email and order password after reopening the browser.",
+    "newTitle": "An earlier order may be unpaid",
+    "newMessage": "You have orders without confirmed payment. A new order does not replace or cancel an earlier one. Please check to avoid paying twice.",
+    "createAnyway": "Create another order",
+    "reviewFirst": "Do not create yet"
   }
 }

@@ -261,6 +261,11 @@
     "addCartLimitExceededWithCart": "當前商品單次最多可購買 {count} 件（購物車中已有 {cartCount} 件）"
   },
   "quickBuy": {
+    "exitTitle": "確認離開購買視窗？",
+    "exitMessage": "關閉後將離開目前購買流程，尚未提交的資訊可能需要重新填寫。",
+    "exitPaymentMessage": "訂單已保留。離開不會取消訂單或退款，可透過查單入口繼續付款、查看交付；請勿重複付款。",
+    "exitConfirm": "確認離開",
+    "exitContinue": "繼續購買",
     "title": "快速購買",
     "selectSku": "選擇規格",
     "quantity": "數量",
@@ -1271,6 +1276,25 @@
     }
   },
   "payment": {
+    "gptRedeemHint": "核銷碼已發放。複製後前往核銷，依提示提交帳號資料。核銷完成後再確認充值結果。",
+    "gptDeliveryPending": "付款已確認，正在準備核銷碼，請稍後重新整理交付狀態。",
+    "gptCopyCode": "複製核銷碼",
+    "gptCodeCopied": "已複製核銷碼",
+    "gptRedeemOpen": "前往核銷",
+    "claudeBotHint": "付款已確認，請進入 Telegram Bot 綁定本訂單，接收 Claude 成品號交付。付款成功不代表已出貨。",
+    "claudeBotOpen": "進入 Telegram Bot 領取交付",
+    "claudeBotRetry": "重新取得 Bot 入口",
+    "inlineBack": "返回",
+    "inlineSuccess": "付款成功",
+    "inlineSuccessHint": "支付已確認，可在訂單中查看交付進度。",
+    "inlineScan": "掃碼付款",
+    "inlineWaiting": "等待付款確認",
+    "inlineUnavailable": "暫時無法取得付款資訊，請到訂單中繼續付款。",
+    "inlineMock": "本機模擬二維碼，請勿真實轉帳。",
+    "inlineRefreshError": "狀態暫時無法重新整理，可稍後重試。",
+    "inlineOpenCashier": "開啟收銀台",
+    "inlineViewOrder": "查看訂單",
+    "inlinePreparing": "正在準備付款資訊…",
     "title": "發起支付",
     "subtitle": "選擇支付方式並完成支付",
     "backToOrders": "返回訂單",
@@ -2119,7 +2143,7 @@
       "description": "GPT 儲值到自己的帳號，Claude 成品帳號人工交付。免註冊，留下信箱和查單密碼即可購買。",
       "orders": "查詢訂單",
       "help": "購買流程、帳號檢測與常見說明"
-},
+    },
     "theme": {
       "light": "切換至日間模式",
       "dark": "切換至夜間模式"
@@ -2180,6 +2204,7 @@
       "trackText": "處理進度與結果都在訂單頁"
     },
     "products": {
+      "allProducts": "全部商品",
       "eyebrow": "會員方案",
       "title": "價格清楚，選擇不用猜",
       "lede": "GPT 系列在前，同系列按價格由低到高。GPT 為自有帳號儲值，Claude 為獨立成品帳號。",
@@ -2308,5 +2333,24 @@
   "floatingSupport": {
     "title": "聯絡客服",
     "label": "聯絡 Telegram 客服（新視窗開啟）"
+  },
+  "pendingOrders": {
+    "dragHint": "拖曳調整位置，點擊聯絡客服；亦可用方向鍵移動",
+    "restoreTitle": "繼續原訂單付款",
+    "restoreError": "暫時無法恢復訂單，請確認查單資訊或稍後重試。",
+    "sameOrder": "這是已建立的原訂單。切換付款方式不會建立新訂單，請勿重複付款。",
+    "title": "有訂單尚未付款",
+    "hint": "你有 {count} 筆訂單尚未確認付款，可繼續查看，避免重複下單。",
+    "unpaid": "待付款",
+    "unconfirmed": "待確認付款狀態",
+    "resume": "繼續付款",
+    "check": "查看訂單",
+    "dismiss": "稍後提醒",
+    "badge": "{count} 筆待付款",
+    "authHint": "重新開啟瀏覽器後，訪客需用下單信箱和訂單密碼查單。",
+    "newTitle": "還有訂單未付款",
+    "newMessage": "你還有尚未確認付款的訂單。新訂單不會取代或取消原訂單，請先確認，避免重複付款。",
+    "createAnyway": "仍建立新訂單",
+    "reviewFirst": "先不建立"
   }
 }

@@ -1223,6 +1223,25 @@
     }
   },
   "payment": {
+    "gptRedeemHint": "核销码已发放。复制后前往核销，按提示提交账号资料。核销完成后再确认充值结果。",
+    "gptDeliveryPending": "付款已确认，正在准备核销码，请稍后刷新交付状态。",
+    "gptCopyCode": "复制核销码",
+    "gptCodeCopied": "已复制核销码",
+    "gptRedeemOpen": "前往核销",
+    "claudeBotHint": "付款已确认，请进入 Telegram Bot 绑定本订单，接收 Claude 成品号交付。付款成功不代表已发货。",
+    "claudeBotOpen": "进入 Telegram Bot 领取交付",
+    "claudeBotRetry": "重新获取 Bot 入口",
+    "inlineBack": "返回",
+    "inlineSuccess": "付款成功",
+    "inlineSuccessHint": "支付已确认，可在订单中查看交付进度。",
+    "inlineScan": "扫码付款",
+    "inlineWaiting": "等待付款确认",
+    "inlineUnavailable": "暂时无法取得付款信息，请到订单中继续付款。",
+    "inlineMock": "本地模拟二维码，请勿真实转账。",
+    "inlineRefreshError": "状态暂时无法刷新，可稍后重试。",
+    "inlineOpenCashier": "打开收银台",
+    "inlineViewOrder": "查看订单",
+    "inlinePreparing": "正在准备付款信息…",
     "title": "发起支付",
     "subtitle": "选择支付方式并完成支付",
     "backToOrders": "返回订单",
@@ -1787,6 +1806,11 @@
     "addCartLimitExceededWithCart": "当前商品单次最多可购买 {count} 件（购物车中已有 {cartCount} 件）"
   },
   "quickBuy": {
+    "exitTitle": "确认离开购买窗口？",
+    "exitMessage": "关闭后将离开当前购买流程，尚未提交的信息可能需要重新填写。",
+    "exitPaymentMessage": "订单已保留。离开不会取消订单或退款，可通过查单入口继续付款、查看交付；请勿重复付款。",
+    "exitConfirm": "确认离开",
+    "exitContinue": "继续购买",
     "title": "快速购买",
     "selectSku": "选择规格",
     "quantity": "数量",
@@ -2119,7 +2143,7 @@
       "description": "GPT 充值到自己的账号，Claude 成品号人工交付。免注册，留邮箱和查单密码即可购买。",
       "orders": "查询订单",
       "help": "购买流程、账号检测与常见帮助"
-},
+    },
     "theme": {
       "light": "切换到日间模式",
       "dark": "切换到夜间模式"
@@ -2180,6 +2204,7 @@
       "trackText": "处理进度与结果都在订单页"
     },
     "products": {
+      "allProducts": "全部商品",
       "eyebrow": "会员套餐",
       "title": "价格清楚，选择不用猜",
       "lede": "GPT 系列在前，同系列按价格从低到高。GPT 为自有账号充值，Claude 为独立成品号。",
@@ -2308,5 +2333,24 @@
   "floatingSupport": {
     "title": "联系客服",
     "label": "联系 Telegram 客服（新窗口打开）"
+  },
+  "pendingOrders": {
+    "dragHint": "拖动调整位置，点击联系客服；也可用方向键移动",
+    "restoreTitle": "继续原订单付款",
+    "restoreError": "暂时无法恢复订单，请确认查单信息或稍后重试。",
+    "sameOrder": "这是已创建的原订单。切换支付方式不会创建新订单，请勿重复付款。",
+    "title": "有订单尚未付款",
+    "hint": "你有 {count} 笔订单尚未确认付款，可继续查看，避免重复下单。",
+    "unpaid": "待付款",
+    "unconfirmed": "待确认付款状态",
+    "resume": "继续付款",
+    "check": "查看订单",
+    "dismiss": "稍后提醒",
+    "badge": "{count} 笔待付款",
+    "authHint": "重新打开浏览器后，游客需用下单邮箱和订单密码查单。",
+    "newTitle": "还有订单未付款",
+    "newMessage": "你还有尚未确认付款的订单。新订单不会替代或取消原订单，请先确认，避免重复付款。",
+    "createAnyway": "仍创建新订单",
+    "reviewFirst": "先不创建"
   }
 }

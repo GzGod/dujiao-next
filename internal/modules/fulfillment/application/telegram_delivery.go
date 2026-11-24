@@ -125,6 +125,25 @@ func (s *TelegramDeliveryService) Bind(ctx context.Context, token, chat, usernam
 		return nil
 	}
 	_, err = s.Sender.SendDelivery(ctx, contract.TelegramMessage{ChatID: chat, Text: botText(order, "telegram.delivery_bound", order.OrderNo), SupportURL: s.SupportURL})
+	// Binding is already committed. Notify only the configured, currently
+	// authorized administrator; a notification failure must not undo binding.
+	if _, authErr := s.adminIdentity(s.AdminChatID); authErr == nil {
+		orders := []*orderdomain.Order{order}
+		if len(order.Children) > 0 {
+			orders = nil
+			for i := range order.Children {
+				orders = append(orders, &order.Children[i])
+			}
+		}
+		for _, leaf := range orders {
+			if !manualPaid(leaf) {
+				continue
+			}
+			_ = s.adminReply(ctx, s.AdminChatID, fmt.Sprintf(i18n.T("zh-CN", "telegram.admin_bound"), leaf.OrderNo, bound.Username, bound.ChatID),
+				contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", leaf.ID)},
+				contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", leaf.ID)})
+		}
+	}
 	return err
 }
 func (s *TelegramDeliveryService) Status(order *orderdomain.Order) (*domain.TelegramDelivery, error) {

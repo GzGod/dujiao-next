@@ -14,7 +14,9 @@
       "gpt": "自己的账号充值",
       "claude": "独立成品账号",
       "gptNote": "发码后还需核销",
-      "claudeNote": "付款后联系 TG 交付"
+      "claudeNote": "付款后联系 TG 交付",
+      "verification": "人工验证服务",
+      "verificationNote": "下单前咨询，付款后联系交付"
     },
     "zh-TW": {
       "heading": "這款商品適不適合你？",
@@ -30,7 +32,9 @@
       "gpt": "自己的帳號儲值",
       "claude": "獨立成品帳號",
       "gptNote": "發碼後還需核銷",
-      "claudeNote": "付款後聯絡 TG 交付"
+      "claudeNote": "付款後聯絡 TG 交付",
+      "verification": "人工驗證服務",
+      "verificationNote": "下單前諮詢，付款後聯絡交付"
     },
     "en-US": {
       "heading": "Is this the right product for you?",
@@ -46,7 +50,9 @@
       "gpt": "Top up your own account",
       "claude": "Separate ready-made account",
       "gptNote": "Redeem after code delivery",
-      "claudeNote": "Contact TG after payment"
+      "claudeNote": "Contact TG after payment",
+      "verification": "Manual verification service",
+      "verificationNote": "Ask before ordering; contact support after payment"
     }
   },
   "common": {
@@ -176,7 +182,7 @@
       "zh-CN": {
         "before": [
           "这是独立成品账号，不是给你现有 Claude 账号充值，也不走 GPT 核销流程。",
-          "商品标注免 KYC，质保范围为首次登录；不包含永久可用或永不封号的承诺。",
+          "验证状态以所选商品为准：美区免K与非洲过K是不同规格。质保范围为首次登录，不包含永久可用或永不封号承诺。",
           "确认带 IP 或不带 IP 的规格。IP 的交付内容、使用方法和有效期，购买前向客服确认。",
           "付款后需要通过 Telegram 联系客服安排交付；不能使用 Telegram 时先咨询再购买。"
         ],
@@ -186,8 +192,8 @@
             "text": "核对带 IP / 不带 IP、当前价格和首次登录质保范围，保存订单号及查单信息。"
           },
           {
-            "title": "付款后联系 TG",
-            "text": "确认订单已付款，联系 @xuegaozhanshen，提供订单号，由客服核对并安排账号交付。"
+            "title": "付款后绑定订单",
+            "text": "在订单页点击“联系客服发货”，启动 Telegram 机器人并绑定本单。客服核对后安排交付，订单状态可回主站查看。"
           },
           {
             "title": "接收资料并首次登录",
@@ -216,7 +222,7 @@
       "en-US": {
         "before": [
           "This is a separate ready-made account. It does not top up an existing Claude account or use the GPT redemption process.",
-          "The product is listed as no-KYC with first-login coverage. It does not promise permanent access or immunity from suspension.",
+          "Verification status depends on the selected product: US no-KYC and Africa verified accounts are different options. Coverage is for the first login, not permanent access or immunity from suspension.",
           "Confirm whether you are buying with or without IP. Ask support about IP delivery, setup and duration before paying.",
           "Delivery requires contacting support on Telegram after payment. If Telegram is unavailable to you, ask before buying."
         ],
@@ -226,8 +232,8 @@
             "text": "Check with/without IP, current price and first-login coverage. Save your order number and lookup details."
           },
           {
-            "title": "Contact TG after payment",
-            "text": "Confirm your order is paid, then contact @xuegaozhanshen with the order number so support can arrange delivery."
+            "title": "Link your paid order",
+            "text": "Click “Contact support for delivery” on your order and start the Telegram bot to link it. Support will arrange delivery after checking the order; view its status on the main site."
           },
           {
             "title": "Receive details and sign in",
@@ -256,7 +262,7 @@
       "zh-TW": {
         "before": [
           "這是獨立成品帳號，不是給你現有 Claude 帳號儲值，也不走 GPT 核銷流程。",
-          "商品標注免 KYC，質保範圍為首次登入；不包含永久可用或永不封號的承諾。",
+          "驗證狀態以所選商品為準：美區免K與非洲已過 K 為不同規格。質保範圍為首次登入，不包含永久可用或永不封號承諾。",
           "確認帶 IP 或不帶 IP 的規格。IP 的交付內容、使用方法和有效期，購買前向客服確認。",
           "付款後需要通過 Telegram 聯繫客服安排交付；不能使用 Telegram 時先咨詢再購買。"
         ],
@@ -266,8 +272,8 @@
             "text": "核對帶 IP / 不帶 IP、當前價格和首次登入質保範圍，保存訂單號及查單信息。"
           },
           {
-            "title": "付款後聯繫 TG",
-            "text": "確認訂單已付款，聯繫 @xuegaozhanshen，提供訂單號，由客服核對並安排帳號交付。"
+            "title": "付款後綁定訂單",
+            "text": "在訂單頁點擊「聯絡客服發貨」，啟動 Telegram 機器人並綁定本單。客服核對後安排交付，可返回主站查看訂單狀態。"
           },
           {
             "title": "接收資料並首次登入",
@@ -290,6 +296,95 @@
           {
             "q": "付款後去哪裡領？需要核銷碼嗎？",
             "a": "付款後聯繫 Telegram 客服 @xuegaozhanshen，提供訂單號安排人工交付。此商品不需要去 GPT 核銷站提交資料。"
+          }
+        ]
+      }
+    },
+    "verification": {
+      "zh-CN": {
+        "before": [
+          "这是人工验证服务，不包含 Claude Pro／Max 成品账号或会员充值，除非客服在下单前明确确认。"
+        ],
+        "steps": [
+          {
+            "title": "先联系客服确认",
+            "text": "说明需要韩国 KYC 还是门户验证，以及当前页面提示；由客服确认服务范围、适用条件和需要的资料后再下单。"
+          },
+          {
+            "title": "确认商品并付款",
+            "text": "核对商品名称和当前价格，保存订单号。两种验证服务分开出售，不要默认互相包含。"
+          },
+          {
+            "title": "绑定订单并配合办理",
+            "text": "付款后点击订单中的“联系客服发货”，启动机器人绑定订单，再按客服确认的方式继续。敏感资料只通过双方确认的安全途径提供。"
+          },
+          {
+            "title": "核对结果与订单状态",
+            "text": "按事先确认的验收标准检查结果；需要补充资料或遇到异常时联系原单客服，不要重复下单。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "这项服务包含会员或成品账号吗？",
+            "a": "不默认包含。KYC／门户验证与成品账号、会员充值是不同商品，请在付款前向客服确认你购买的具体范围。"
+          }
+        ]
+      },
+      "zh-TW": {
+        "before": [
+          "這是人工驗證服務，不包含 Claude Pro／Max 成品帳號或會員儲值，除非下單前另有明確確認。"
+        ],
+        "steps": [
+          {
+            "title": "先聯絡客服確認",
+            "text": "說明需要韓國 KYC 或入口網站驗證及目前提示，確認服務範圍、適用條件和所需資料後再下單。"
+          },
+          {
+            "title": "確認商品並付款",
+            "text": "核對名稱及目前價格，保存訂單號。兩種服務分開出售，不預設互相包含。"
+          },
+          {
+            "title": "綁定訂單並配合辦理",
+            "text": "付款後點擊訂單中的「聯絡客服發貨」，啟動機器人綁定訂單，再依客服確認的方式辦理。敏感資料僅透過雙方確認的安全途徑提供。"
+          },
+          {
+            "title": "核對結果與訂單狀態",
+            "text": "依事先確認的驗收標準檢查結果；需補充資料或遇到異常時聯絡原單客服，不重複下單。"
+          }
+        ],
+        "faqs": [
+          {
+            "q": "這項服務包含會員或成品帳號嗎？",
+            "a": "不預設包含。KYC／入口網站驗證與成品帳號、會員儲值為不同商品，請在付款前向客服確認具體範圍。"
+          }
+        ]
+      },
+      "en-US": {
+        "before": [
+          "This manual verification service does not include a ready-made Pro/Max account or subscription top-up unless explicitly agreed before purchase."
+        ],
+        "steps": [
+          {
+            "title": "Ask support first",
+            "text": "Explain whether you need Korea KYC or portal verification and the current prompt. Confirm scope, eligibility and required information before ordering."
+          },
+          {
+            "title": "Confirm and pay",
+            "text": "Check the product name and current price and save your order number. These are separately sold services; do not assume one includes the other."
+          },
+          {
+            "title": "Link the order",
+            "text": "Start the bot from the order’s delivery support link, then follow the process agreed with support. Provide sensitive information only through a mutually confirmed secure channel."
+          },
+          {
+            "title": "Check the result",
+            "text": "Use the acceptance criteria agreed before purchase. Contact support about the original order for missing information or errors rather than purchasing again."
+          }
+        ],
+        "faqs": [
+          {
+            "q": "Does this include a subscription or ready-made account?",
+            "a": "Not by default. Verification, ready-made accounts and subscription top-ups are separate products. Confirm the exact scope with support before payment."
           }
         ]
       }
@@ -682,6 +777,225 @@
         }
       },
       "canonicalSlug": "claude-pro-us-account-no-ip"
+    },
+    "claude-max-us-account-no-ip": {
+      "kind": "claude",
+      "locales": {
+        "zh-CN": {
+          "summary": "Claude Max 5X 美区独立成品号，不带 IP，商品标注免 KYC、质保首次登录。付款后联系 TG 人工交付，无需 GPT 核销。",
+          "suitable": "需要独立 Claude Max 5X 成品号，且已确认不需要商品附带 IP 选项、能够自行准备适用使用环境的用户。",
+          "checks": [
+            "当前选项是不带 IP；与另一款商品分开销售，付款前核对商品名。",
+            "此商品不附带 IP。不要把不带 IP 理解为无需考虑账号使用环境。",
+            "质保仅覆盖首次登录；不是全周期售后或永久不封号保证。",
+            "本款为 Max 5X 预定商品，页面标注 24h 发货。付款后先绑定订单；如需赶时间，下单前确认当前排期。"
+          ],
+          "faqs": [
+            {
+              "q": "Max 5X 什么时候发货？",
+              "a": "这是预定人工交付商品，页面标注 24h 发货；不是付款后即时自动发号。排期和开始计算时间请下单前向客服确认，已付款请通过原订单联系处理。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A separate US-region Claude Max 5X ready-made account without IP, listed as no-KYC with first-login coverage. Contact TG after payment for manual delivery; no GPT redemption is needed.",
+          "suitable": "Customers who need a separate Claude Max 5X account, do not require the included-IP option and have confirmed they can prepare a suitable usage environment.",
+          "checks": [
+            "You are viewing the without IP option. It is sold separately from the other option; check the product name before paying.",
+            "No IP is included. This does not mean the account usage environment can be ignored.",
+            "Coverage is for the first login, not the entire subscription period or permanent protection from suspension.",
+            "This Max 5X product is a preorder listed for delivery within 24 hours. Link the paid order first; confirm the current schedule before buying if time-sensitive."
+          ],
+          "faqs": [
+            {
+              "q": "When is Max 5X delivered?",
+              "a": "This is a manually delivered preorder, listed for delivery within 24 hours, rather than an instant account delivery. Confirm scheduling and when that period starts with support before ordering; use the original order for follow-up."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "Claude Max 5X 美區獨立成品號，不帶 IP，商品標注免 KYC、質保首次登入。付款後聯繫 TG 人工交付，無需 GPT 核銷。",
+          "suitable": "需要獨立 Claude Max 5X 成品號，且已確認不需要商品附帶 IP 選項、能夠自行準備適用使用環境的用戶。",
+          "checks": [
+            "當前選項是不帶 IP；與另一款商品分開銷售，付款前核對商品名。",
+            "此商品不附帶 IP。不要把不帶 IP 理解為無需考慮帳號使用環境。",
+            "質保僅覆蓋首次登入；不是全週期售後或永久不封號保證。",
+            "本款為 Max 5X 預訂商品，頁面標註 24h 發貨。付款後先綁定訂單；如有時間需求，下單前確認目前排程。"
+          ],
+          "faqs": [
+            {
+              "q": "Max 5X 何時發貨？",
+              "a": "這是預訂人工交付商品，頁面標註 24h 發貨，並非付款後即時自動發號。排程及起算時間請下單前向客服確認；已付款請透過原訂單聯絡處理。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "claude-max-us-account-no-ip"
+    },
+    "claude-max-us-account-with-ip": {
+      "kind": "claude",
+      "locales": {
+        "zh-CN": {
+          "summary": "Claude Max 5X 美区独立成品号，带 IP，商品标注免 KYC、质保首次登录。付款后联系 TG 人工交付，无需 GPT 核销。",
+          "suitable": "需要独立 Claude Max 5X 成品号，并希望同时购买商品所标注 IP 选项的用户。",
+          "checks": [
+            "当前选项是带 IP；与另一款商品分开销售，付款前核对商品名。",
+            "“带 IP”不表示无限期提供 IP，也不保证不触发平台风控。具体交付方式与有效期先咨询客服。",
+            "质保仅覆盖首次登录；不是全周期售后或永久不封号保证。",
+            "本款为 Max 5X 预定商品，页面标注 24h 发货。付款后先绑定订单；如需赶时间，下单前确认当前排期。"
+          ],
+          "faqs": [
+            {
+              "q": "Max 5X 什么时候发货？",
+              "a": "这是预定人工交付商品，页面标注 24h 发货；不是付款后即时自动发号。排期和开始计算时间请下单前向客服确认，已付款请通过原订单联系处理。"
+            }
+          ]
+        },
+        "en-US": {
+          "summary": "A separate US-region Claude Max 5X ready-made account with IP, listed as no-KYC with first-login coverage. Contact TG after payment for manual delivery; no GPT redemption is needed.",
+          "suitable": "Customers who need a separate Claude Max 5X account and also want the IP option described in this product.",
+          "checks": [
+            "You are viewing the with IP option. It is sold separately from the other option; check the product name before paying.",
+            "With IP does not mean indefinite IP provision or immunity from platform checks. Ask about delivery and duration first.",
+            "Coverage is for the first login, not the entire subscription period or permanent protection from suspension.",
+            "This Max 5X product is a preorder listed for delivery within 24 hours. Link the paid order first; confirm the current schedule before buying if time-sensitive."
+          ],
+          "faqs": [
+            {
+              "q": "When is Max 5X delivered?",
+              "a": "This is a manually delivered preorder, listed for delivery within 24 hours, rather than an instant account delivery. Confirm scheduling and when that period starts with support before ordering; use the original order for follow-up."
+            }
+          ]
+        },
+        "zh-TW": {
+          "summary": "Claude Max 5X 美區獨立成品號，帶 IP，商品標注免 KYC、質保首次登入。付款後聯繫 TG 人工交付，無需 GPT 核銷。",
+          "suitable": "需要獨立 Claude Max 5X 成品號，並希望同時購買商品所標注 IP 選項的用戶。",
+          "checks": [
+            "當前選項是帶 IP；與另一款商品分開銷售，付款前核對商品名。",
+            "“帶 IP”不表示無限期提供 IP，也不保證不觸發平颱風控。具體交付方式與有效期先咨詢客服。",
+            "質保僅覆蓋首次登入；不是全週期售後或永久不封號保證。",
+            "本款為 Max 5X 預訂商品，頁面標註 24h 發貨。付款後先綁定訂單；如有時間需求，下單前確認目前排程。"
+          ],
+          "faqs": [
+            {
+              "q": "Max 5X 何時發貨？",
+              "a": "這是預訂人工交付商品，頁面標註 24h 發貨，並非付款後即時自動發號。排程及起算時間請下單前向客服確認；已付款請透過原訂單聯絡處理。"
+            }
+          ]
+        }
+      },
+      "canonicalSlug": "claude-max-us-account-with-ip"
+    },
+    "claude-pro-africa-kyc-account-no-ip": {
+      "kind": "claude",
+      "locales": {
+        "zh-CN": {
+          "summary": "Claude Pro 非洲过K独立成品号，不带 IP，人工交付，质保首次登录。它与美区免K号是不同商品，请按所需地区及验证状态选择。",
+          "suitable": "需要非洲地区已过 K 成品号，并已确认使用环境和首次登录质保范围的用户。",
+          "checks": [
+            "本款为非洲过K号，不是韩国 KYC 服务，也不是美区免K号。",
+            "不带 IP；下单前确认你已具备适用环境，不能把“已过K”理解为后续不会要求验证。",
+            "付款后通过订单入口绑定 Telegram 机器人，接收客服安排的交付。",
+            "首次登录质保不等于整个订阅周期质保；收到资料后按客服说明及时核对。"
+          ],
+          "faqs": []
+        },
+        "en-US": {
+          "summary": "A separate Africa-region, KYC-verified Claude Pro account without IP. Manually delivered with first-login coverage; distinct from the US no-KYC account.",
+          "suitable": "Customers who specifically need an Africa-region verified account and have confirmed their environment and first-login coverage.",
+          "checks": [
+            "This is an Africa-region account, not the Korea KYC service or a US no-KYC account.",
+            "No IP is included. Existing verification does not guarantee that future checks will never occur.",
+            "Link your order through the Telegram bot after payment and wait for support to arrange delivery.",
+            "First-login coverage is not full-subscription coverage. Check the delivered account as instructed by support."
+          ],
+          "faqs": []
+        },
+        "zh-TW": {
+          "summary": "Claude Pro 非洲已過 K 獨立成品帳號，不含 IP，人工交付，質保首次登入。與美區免K帳號為不同商品，請確認地區與驗證狀態。",
+          "suitable": "需要非洲地區已過 K 帳號，並已確認使用環境及首次登入質保範圍的使用者。",
+          "checks": [
+            "本款為非洲已過 K 帳號，並非韓國 KYC 服務或美區免K帳號。",
+            "不含 IP；下單前確認適用環境，已過 K 不代表日後不會要求驗證。",
+            "付款後從訂單入口綁定 Telegram 機器人，等待客服安排交付。",
+            "首次登入質保不等於整個訂閱週期質保；收到資料後依客服說明及時核對。"
+          ],
+          "faqs": []
+        }
+      },
+      "canonicalSlug": "claude-pro-africa-kyc-account-no-ip"
+    },
+    "korea-claude-kyc": {
+      "kind": "verification",
+      "canonicalSlug": "korea-claude-kyc",
+      "locales": {
+        "zh-CN": {
+          "summary": "韩国 Claude KYC，由客服人工安排。下单前先确认适用情况和服务范围，付款后绑定订单继续办理。",
+          "suitable": "已经向客服说明当前验证提示，并确认可以受理及服务内容的用户。",
+          "checks": [
+            "先确认所需步骤；KYC 和门户验证是分开出售的商品。",
+            "付款前确认所需资料、处理时间、验收标准及售后处理方式。",
+            "付款不代表验证完成，不默认保证通过或账号永久可用。"
+          ],
+          "faqs": []
+        },
+        "zh-TW": {
+          "summary": "韓國 Claude KYC，由客服人工安排。下單前先確認適用情況及服務範圍，付款後綁定訂單繼續辦理。",
+          "suitable": "已向客服說明目前驗證提示，並確認可受理及服務內容的使用者。",
+          "checks": [
+            "先確認所需步驟；KYC 與入口網站驗證是分開出售的商品。",
+            "付款前確認所需資料、處理時間、驗收標準及售後處理方式。",
+            "付款不代表驗證完成，不預設保證通過或帳號永久可用。"
+          ],
+          "faqs": []
+        },
+        "en-US": {
+          "summary": "Korea Claude KYC: a manually handled service. Ask support to confirm eligibility and scope before ordering; link the paid order for follow-up.",
+          "suitable": "Customers whose current verification requirement has been checked and accepted by support.",
+          "checks": [
+            "Confirm which verification step is needed; KYC and portal verification are separate products.",
+            "Confirm required information, processing time, acceptance criteria and after-sales handling before payment.",
+            "Payment does not mean verification is complete. Do not assume approval or permanent account access is guaranteed."
+          ],
+          "faqs": []
+        }
+      }
+    },
+    "portal-verification": {
+      "kind": "verification",
+      "canonicalSlug": "portal-verification",
+      "locales": {
+        "zh-CN": {
+          "summary": "韩国 Claude 门户验证，由客服人工安排。下单前先确认适用情况和服务范围，付款后绑定订单继续办理。",
+          "suitable": "已经向客服说明当前验证提示，并确认可以受理及服务内容的用户。",
+          "checks": [
+            "先确认所需步骤；KYC 和门户验证是分开出售的商品。",
+            "付款前确认所需资料、处理时间、验收标准及售后处理方式。",
+            "付款不代表验证完成，不默认保证通过或账号永久可用。"
+          ],
+          "faqs": []
+        },
+        "zh-TW": {
+          "summary": "韓國 Claude 入口網站驗證，由客服人工安排。下單前先確認適用情況及服務範圍，付款後綁定訂單繼續辦理。",
+          "suitable": "已向客服說明目前驗證提示，並確認可受理及服務內容的使用者。",
+          "checks": [
+            "先確認所需步驟；KYC 與入口網站驗證是分開出售的商品。",
+            "付款前確認所需資料、處理時間、驗收標準及售後處理方式。",
+            "付款不代表驗證完成，不預設保證通過或帳號永久可用。"
+          ],
+          "faqs": []
+        },
+        "en-US": {
+          "summary": "Korea Claude portal verification: a manually handled service. Ask support to confirm eligibility and scope before ordering; link the paid order for follow-up.",
+          "suitable": "Customers whose current verification requirement has been checked and accepted by support.",
+          "checks": [
+            "Confirm which verification step is needed; KYC and portal verification are separate products.",
+            "Confirm required information, processing time, acceptance criteria and after-sales handling before payment.",
+            "Payment does not mean verification is complete. Do not assume approval or permanent account access is guaranteed."
+          ],
+          "faqs": []
+        }
+      }
     }
   },
   "site": {

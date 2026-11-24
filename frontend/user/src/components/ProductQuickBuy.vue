@@ -24,12 +24,13 @@
     -->
     <Transition
       appear
-      enter-active-class="quick-buy-enter-active"
-      enter-from-class="quick-buy-enter-from"
-      enter-to-class="quick-buy-enter-to"
-      leave-active-class="quick-buy-leave-active"
-      leave-from-class="quick-buy-leave-from"
-      leave-to-class="quick-buy-leave-to"
+      :enter-active-class="sourceElement ? '' : 'quick-buy-enter-active'"
+      :enter-from-class="sourceElement ? '' : 'quick-buy-enter-from'"
+      :enter-to-class="sourceElement ? '' : 'quick-buy-enter-to'"
+      :leave-active-class="sourceElement ? '' : 'quick-buy-leave-active'"
+      :leave-from-class="sourceElement ? '' : 'quick-buy-leave-from'"
+      :leave-to-class="sourceElement ? '' : 'quick-buy-leave-to'"
+      v-bind="sourceElement ? { onEnter: enterFromCard, onLeave: returnToCard } : {}"
     >
       <div
         v-if="visible"
@@ -76,10 +77,12 @@
                 @click="goToDetail"
               >
                 <img
-                  v-if="productImage"
+                  v-if="productImage && !productImageFailed"
                   :src="productImage"
                   :alt="productTitle"
-                  class="w-full h-full object-cover"
+                  @error="productImageFailed = true"
+                  class="w-full h-full"
+                  :class="aiBrand.productArtworkUrl(product) ? 'object-cover' : 'object-contain p-2'"
                 />
                 <div v-else class="w-full h-full flex items-center justify-center bg-muted">
                   <ImageIcon class="w-7 h-7 text-muted-foreground" :stroke-width="1.5" />
@@ -95,7 +98,7 @@
                   {{ productTitle }}
                 </h3>
 
-                <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                <div v-if="!resumeOrder" class="mt-1.5 flex flex-wrap items-center gap-1">
                   <Badge :variant="product.fulfillment_type === 'auto' ? 'info' : 'neutral'" size="xs">
                     {{ getFulfillmentTypeLabel(product.fulfillment_type) }}
                   </Badge>
@@ -111,7 +114,7 @@
                 </div>
 
                 <!-- Price -->
-                <div class="mt-auto pt-1">
+                <div v-if="!resumeOrder || loadedProduct" class="mt-auto pt-1">
                   <template v-if="selectedSku && hasSelectedSkuWholesalePrice">
                     <span
                       class="text-lg md:text-xl font-bold"
@@ -176,7 +179,7 @@
                 <button
                   type="button"
                   class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                  :disabled="checkoutBusy || quantity <= effectiveMin"
+                  :disabled="paymentCreated || checkoutBusy || quantity <= effectiveMin"
                   @click="quantity = Math.max(effectiveMin, quantity - 1)"
                 >
                   <Minus class="w-3.5 h-3.5" :stroke-width="2.5" />
@@ -185,7 +188,7 @@
                   type="text"
                   inputmode="numeric"
                   :aria-label="t('quickBuy.quantity')"
-                  :disabled="checkoutBusy"
+                  :disabled="paymentCreated || checkoutBusy"
                   class="w-12 h-9 text-center text-sm font-semibold text-foreground border-x bg-transparent outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   :value="quantity"
                   @change="handleQuantityInput($event)"
@@ -194,7 +197,7 @@
                 <button
                   type="button"
                   class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                  :disabled="checkoutBusy || (effectiveLimit !== null && quantity >= effectiveLimit)"
+                  :disabled="paymentCreated || checkoutBusy || (effectiveLimit !== null && quantity >= effectiveLimit)"
                   @click="quantity = quantity + 1"
                 >
                   <Plus class="w-3.5 h-3.5" :stroke-width="2.5" />
@@ -262,7 +265,7 @@
                       : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium',
                     isSkuPurchasable(sku) ? 'cursor-pointer' : 'cursor-not-allowed opacity-45 border-dashed',
                   ]"
-                  :disabled="checkoutBusy || !isSkuPurchasable(sku)"
+                  :disabled="paymentCreated || checkoutBusy || !isSkuPurchasable(sku)"
                   @click="selectedSkuId = normalizeSkuId(sku.id)"
                 >
                   <span>{{ skuDisplayText(sku) }}</span>
@@ -291,14 +294,15 @@
 
 
             <!-- Warning -->
-            <p v-if="stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+            <p v-if="!resumeOrder && stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {{ t('productDetail.stockBelowMinPurchase', { count: effectiveMin }) }}
             </p>
-            <p v-else-if="purchaseWarning" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+            <p v-else-if="!resumeOrder && purchaseWarning" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {{ purchaseWarning }}
             </p>
             </div>
-            <XgaiCheckout v-show="!loginVisible" @login="loginVisible = true" v-if="inlineCheckout && canPurchase && !requiresLogin && buyNowStore.hasItem" embedded @busy="checkoutBusy = $event">
+            <ResumeOrderPayment v-if="inlineCheckout && resumeOrder" :reference="resumeOrder" @busy="checkoutBusy = $event" @loaded="restoreOrderProduct" />
+            <XgaiCheckout v-show="!loginVisible" @login="loginVisible = true" v-else-if="inlineCheckout && canPurchase && !requiresLogin && buyNowStore.hasItem" embedded @busy="checkoutBusy = $event" @payment="paymentCreated = $event">
               <template #quantity>
             <!-- Quantity -->
             <div v-if="inlineCheckout" class="mb-4 flex items-center gap-3" :class="{ 'quick-buy-checkout__quantity': inlineCheckout }">
@@ -307,7 +311,7 @@
                 <button
                   type="button"
                   class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                  :disabled="checkoutBusy || quantity <= effectiveMin"
+                  :disabled="paymentCreated || checkoutBusy || quantity <= effectiveMin"
                   @click="quantity = Math.max(effectiveMin, quantity - 1)"
                 >
                   <Minus class="w-3.5 h-3.5" :stroke-width="2.5" />
@@ -316,7 +320,7 @@
                   type="text"
                   inputmode="numeric"
                   :aria-label="t('quickBuy.quantity')"
-                  :disabled="checkoutBusy"
+                  :disabled="paymentCreated || checkoutBusy"
                   class="w-12 h-9 text-center text-sm font-semibold text-foreground border-x bg-transparent outline-none tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   :value="quantity"
                   @change="handleQuantityInput($event)"
@@ -325,7 +329,7 @@
                 <button
                   type="button"
                   class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                  :disabled="checkoutBusy || (effectiveLimit !== null && quantity >= effectiveLimit)"
+                  :disabled="paymentCreated || checkoutBusy || (effectiveLimit !== null && quantity >= effectiveLimit)"
                   @click="quantity = quantity + 1"
                 >
                   <Plus class="w-3.5 h-3.5" :stroke-width="2.5" />
@@ -342,7 +346,7 @@
           </div>
 
           <!-- Actions (sticky bottom) -->
-          <div v-if="!inlineCheckout || requiresLogin || !canPurchase" class="shrink-0 px-4 md:px-5 pt-3 pb-3 md:pb-5 border-t theme-safe-bottom">
+          <div v-if="!resumeOrder && (!inlineCheckout || requiresLogin || !canPurchase)" class="shrink-0 px-4 md:px-5 pt-3 pb-3 md:pb-5 border-t theme-safe-bottom">
             <Button
               v-if="requiresLogin"
               class="w-full py-3 h-auto min-h-[44px] rounded-xl text-sm font-semibold"
@@ -399,6 +403,7 @@ import * as aiBrand from '../utils/aiBrand'
 import { normalizeSkuId, buildSkuDisplayText } from '../utils/sku'
 import { resolveSkuAvailableStock, resolveSkuStockDisplay, type PublicStockDisplay } from '../utils/publicStock'
 import { useLocalized, useProductLabels } from '../composables/useProduct'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { toast } from '../composables/useToast'
 import { X, Image as ImageIcon, Tag, Minus, Plus, ShoppingCart } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
@@ -407,11 +412,14 @@ import XgaiCheckout from '../templates/xgai/Checkout.vue'
 import XgaiLogin from '../templates/xgai/auth/Login.vue'
 import { getProductGuide, productGuideLabels } from '../utils/productGuide'
 import { processHtmlForDisplay } from '../utils/content'
+import ResumeOrderPayment from '../templates/xgai/components/ResumeOrderPayment.vue'
 import { productAPI } from '../api/product'
 
 const props = defineProps<{
   product: any
   visible: boolean
+  sourceElement?: HTMLElement
+  resumeOrder?: import('../utils/pendingOrders').PendingOrder
   inlineCheckout?: boolean
 }>()
 
@@ -421,6 +429,13 @@ const emit = defineEmits<{
 
 const loadedProduct = ref<any>(null)
 const product = computed(() => loadedProduct.value || props.product)
+const restoreOrderProduct = (order: any) => {
+  const item = order.items?.[0]
+  if (!item) return
+  loadedProduct.value = { ...props.product, title: item.title || item.product_title || props.product.title,
+    images: item.images || [], price_amount: item.unit_price || item.price || order.total_amount,
+    description: { 'zh-CN': t('pendingOrders.sameOrder'), 'zh-TW': t('pendingOrders.sameOrder'), 'en-US': t('pendingOrders.sameOrder') } }
+}
 let detailRequest = 0
 watch(() => [props.product, props.visible], async () => {
   const request = ++detailRequest
@@ -459,8 +474,48 @@ const {
 } = useProductLabels()
 
 const dialogPanel = ref<HTMLElement | null>(null)
+let cardAnimation: Animation | undefined
+let hiddenSource: HTMLElement | undefined
+const animateCardWindow = (wrapper: Element, done: () => void, entering: boolean) => {
+  const source = props.sourceElement
+  const panel = wrapper.querySelector<HTMLElement>('[role="dialog"]')
+  if (!source || !panel) { done(); return }
+  const origin = source.getBoundingClientRect()
+  const destination = panel.getBoundingClientRect()
+  if (cardAnimation) { cardAnimation.onfinish = null; cardAnimation.cancel() }
+  const radius = getComputedStyle(source).borderRadius
+  const finalRadius = getComputedStyle(panel).borderRadius
+  const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : entering ? 680 : 480
+  // Keep content at its final width while the surrounding card unfolds, avoiding stretched text.
+  Array.from(panel.children).forEach(child => { (child as HTMLElement).style.width = `${destination.width - 2}px` })
+  const frames = [
+    { left: `${origin.left}px`, top: `${origin.top}px`, width: `${origin.width}px`, height: `${origin.height}px`, borderRadius: radius },
+    { left: `${destination.left}px`, top: `${destination.top}px`, width: `${destination.width}px`, height: `${destination.height}px`, borderRadius: finalRadius },
+  ]
+  Object.assign(panel.style, { position: 'fixed', margin: '0', maxHeight: 'none', minHeight: '0', overflow: 'hidden' })
+  hiddenSource = source
+  source.style.visibility = 'hidden'
+  const content = panel.querySelector<HTMLElement>('.quick-buy-checkout__columns')
+  content?.animate(entering ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], { duration: entering ? 400 : 180, delay: entering ? 180 : 0, fill: 'both' })
+  const animation = panel.animate(entering ? frames : [...frames].reverse(), { duration, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' })
+  cardAnimation = animation
+  animation.onfinish = () => {
+    if (!entering) { source.dataset.revealCooldown = '1'; source.style.visibility = ''; hiddenSource = undefined }
+    done()
+    animation.cancel()
+    panel.removeAttribute('style')
+    Array.from(panel.children).forEach(child => { (child as HTMLElement).style.width = '' })
+    cardAnimation = undefined
+  }
+}
+const enterFromCard = (element: Element, done: () => void) => animateCardWindow(element, done, true)
+const returnToCard = (element: Element, done: () => void) => animateCardWindow(element, done, false)
+
 const loginVisible = ref(false)
 const checkoutBusy = ref(false)
+const paymentCreated = ref(false)
+const hasCreatedOrder = ref(false)
+watch(paymentCreated, value => { if (value) hasCreatedOrder.value = true })
 let previousFocus: HTMLElement | null = null
 let previousOverflow: string | undefined
 const selectedSkuId = ref(0)
@@ -489,9 +544,15 @@ const formatPromotionRule = (rule: any) => {
   }
 }
 
+const productImageFailed = ref(false)
 const productImage = computed(() => {
   const p = product.value
   if (!p) return ''
+  const artwork = aiBrand.productArtworkUrl(p)
+  if (artwork) return artwork
+  const brandLogo = aiBrand.brandLogoUrl(aiBrand.detectAiBrand(p))
+  if (brandLogo) return brandLogo
+  if (/claude|anthropic/i.test([getLocalizedText(p.title), p.slug].join(' '))) return '/images/brands/claude.svg'
   if (p.images) {
     const url = getFirstImageUrl(p.images)
     if (url) return url
@@ -501,6 +562,8 @@ const productImage = computed(() => {
   const { detectAiBrand, brandLogoUrl } = aiBrand
   return brandLogoUrl(detectAiBrand(p))
 })
+
+watch(productImage, () => { productImageFailed.value = false })
 
 const activeSkus = computed(() => {
   const rows = Array.isArray(product.value?.skus) ? product.value.skus : []
@@ -673,6 +736,8 @@ const syncSelectedSku = () => {
 // Reset state when product changes or drawer opens
 watch(() => [props.product, props.visible], () => {
   if (props.visible && product.value) {
+    paymentCreated.value = false
+    hasCreatedOrder.value = !!props.resumeOrder
     purchaseWarning.value = ''
     quantity.value = effectiveMin.value
     syncSelectedSku()
@@ -791,13 +856,38 @@ const handleQuantityInput = (event: Event) => {
   quantity.value = parsed
 }
 
-const close = () => {
+const { confirm: confirmExit, visible: exitDialogVisible } = useConfirmDialog()
+let exitPending = false
+const allowExit = async () => {
+  if (!props.inlineCheckout || !props.visible) return true
+  if (checkoutBusy.value || exitPending) return false
+  exitPending = true
+  try {
+    return await confirmExit({
+      title: t('quickBuy.exitTitle'),
+      message: t(hasCreatedOrder.value ? 'quickBuy.exitPaymentMessage' : 'quickBuy.exitMessage'),
+      confirmText: t('quickBuy.exitConfirm'),
+      cancelText: t('quickBuy.exitContinue'),
+    })
+  } finally {
+    exitPending = false
+    if (props.visible) void nextTick(() => dialogPanel.value?.focus({ preventScroll: true }))
+  }
+}
+const close = async () => {
   if (loginVisible.value) { loginVisible.value = false; return }
-  if (checkoutBusy.value) return
+  if (checkoutBusy.value || !await allowExit()) return
   emit('update:visible', false)
 }
+const beforeUnload = (event: BeforeUnloadEvent) => {
+  if (!props.inlineCheckout || !props.visible) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+const removeExitGuard = router.beforeEach(() => allowExit())
 
 const onKeydown = (e: KeyboardEvent) => {
+  if (exitDialogVisible.value) return
   if (e.key === 'Escape') { e.preventDefault(); close() }
   if (e.key === 'Tab') {
     const nodes = Array.from(dialogPanel.value?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]') || []).filter(node => node.getClientRects().length)
@@ -816,9 +906,11 @@ watch(
       previousOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
       document.addEventListener('keydown', onKeydown)
+      window.addEventListener('beforeunload', beforeUnload)
       void nextTick(() => dialogPanel.value?.focus({ preventScroll: true }))
     } else {
       document.removeEventListener('keydown', onKeydown)
+      window.removeEventListener('beforeunload', beforeUnload)
       if (previousOverflow !== undefined) document.body.style.overflow = previousOverflow
       previousOverflow = undefined
       previousFocus?.focus({ preventScroll: true })
@@ -828,6 +920,10 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  removeExitGuard()
+  window.removeEventListener('beforeunload', beforeUnload)
+  cardAnimation?.cancel()
+  if (hiddenSource) hiddenSource.style.visibility = ''
   if (previousOverflow !== undefined) document.body.style.overflow = previousOverflow
   document.removeEventListener('keydown', onKeydown)
 })
@@ -954,7 +1050,7 @@ const handleBuyNow = () => {
 }
 
 watch(() => [props.visible, product.value, selectedSkuId.value, quantity.value], () => {
-  if (props.inlineCheckout && props.visible) prepareBuyNow()
+  if (props.inlineCheckout && props.visible && !props.resumeOrder) prepareBuyNow()
 }, { immediate: true })
 
 const goLogin = () => {
@@ -1000,6 +1096,7 @@ function getProductImages() {
   .quick-buy-checkout { max-width: 1120px; height: min(780px, 90dvh); max-height: 90dvh; }
   .quick-buy-checkout__columns { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 1fr); padding: 0; overflow: hidden; min-height: 0; }
   .quick-buy-checkout__info { overflow-y: auto; overscroll-behavior: contain; padding: 28px; }
+  .quick-buy-checkout__columns > :deep(.xck:has(.inline-pay)) { overflow: hidden; }
   .quick-buy-checkout__columns > :deep(.xck) { overflow-y: auto; overscroll-behavior: contain; padding: 24px; border-left: 1px solid var(--x-line); background: var(--x-bg); }
 }
 @media (prefers-reduced-motion: reduce) { .quick-buy-enter-active, .quick-buy-leave-active { transition: none !important; } }

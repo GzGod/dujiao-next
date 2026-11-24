@@ -42,6 +42,7 @@ function withGuestAuth(input: GuestAuthInput, options: Record<string, any> = {})
 }
 
 export const userOrderAPI = {
+    telegramDelivery: (orderNo: string) => userApi.post(`/orders/${encodeURIComponent(orderNo)}/telegram-delivery`, {}),
     preview: (data: any) => userApi.post('/orders/preview', data),
     getPaymentChannels: (data: any) => userApi.post('/order/payment-channels', data),
     create: (data: any) => userApi.post('/orders', data),
@@ -54,6 +55,10 @@ export const userOrderAPI = {
 }
 
 export const guestOrderAPI = {
+    telegramDelivery: (orderNo: string, auth: GuestAuthInput) => {
+        const request = withGuestAuth(auth)
+        return userApi.post(`/guest/orders/${encodeURIComponent(orderNo)}/telegram-delivery`, {}, request.options)
+    },
     preview: (data: any) => userApi.post('/guest/orders/preview', data),
     create: (data: any) => userApi.post('/guest/orders', data),
     createAndPay: (data: any) => userApi.post('/guest/orders/create-and-pay', data),

@@ -41,3 +41,25 @@ export const sortByBrandThenPrice = <T>(products: T[]): T[] =>
     .map((product, index) => ({ product, index, brand: BRAND_ORDER.indexOf(detectAiBrand(product)) }))
     .sort((a, b) => a.brand - b.brand || priceOf(a.product) - priceOf(b.product) || a.index - b.index)
     .map((entry) => entry.product)
+
+/** Product-specific artwork supplied by the storefront owner. */
+export const productArtworkUrl = (product: any): string => {
+  const text = [textOf(product?.title), textOf(product?.slug)].join(' ')
+  if (!/claude/i.test(text)) return ''
+  let name = ''
+  if (/门户|門戶|portal/i.test(text)) name = 'claude-korea-portal'
+  else if (/非洲|africa/i.test(text) && /pro/i.test(text)) name = 'claude-africa-pro'
+  else if (/kyc|韩国|韓國|korea/i.test(text)) name = 'claude-korea-kyc'
+  else if (/max/i.test(text)) name = 'claude-us-max'
+  else if (/pro/i.test(text)) name = 'claude-us-pro'
+  return name ? `/images/products/${name}.png` : ''
+}
+
+/** Classification uses stable product/category metadata across all storefront languages. */
+export const isKycServiceProduct = (product: any): boolean => {
+  const category = [textOf(product?.category?.name), textOf(product?.category?.slug)].join(' ')
+  const identity = [textOf(product?.slug), textOf(product?.title)].join(' ')
+  // Account titles can contain "KYC-Verified"; those remain account products.
+  if (/成品|帳號|账号|\baccount\b|ready-made/i.test(identity)) return false
+  return /kyc|门户|門戶|portal|验证|驗證/i.test([category, identity].join(' '))
+}
