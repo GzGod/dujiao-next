@@ -40,7 +40,7 @@ export function dissolvePaymentPanel(element: HTMLElement, canvas: HTMLCanvasEle
     if(stop)return
     start ||= time
     const elapsed=(time-start)/1000
-    const release=settling?Math.min(1,(time-settling)/1050):0
+    const release=settling?Math.max(0,Math.min(1,(time-settling)/1050)):0
     ctx.clearRect(0,0,width,height)
     ctx.globalCompositeOperation='source-over'
     for(const p of fragments){
@@ -59,12 +59,13 @@ export function dissolvePaymentPanel(element: HTMLElement, canvas: HTMLCanvasEle
     const intensity=Math.min(1,Math.max(0,(elapsed-.25)*1.2))*(1-release*.85)
     for(let i=0;i<76;i++){
       const basePhase=(elapsed*.65+i*.618)%1
-      const phase=settling ? 1-Math.min(1,release*1.25+i/76*.12) : basePhase
+      const phase=settling ? Math.max(0,1-Math.min(1,release*1.25+i/76*.12)) : basePhase
       const spread=(i/75-.5)*width*.85
       const x=origin.x+spread*Math.pow(1-phase,1.8)+Math.sin(phase*4+i)*6*(1-phase)
       const y=origin.y-height*.8*(1-phase)
       const tail=18+phase*36
       const hue=[205,235,275,40][i%4]
+      if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(tail))continue
       const g=ctx.createLinearGradient(x,y-tail,x,y+tail);g.addColorStop(0,`hsla(${hue},90%,75%,0)`);g.addColorStop(.8,`hsla(${hue},95%,85%,${intensity*.25})`);g.addColorStop(1,`hsla(${hue},90%,75%,0)`)
       ctx.strokeStyle=g;ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x,y-tail);ctx.quadraticCurveTo(x+(origin.x-x)*.2,y,origin.x+(x-origin.x)*.8,y+tail);ctx.stroke()
     }
@@ -74,5 +75,5 @@ export function dissolvePaymentPanel(element: HTMLElement, canvas: HTMLCanvasEle
     raf=requestAnimationFrame(draw)
   }
   raf=requestAnimationFrame(draw)
-  return { stop:()=>{stop=true;cancelAnimationFrame(raf);ctx.clearRect(0,0,width,height);finish?.();finish=undefined},reverse:()=>new Promise(resolve=>{settling=performance.now();finish=resolve}) }
+  return { stop:()=>{stop=true;cancelAnimationFrame(raf);ctx.clearRect(0,0,width,height);finish?.();finish=undefined},reverse:()=>new Promise(resolve=>{if(stop){resolve();return}settling=performance.now();finish=resolve}) }
 }

@@ -2,6 +2,7 @@ package paymentbootstrap
 
 import (
 	"github.com/dujiao-next/internal/app/container"
+	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/gmcashier"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
 	paymentcallbacktransport "github.com/dujiao-next/internal/modules/payment/transport/http/callback"
 )
@@ -24,12 +25,10 @@ func New(c *container.Container) Handlers {
 	userOrders := userOrderLookupAdapter{orders: c.OrderService}
 	alerter := exceptionAlerterAdapter{notifications: c.NotificationService}
 
+	latest := paymenttransport.NewLatestHandler(guestOrders, userOrders, pendingLookupAdapter{payments: c.PaymentStore})
+	latest.Cashier = gmcashier.Client{}
 	return Handlers{
-		Latest: paymenttransport.NewLatestHandler(
-			guestOrders,
-			userOrders,
-			pendingLookupAdapter{payments: c.PaymentStore},
-		),
+		Latest: latest,
 		Write: paymenttransport.NewWriteHandler(
 			guestOrders,
 			userOrders,

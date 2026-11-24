@@ -1276,6 +1276,7 @@
     }
   },
   "payment": {
+    "inlineGmCashier": "GMwallet network and token checkout",
     "gptRedeemHint": "Your code is ready. Copy it and open redemption to submit the required account details, then confirm the top-up result.",
     "gptDeliveryPending": "Payment confirmed. Preparing your redemption code; refresh delivery status shortly.",
     "gptCopyCode": "Copy redemption code",
@@ -2352,5 +2353,21 @@
     "newMessage": "You have orders without confirmed payment. A new order does not replace or cancel an earlier one. Please check to avoid paying twice.",
     "createAnyway": "Create another order",
     "reviewFirst": "Do not create yet"
-  }
+  },
+  "gmInline": {
+    "exactAmount": "Exact transfer amount",
+    "selectTitle": "Choose your payment network",
+    "selectHint": "Choose a network and token to get the receiving address for this order.",
+    "getAddress": "Get receiving address",
+    "network": "Network",
+    "token": "Token",
+    "confirm": "Confirm network and token",
+    "retry": "Retry",
+    "qr": "Receiving address QR code",
+    "wallet": "On-chain wallet",
+    "exchange": "Exchange withdrawal",
+    "walletHint": "Transfer the exact amount shown. Gas is paid separately; do not add it to the transfer amount.",
+    "exchangeHint": "The amount received must match exactly. Exchanges may deduct withdrawal fees. Check the received amount and do not round it.",
+    "failed": "Unable to load payment details. Please retry."
+}
 }

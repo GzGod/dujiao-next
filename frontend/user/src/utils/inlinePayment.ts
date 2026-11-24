@@ -15,3 +15,12 @@ export function shouldRefreshInlineOrder(order: any, gpt: boolean, hasCode: bool
   // Paid GPT orders may still be waiting for asynchronous upstream fulfillment.
   return gpt && !hasCode && ['paid', 'processing', 'fulfilling', 'partially_delivered'].includes(order?.status)
 }
+
+/** Embed only our cashier origin; a third-party payment URL remains an explicit link. */
+export function embeddedGmCashierUrl(raw: string, dev = false): string {
+  try {
+    const url = new URL(raw)
+    const trusted = url.origin === 'https://pay.xuegaogx.cc' || (dev && url.origin === 'http://127.0.0.1:4189')
+    return trusted && !url.username && !url.password && /^\/(?:cashier|pay\/checkout-counter)\/[A-Za-z0-9_-]+\/?$/.test(url.pathname) ? url.href : ''
+  } catch { return '' }
+}

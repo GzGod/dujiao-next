@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { inlinePayableAmount, shouldRefreshInlineOrder } from '../src/utils/inlinePayment.ts'
+import { inlinePayableAmount, shouldRefreshInlineOrder, embeddedGmCashierUrl } from '../src/utils/inlinePayment.ts'
 import { isKycServiceProduct } from '../src/utils/aiBrand.ts'
 
 test('shows the actual online amount after wallet deductions and fees, in settlement currency', () => {
@@ -27,4 +27,12 @@ test('KYC verified accounts remain Claude products in every language while verif
   assert.equal(isKycServiceProduct({ slug: 'korea-claude-kyc', title: '韩国 Claude KYC' }), true)
   assert.equal(isKycServiceProduct({ slug: 'portal-verification', title: '韓國 Claude 門戶驗證' }), true)
   assert.equal(isKycServiceProduct({ title: 'GPT Plus' }), false)
+})
+
+test('embeds only the owned GM cashier and never arbitrary URLs or production fixtures', () => {
+  assert.equal(embeddedGmCashierUrl('https://pay.xuegaogx.cc/pay/checkout-counter/trade123'), 'https://pay.xuegaogx.cc/pay/checkout-counter/trade123')
+  assert.equal(embeddedGmCashierUrl('https://evil.test/cashier/trade123'), '')
+  assert.equal(embeddedGmCashierUrl('https://pay.xuegaogx.cc.evil.test/cashier/id'), '')
+  assert.equal(embeddedGmCashierUrl('http://127.0.0.1:4189/cashier/candidate-select'), '')
+  assert.equal(embeddedGmCashierUrl('http://127.0.0.1:4189/cashier/candidate-select', true), 'http://127.0.0.1:4189/cashier/candidate-select')
 })

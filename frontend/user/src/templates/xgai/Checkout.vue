@@ -244,19 +244,22 @@ const paymentPanel = ref<HTMLElement | null>(null)
 const gathering = ref(false)
 let transitionVersion = 0
 let gatherTimer: ReturnType<typeof setTimeout> | undefined
+let gatheringInProgress = false
 const gatherPayment = async () => {
-  if (!gathering.value || disposed) return
+  if (!gathering.value || disposed || gatheringInProgress) return
+  gatheringInProgress = true
   const version = transitionVersion
   clearTimeout(gatherTimer)
   await nextTick()
   paymentPanel.value?.classList.add('xck__payment-emerging')
-  if (paymentPanel.value && dustCanvas.value && dust) { await dust.reverse(paymentPanel.value) }
+  if (paymentPanel.value && dustCanvas.value && dust) { await Promise.race([dust.reverse(paymentPanel.value), new Promise<void>(resolve => setTimeout(resolve, 1200))]) }
+  gatheringInProgress = false
   if (disposed || version !== transitionVersion) return
   gatherTimer = setTimeout(() => { dust?.stop(); gathering.value = false }, 50)
 }
 const returnToForm = () => {
   transitionVersion++
-  dust?.stop(); clearTimeout(gatherTimer); gathering.value = false; paymentStage.value = 'form'; emit('payment', false)
+  dust?.stop(); clearTimeout(gatherTimer); gatheringInProgress = false; gathering.value = false; paymentStage.value = 'form'; emit('payment', false)
 }
 const paymentStage = ref<'form' | 'loading' | 'payment'>('form')
 const createdPayment = ref<any>(null)

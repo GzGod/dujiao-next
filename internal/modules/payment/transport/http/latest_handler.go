@@ -1,7 +1,9 @@
 package paymenthttp
 
 import (
+	"context"
 	"errors"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"time"
 
 	paymentpresenter "github.com/dujiao-next/internal/modules/payment/transport/presenter"
@@ -52,7 +54,12 @@ type LatestPaymentQuery struct {
 }
 
 // LatestHandler 处理前台最新待支付查询 HTTP。
+type CashierClient interface {
+	Cashier(context.Context, string, string, string) (jsonmap.JSON, error)
+}
+
 type LatestHandler struct {
+	Cashier     CashierClient
 	guestOrders GuestOrderLookup
 	userOrders  UserOrderLookup
 	payments    PendingPaymentLookup
@@ -147,5 +154,35 @@ func (h *LatestHandler) respondLatestPayment(c *gin.Context, order *orderdomain.
 		return
 	}
 
+	if c.GetBool("gm_cashier") {
+		var input struct {
+			Network string `json:"network"`
+			Token   string `json:"token"`
+		}
+		if c.Request.Method == "POST" {
+			if err := c.ShouldBindJSON(&input); err != nil || input.Network == "" || input.Token == "" {
+				ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+				return
+			}
+		}
+		if h.Cashier == nil || (payment.ProviderType != "epusdt" && payment.ProviderType != "bepusdt") {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.payment_invalid", nil)
+			return
+		}
+		data, err := h.Cashier.Cashier(c.Request.Context(), payment.PayURL, input.Network, input.Token)
+		if err != nil {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.payment_fetch_failed", nil)
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		response.Success(c, data)
+		return
+	}
 	response.Success(c, paymentpresenter.NewLatestPaymentResp(payment, order.OrderNo))
 }
+
+func (h *LatestHandler) GuestCashier(c *gin.Context) {
+	c.Set("gm_cashier", true)
+	h.GetGuestLatestPayment(c)
+}
+func (h *LatestHandler) UserCashier(c *gin.Context) { c.Set("gm_cashier", true); h.GetLatestPayment(c) }

@@ -50,7 +50,7 @@
             shadow-2xl
             md:max-w-md md:max-h-[75vh]
           "
-          :class="{ 'quick-buy-checkout': inlineCheckout }"
+          :class="{ 'quick-buy-checkout': inlineCheckout, 'quick-buy-checkout--paying': inlineCheckout && (paymentCreated || resumeOrder) }"
           @click.stop
         >
           <!-- Mobile drag handle -->
@@ -1150,5 +1150,19 @@ function getProductImages() {
     transform: scale(0.96);
     opacity: 0;
   }
+}
+</style>
+
+<style scoped>
+@media(max-width:767px) {
+ .quick-buy-checkout--paying { height:90dvh;max-height:90dvh; }
+ .quick-buy-checkout--paying .quick-buy-checkout__columns { display:flex;flex-direction:column;min-height:0;overflow:auto;padding:0 16px; }
+ .quick-buy-checkout--paying .quick-buy-checkout__info { flex:none; }
+ .quick-buy-checkout--paying .quick-buy-checkout__info > :not(.quick-buy-checkout__product) { display:none; }
+ .quick-buy-checkout--paying .quick-buy-checkout__product { margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--x-line); }
+ .quick-buy-checkout--paying .quick-buy-checkout__product h3 { font-size:16px; }
+ .quick-buy-checkout--paying .quick-buy-checkout__columns > :deep(.xck),
+ .quick-buy-checkout--paying .quick-buy-checkout__columns > :deep(.resume-payment) { flex:1;min-height:530px;overflow:visible; }
+ .quick-buy-checkout--paying :deep(.xck__payment-panel) { inset:12px 0; }
 }
 </style>

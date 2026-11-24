@@ -92,6 +92,15 @@ export const guestOrderAPI = {
     },
 }
 
+export const gmCashierAPI = {
+    load: (orderNo: string, auth?: GuestAuthInput) => auth
+      ? (() => { const r = withGuestAuth(auth); return userApi.get('/guest/payments/gm-cashier', {...r.options, params: {order_no: orderNo}}) })()
+      : userApi.get('/payments/gm-cashier', {params: {order_no: orderNo}}),
+    select: (orderNo: string, network: string, token: string, auth?: GuestAuthInput) => auth
+      ? (() => { const r = withGuestAuth(auth); return userApi.post('/guest/payments/gm-cashier?order_no='+encodeURIComponent(orderNo), {network,token},r.options) })()
+      : userApi.post('/payments/gm-cashier?order_no='+encodeURIComponent(orderNo), {network,token}),
+}
+
 export const paymentAPI = {
     create: (data: CreatePaymentPayload) => userApi.post('/payments', data),
     capture: (id: number) => userApi.post(`/payments/${id}/capture`),

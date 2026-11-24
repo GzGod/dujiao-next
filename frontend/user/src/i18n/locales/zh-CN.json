@@ -1223,6 +1223,7 @@
     }
   },
   "payment": {
+    "inlineGmCashier": "GMwallet 选链与代币收银台",
     "gptRedeemHint": "核销码已发放。复制后前往核销，按提示提交账号资料。核销完成后再确认充值结果。",
     "gptDeliveryPending": "付款已确认，正在准备核销码，请稍后刷新交付状态。",
     "gptCopyCode": "复制核销码",
@@ -2352,5 +2353,21 @@
     "newMessage": "你还有尚未确认付款的订单。新订单不会替代或取消原订单，请先确认，避免重复付款。",
     "createAnyway": "仍创建新订单",
     "reviewFirst": "先不创建"
-  }
+  },
+  "gmInline": {
+    "exactAmount": "准确转账金额",
+    "selectTitle": "选择你的付款网络",
+    "selectHint": "确认网络与代币后，获取本订单专属的收款地址。",
+    "getAddress": "获取收款地址",
+    "network": "网络",
+    "token": "代币",
+    "confirm": "确认网络与代币",
+    "retry": "重试",
+    "qr": "收款地址二维码",
+    "wallet": "链上钱包",
+    "exchange": "交易所提现",
+    "walletHint": "钱包转账数量须与应付金额完全一致，Gas 另付，请勿加进转账数量。",
+    "exchangeHint": "实际到账数量必须等于应付金额。交易所可能扣提现手续费，请核对实际到账数量，勿取整。",
+    "failed": "暂时无法获取收款信息，请重试。"
+}
 }
