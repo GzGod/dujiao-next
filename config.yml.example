@@ -198,3 +198,9 @@ web:
 # Register the bot webhook at https://xuegaogx.cc/api/v1/telegram-delivery/webhook
 # with Telegram setWebhook secret_token = DELIVERY_TELEGRAM_WEBHOOK_SECRET.
 # No delivery links are enabled until all four environment variables are set.
+
+# Optional administrator-only order notifications and bot delivery:
+# DELIVERY_TELEGRAM_ADMIN_ID: 5760638358 (private Telegram numeric user ID).
+# DELIVERY_TELEGRAM_ADMIN_USERNAME: existing website super-admin username.
+# Both are required; bot actions revalidate that website admin on every operation.
+# Administrator notifications never go to customer chats or Telegram groups.

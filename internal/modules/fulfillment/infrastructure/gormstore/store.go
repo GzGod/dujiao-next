@@ -2,6 +2,7 @@ package gormstore
 
 import (
 	"errors"
+	"time"
 
 	fulfillmentcontract "github.com/dujiao-next/internal/modules/fulfillment/contract"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
@@ -48,4 +49,15 @@ func (r *Store) FindByOrderIDForUpdate(orderID uint) (*fulfillmentdomain.Fulfill
 		return nil, false, err
 	}
 	return &existing, true, nil
+}
+
+func (r *Store) FinalizeTelegramDelivery(id, admin uint, payload string, now time.Time) error {
+	res := r.db.Model(&fulfillmentdomain.Fulfillment{}).Where("order_id = ? AND status = ? AND delivered_by = ? AND payload = ?", id, "pending", admin, "").Updates(map[string]interface{}{"status": "delivered", "payload": payload, "logistics_json": nil, "delivered_at": now, "updated_at": now})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected != 1 {
+		return errors.New("delivery reservation mismatch")
+	}
+	return nil
 }

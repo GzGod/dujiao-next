@@ -25,6 +25,9 @@ func (c *Client) SendDelivery(ctx context.Context, m contract.TelegramMessage) (
 		buttons = append(buttons, map[string]string{"text": "查看订单 / Orders", "url": m.OrderURL})
 	}
 	payload := map[string]interface{}{"chat_id": m.ChatID, "text": m.Text, "protect_content": true, "disable_web_page_preview": true}
+	for _, b := range m.Buttons {
+		buttons = append(buttons, map[string]string{"text": b.Text, "callback_data": b.Callback})
+	}
 	if len(buttons) > 0 {
 		payload["reply_markup"] = map[string]interface{}{"inline_keyboard": [][]map[string]string{buttons}}
 	}
@@ -62,4 +65,24 @@ func (c *Client) SendDelivery(ctx context.Context, m contract.TelegramMessage) (
 		return 0, errors.New("telegram delivery not confirmed")
 	}
 	return result.Result.ID, nil
+}
+
+func (c *Client) AnswerCallback(ctx context.Context, id string) error {
+	body, _ := json.Marshal(map[string]interface{}{"callback_query_id": id})
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.telegram.org/bot"+c.Token+"/answerCallbackQuery", bytes.NewReader(body))
+	if err != nil {
+		return errors.New("callback acknowledgement failed")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := c.HTTP
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return errors.New("callback acknowledgement failed")
+	}
+	defer res.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 4096))
+	return nil
 }

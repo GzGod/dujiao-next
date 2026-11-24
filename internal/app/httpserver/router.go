@@ -270,6 +270,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 		c.Next()
 	})
 	fulfillmentwiring.NewTelegramDeliveryHandler(c).RegisterWebhook(apiV1)
+	fulfillmentwiring.StartTelegramDeliveryNotifications(c)
 	registerStorefrontRoutes(apiV1, cfg, c, publicContentHandler, publicCatalogHandler, publicCategoryHandler, userResellerHandler, userResellerProductSettingHandler, userResellerFinanceHandler, userResellerOrderHandler, userApiCredentialHandler, userAuditLogHandler, userGiftCardHandler, publicMemberLevelHandler, userProfileHandler, userEmailHandler, userPasswordHandler, userVerifyHandler, userTelegramOIDCHandler, userTelegramHandler, userGoogleHandler, userLoginHandler, user2FAHandler, userInviteHandler, publicConfigHandler, userCartHandler, userOrderHandler, guestOrderHandler, orderPreviewHandler, orderCreateHandler, paymentLatestHandler, paymentWriteHandler, userWalletHandler, redisClient, loginRule, guestReadRule, guestWriteRule, giftCardRedeemRule)
 	registerUpstreamRoutes(apiV1, c, upstreamHandler, redisClient, upstreamAPIRule, callbackRule)
 	registerChannelRoutes(apiV1, c, channelHandler, channelMemberLevelHandler, channelGiftCardHandler, channelAffiliateHandler, channelTelegramBotHandler, channelWalletHandler, redisClient, channelAPIRule)

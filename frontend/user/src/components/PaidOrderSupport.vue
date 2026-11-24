@@ -6,7 +6,7 @@
   <DialogRoot v-model:open="open"><DialogPortal>
     <DialogOverlay class="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm" />
     <DialogContent class="fixed left-1/2 top-1/2 z-[121] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-background p-6 text-foreground shadow-xl">
-      <DialogTitle class="text-xl font-bold">{{ t(isClaude ? 'paidSupport.claudeTitle' : 'paidSupport.title') }}</DialogTitle>
+      <DialogTitle class="text-xl font-bold">{{ t(deliveryURL || isClaude ? 'paidSupport.claudeTitle' : 'paidSupport.title') }}</DialogTitle>
       <DialogDescription class="mt-3 text-sm leading-relaxed text-muted-foreground">{{ t(deliveryURL ? 'paidSupport.botPrompt' : isClaude ? 'paidSupport.claudePrompt' : 'paidSupport.prompt') }}</DialogDescription>
       <a :href="deliveryURL || url" target="_blank" rel="noopener noreferrer" class="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground" @click="open=false">{{ t(deliveryURL ? 'paidSupport.botClaim' : 'paidSupport.contact') }} · Telegram</a>
       <DialogClose class="mt-3 w-full rounded-xl border border-border px-4 py-2 text-sm">{{ t('paidSupport.dismiss') }}</DialogClose>

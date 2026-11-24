@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	app "github.com/dujiao-next/internal/modules/fulfillment/application"
+	contract "github.com/dujiao-next/internal/modules/fulfillment/contract"
 	domain "github.com/dujiao-next/internal/modules/order/domain"
 	reseller "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/platform/http/ginutil"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DeliveryOrderReader interface {
@@ -122,36 +124,89 @@ func (h *TelegramDeliveryHandler) Webhook(c *gin.Context) {
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32768)
+
+	type actor struct {
+		ID       int64  `json:"id"`
+		Username string `json:"username"`
+		IsBot    bool   `json:"is_bot"`
+	}
+	type message struct {
+		Text string `json:"text"`
+		Chat struct {
+			ID   int64  `json:"id"`
+			Type string `json:"type"`
+		} `json:"chat"`
+		From actor `json:"from"`
+	}
 	var update struct {
-		Message *struct {
-			Text string `json:"text"`
-			Chat struct {
-				ID   int64  `json:"id"`
-				Type string `json:"type"`
-			} `json:"chat"`
-			From struct {
-				ID       int64  `json:"id"`
-				Username string `json:"username"`
-				IsBot    bool   `json:"is_bot"`
-			} `json:"from"`
-		} `json:"message"`
+		ID       int64    `json:"update_id"`
+		Message  *message `json:"message"`
+		Callback *struct {
+			ID      string   `json:"id"`
+			Data    string   `json:"data"`
+			From    actor    `json:"from"`
+			Message *message `json:"message"`
+		} `json:"callback_query"`
 	}
 	if c.ShouldBindJSON(&update) != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
-	m := update.Message
-	if m != nil && m.Chat.Type == "private" && !m.From.IsBot && m.Chat.ID == m.From.ID {
-		parts := strings.Fields(m.Text)
-		if len(parts) == 1 && parts[0] == "/start" {
-			h.Service.StartHelp(c.Request.Context(), strconv.FormatInt(m.Chat.ID, 10))
-		}
-		if len(parts) == 2 && parts[0] == "/start" {
-			if err := h.Service.Bind(context.WithoutCancel(c.Request.Context()), parts[1], strconv.FormatInt(m.Chat.ID, 10), m.From.Username); err != nil {
-				h.Service.StartHelp(c.Request.Context(), strconv.FormatInt(m.Chat.ID, 10))
+	var m *message
+	data := ""
+	from := actor{}
+	if update.Message != nil {
+		m = update.Message
+		from = m.From
+	}
+	if update.Callback != nil {
+		m = update.Callback.Message
+		from = update.Callback.From
+		data = update.Callback.Data
+	}
+	if m == nil || m.Chat.Type != "private" || from.IsBot || from.ID <= 0 || m.Chat.ID != from.ID {
+		c.Status(http.StatusOK)
+		return
+	}
+	chat := strconv.FormatInt(from.ID, 10)
+	// Authenticate before any administrative order lookup or callback handling.
+	if data != "" && chat != h.Service.AdminChatID {
+		c.Status(http.StatusOK)
+		return
+	}
+	limitChat := chat
+	if chat == h.Service.AdminChatID {
+		limitChat = ""
+	}
+	accepted, err := h.Service.Store.AcceptTelegramUpdate(update.ID, limitChat, time.Now())
+	if err != nil {
+		c.Status(http.StatusServiceUnavailable)
+		return
+	}
+	if !accepted {
+		c.Status(http.StatusOK)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 25*time.Second)
+	defer cancel()
+	if chat == h.Service.AdminChatID && h.Service.AdminEnabled() {
+		if update.Callback != nil {
+			if ack, ok := h.Service.Sender.(contract.TelegramCallbackAcknowledger); ok {
+				_ = ack.AnswerCallback(ctx, update.Callback.ID)
 			}
 		}
+		_ = h.Service.AdminAction(ctx, chat, data, m.Text)
+		c.Status(http.StatusOK)
+		return
 	}
-	// Do not expose token/binding information or retry a delivered update.
+	parts := strings.Fields(m.Text)
+	if len(parts) == 1 && parts[0] == "/start" {
+		h.Service.StartHelp(ctx, chat)
+	}
+	if len(parts) == 2 && parts[0] == "/start" {
+		if err := h.Service.Bind(ctx, parts[1], chat, from.Username); err != nil {
+			h.Service.StartHelp(ctx, chat)
+		}
+	}
 	c.Status(http.StatusOK)
 }

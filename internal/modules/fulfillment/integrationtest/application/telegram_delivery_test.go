@@ -3,6 +3,7 @@ package application_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/dujiao-next/internal/constants"
 	app "github.com/dujiao-next/internal/modules/fulfillment/application"
 	contract "github.com/dujiao-next/internal/modules/fulfillment/contract"
@@ -18,14 +19,16 @@ import (
 )
 
 type deliverySender struct {
-	calls   int
-	fail    bool
-	message contract.TelegramMessage
+	calls    int
+	fail     bool
+	message  contract.TelegramMessage
+	messages []contract.TelegramMessage
 }
 
 func (s *deliverySender) SendDelivery(_ context.Context, m contract.TelegramMessage) (int64, error) {
 	s.calls++
 	s.message = m
+	s.messages = append(s.messages, m)
 	if s.fail {
 		return 0, errors.New("uncertain")
 	}
@@ -104,6 +107,11 @@ func TestTelegramExpiredTokenAndConcurrentSendClaim(t *testing.T) {
 	db := setupFulfillmentServiceTestDB(t)
 	_ = db.AutoMigrate(&domain.TelegramDelivery{})
 	s := store.New(db)
+	for _, id := range []uint{1, 2} {
+		if err := db.Create(&orderdomain.Order{ID: id, OrderNo: fmt.Sprintf("TOKEN-%d", id), Status: constants.OrderStatusPaid}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := s.IssueTelegramToken(1, "expired", time.Now().Add(-time.Hour)); err != nil {
 		t.Fatal(err)
 	}
@@ -122,5 +130,275 @@ func TestTelegramExpiredTokenAndConcurrentSendClaim(t *testing.T) {
 	second, err := s.ClaimTelegramDelivery(2, "hash")
 	if err != nil || second {
 		t.Fatal("duplicate claim accepted")
+	}
+}
+
+func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{}); err != nil {
+		t.Fatal(err)
+	}
+	sql, _ := db.DB()
+	sql.SetMaxOpenConns(1)
+	order := &orderdomain.Order{OrderNo: "ADMIN-BOT-ORDER", Status: constants.OrderStatusPaid, Currency: "CNY", Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "Claude Pro"}}}}
+	if err := db.Create(order).Error; err != nil {
+		t.Fatal(err)
+	}
+	fs := store.New(db)
+	os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+	sender := &deliverySender{}
+	svc := &app.TelegramDeliveryService{Store: fs, Sender: sender, Fulfillment: app.New(app.Options{OrderStore: os, FulfillmentStore: fs}), BotUsername: "fixture_bot", TokenSecret: strings.Repeat("s", 32), SiteURL: "https://example.test", SupportURL: "https://t.me/support", AdminChatID: "5760638358", AuthorizeAdmin: func() (uint, error) { return 7, nil }}
+	ctx := context.Background()
+	if err := svc.AdminAction(ctx, "42", "", "/orders"); err == nil || sender.calls != 0 {
+		t.Fatal("customer obtained admin notifications")
+	}
+	if err := svc.NotifyAdminOrders(ctx, false); err != nil {
+		t.Fatal(err)
+	}
+	if sender.message.ChatID != "5760638358" || !strings.Contains(sender.message.Text, order.OrderNo) || len(sender.message.Buttons) != 1 {
+		t.Fatal("notification not exclusively to admin")
+	}
+	calls := sender.calls
+	if err := svc.NotifyAdminOrders(ctx, false); err != nil || sender.calls != calls {
+		t.Fatal("duplicate paid notification")
+	}
+	link, err := svc.Link(order)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(link)
+	if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil {
+		t.Fatal(err)
+	}
+	calls = sender.calls
+	if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil || sender.calls != calls {
+		t.Fatal("repeated start generated notification")
+	}
+	action := fmt.Sprintf("deliver:%d", order.ID)
+	if err := svc.AdminAction(ctx, "43", action, ""); err == nil {
+		t.Fatal("forwarded admin button accepted")
+	}
+	if err := svc.AdminAction(ctx, "5760638358", action, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.AdminAction(ctx, "5760638358", "", "account: fixture-secret"); err != nil {
+		t.Fatal(err)
+	}
+	session, err := fs.GetAdminSession("5760638358")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.Stage != "confirm" || strings.Contains(session.Ciphertext, "fixture-secret") {
+		t.Fatal("draft not encrypted or missing confirmation")
+	}
+	confirm := "confirm:" + session.Nonce
+	if err := svc.AdminAction(ctx, "42", confirm, ""); err == nil {
+		t.Fatal("customer confirmed admin draft")
+	}
+	if err := svc.AdminAction(ctx, "5760638358", confirm, ""); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := os.GetByID(order.ID)
+	foundCustomerDelivery := false
+	for _, m := range sender.messages {
+		if strings.Contains(m.Text, "account: fixture-secret") && m.ChatID == "42" {
+			foundCustomerDelivery = true
+		}
+		if strings.Contains(m.Text, "人工订单已付款") && m.ChatID != "5760638358" {
+			t.Fatal("admin notification leaked")
+		}
+	}
+	if !foundCustomerDelivery {
+		t.Fatal("delivery not addressed to bound customer")
+	}
+	if loaded.Status != constants.OrderStatusDelivered || loaded.Fulfillment.Payload != "account: fixture-secret" {
+		t.Fatal("bot delivery not persisted")
+	}
+	calls = sender.calls
+	_ = svc.AdminAction(ctx, "5760638358", confirm, "")
+	if sender.calls != calls {
+		t.Fatal("confirm replay sent another message")
+	}
+}
+
+func TestDeliveryReservationBlocksRefundAndManualDeliveryAndHidesDraft(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	_ = db.AutoMigrate(&domain.TelegramDelivery{})
+	sql, _ := db.DB()
+	sql.SetMaxOpenConns(1)
+	order := &orderdomain.Order{OrderNo: "RESERVED-ORDER", Status: constants.OrderStatusPaid, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "fixture"}}}}
+	if err := db.Create(order).Error; err != nil {
+		t.Fatal(err)
+	}
+	fs := store.New(db)
+	os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+	_ = fs.IssueTelegramToken(order.ID, "reservation", time.Now().Add(time.Hour))
+	if _, err := fs.BindTelegramToken("reservation", "42", "user", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	ok, err := fs.ReserveTelegramDelivery(order.ID, 7, "hash")
+	if err != nil || !ok {
+		t.Fatal(err)
+	}
+	record, _ := fs.GetByOrderID(order.ID)
+	if record.Payload != "" || record.Status != "pending" {
+		t.Fatal("unconfirmed delivery content exposed")
+	}
+	if err := os.UpdateFields(order.ID, map[string]interface{}{"status": "refunded"}); err == nil {
+		t.Fatal("refund status bypassed hold")
+	}
+	if err := os.UpdateFields(order.ID, map[string]interface{}{"refunded_amount": 1}); err == nil {
+		t.Fatal("refund money bypassed hold")
+	}
+	svc := app.New(app.Options{OrderStore: os, FulfillmentStore: fs})
+	if _, err := svc.CreateManual(app.CreateManualInput{OrderID: order.ID, AdminID: 8, Payload: "other"}); err == nil {
+		t.Fatal("manual delivery bypassed hold")
+	}
+	if err := fs.ReleaseTelegramDelivery(order.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.UpdateFields(order.ID, map[string]interface{}{"status": "refunded"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fs.BindTelegramToken("reservation", "43", "other", time.Now()); err == nil {
+		t.Fatal("refunded order token accepted")
+	}
+}
+func TestWebhookDedupAndCustomerRateLimit(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	_ = db.AutoMigrate(&domain.TelegramUpdateReceipt{})
+	s := store.New(db)
+	now := time.Now()
+	a, err := s.AcceptTelegramUpdate(100, "42", now)
+	if err != nil || !a {
+		t.Fatal(err)
+	}
+	a, err = s.AcceptTelegramUpdate(100, "42", now.Add(time.Second))
+	if err != nil || a {
+		t.Fatal("replay accepted")
+	}
+	a, err = s.AcceptTelegramUpdate(101, "42", now.Add(100*time.Millisecond))
+	if err != nil || a {
+		t.Fatal("rate limit bypass")
+	}
+	a, err = s.AcceptTelegramUpdate(102, "42", now.Add(2*time.Second))
+	if err != nil || !a {
+		t.Fatal("rate limit did not recover")
+	}
+}
+
+func TestAdministratorMustResolveUncertainSendWithoutAutomaticRetry(t *testing.T) {
+	for _, resolution := range []string{"received:", "unsent:"} {
+		t.Run(resolution, func(t *testing.T) {
+			db := setupFulfillmentServiceTestDB(t)
+			_ = db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{})
+			order := &orderdomain.Order{OrderNo: "REVIEW-ORDER", Status: constants.OrderStatusPaid, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "fixture"}}}}
+			if err := db.Create(order).Error; err != nil {
+				t.Fatal(err)
+			}
+			fs := store.New(db)
+			os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+			sender := &deliverySender{}
+			svc := &app.TelegramDeliveryService{Store: fs, Sender: sender, Fulfillment: app.New(app.Options{OrderStore: os, FulfillmentStore: fs}), BotUsername: "fixture_bot", TokenSecret: strings.Repeat("s", 32), AdminChatID: "5760638358", AuthorizeAdmin: func() (uint, error) { return 7, nil }}
+			ctx := context.Background()
+			link, _ := svc.Link(order)
+			u, _ := url.Parse(link)
+			if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil {
+				t.Fatal(err)
+			}
+			_ = svc.AdminAction(ctx, "5760638358", fmt.Sprintf("deliver:%d", order.ID), "")
+			_ = svc.AdminAction(ctx, "5760638358", "", "sensitive fixture")
+			session, _ := fs.GetAdminSession("5760638358")
+			sender.fail = true
+			_ = svc.AdminAction(ctx, "5760638358", "confirm:"+session.Nonce, "")
+			session, _ = fs.GetAdminSession("5760638358")
+			if session.Stage != "review" {
+				t.Fatal("uncertain delivery not awaiting review")
+			}
+			sender.fail = false
+			calls := sender.calls
+			if err := svc.AdminAction(ctx, "5760638358", resolution+session.Nonce, ""); err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range sender.messages[calls:] {
+				if m.ChatID == "42" {
+					t.Fatal("recovery automatically resent sensitive content")
+				}
+			}
+			loaded, _ := os.GetByID(order.ID)
+			if resolution == "received:" && loaded.Status != constants.OrderStatusDelivered {
+				t.Fatal("confirmed receipt not finalized")
+			}
+			if resolution == "unsent:" {
+				session, _ = fs.GetAdminSession("5760638358")
+				if loaded.Status != constants.OrderStatusPaid || session.Stage != "awaiting" {
+					t.Fatal("unsent recovery did not require fresh confirmation")
+				}
+			}
+		})
+	}
+}
+
+type blockingDeliverySender struct{ entered, release chan struct{} }
+
+func (s *blockingDeliverySender) SendDelivery(_ context.Context, m contract.TelegramMessage) (int64, error) {
+	if strings.Contains(m.Text, "race-payload") {
+		close(s.entered)
+		<-s.release
+	}
+	return 321, nil
+}
+func TestInFlightTelegramSendBlocksConcurrentRefundAndSecondDelivery(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	_ = db.AutoMigrate(&domain.TelegramDelivery{})
+	sql, _ := db.DB()
+	sql.SetMaxOpenConns(1)
+	parent := &orderdomain.Order{OrderNo: "RACE-PARENT", Status: constants.OrderStatusPaid}
+	if err := db.Create(parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	leaf := &orderdomain.Order{ParentID: &parent.ID, OrderNo: "RACE-CHILD", Status: constants.OrderStatusPaid, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "fixture"}}}}
+	if err := db.Create(leaf).Error; err != nil {
+		t.Fatal(err)
+	}
+	fs := store.New(db)
+	os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+	sender := &blockingDeliverySender{entered: make(chan struct{}), release: make(chan struct{})}
+	svc := &app.TelegramDeliveryService{Store: fs, Sender: sender, Fulfillment: app.New(app.Options{OrderStore: os, FulfillmentStore: fs}), BotUsername: "fixture_bot", TokenSecret: strings.Repeat("s", 32)}
+	fullParent, _ := os.GetByID(parent.ID)
+	link, err := svc.Link(fullParent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(link)
+	if err := svc.Bind(context.Background(), u.Query().Get("start"), "42", "customer"); err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { _, err := svc.Send(context.Background(), leaf.ID, 7, "race-payload"); result <- err }()
+	select {
+	case <-sender.entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("send never reached Telegram")
+	}
+	if err := os.UpdateFields(parent.ID, map[string]interface{}{"refunded_amount": 1}); err == nil {
+		t.Error("parent refund bypassed in-flight hold")
+	}
+	if err := os.UpdateStatus(leaf.ID, constants.OrderStatusRefunded, nil); err == nil {
+		t.Error("child refund bypassed in-flight hold")
+	}
+	if _, err := svc.Fulfillment.CreateManual(app.CreateManualInput{OrderID: leaf.ID, AdminID: 8, Payload: "second"}); err == nil {
+		t.Error("parallel manual delivery accepted")
+	}
+	if _, err := svc.Send(context.Background(), leaf.ID, 7, "race-payload"); err == nil {
+		t.Error("parallel bot delivery accepted")
+	}
+	close(sender.release)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := os.GetByID(leaf.ID)
+	if loaded.Status != constants.OrderStatusDelivered {
+		t.Fatal("original delivery not finalized")
 	}
 }

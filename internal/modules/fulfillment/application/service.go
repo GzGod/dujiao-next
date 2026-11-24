@@ -75,11 +75,12 @@ func New(
 
 // CreateManualInput 创建人工交付输入
 type CreateManualInput struct {
-	OrderID      uint
-	AdminID      uint
-	Payload      string
-	DeliveryData jsonmap.JSON
-	DeliveredAt  *time.Time
+	TelegramConfirmed bool
+	OrderID           uint
+	AdminID           uint
+	Payload           string
+	DeliveryData      jsonmap.JSON
+	DeliveredAt       *time.Time
 }
 
 // CreateManual 创建人工交付
@@ -119,10 +120,36 @@ func (s *Service) CreateManual(input CreateManualInput) (*fulfillmentdomain.Fulf
 
 	var created *fulfillmentdomain.Fulfillment
 	err = s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
-		if _, found, err := tx.Fulfillments().FindByOrderIDForUpdate(input.OrderID); err != nil {
+		// Serialize with Telegram reservations and refund/status updates.
+		rootID := order.ID
+		if order.ParentID != nil {
+			rootID = *order.ParentID
+		}
+		if _, err := tx.Orders().GetByIDForUpdate(rootID); err != nil {
+			return err
+		}
+		locked, err := tx.Orders().GetByIDForUpdate(order.ID)
+		if err != nil {
+			return err
+		}
+		if locked == nil || (locked.Status != constants.OrderStatusPaid && locked.Status != constants.OrderStatusFulfilling) || locked.RefundedAmount.Decimal.IsPositive() {
+			return ErrOrderStatusInvalid
+		}
+		if existing, found, err := tx.Fulfillments().FindByOrderIDForUpdate(input.OrderID); err != nil {
 			return err
 		} else if found {
-			return ErrFulfillmentExists
+			if !input.TelegramConfirmed || existing.Status != constants.FulfillmentStatusPending || existing.LogisticsJSON["telegram_payload_hash"] != hashDelivery(payload) || existing.DeliveredBy == nil || *existing.DeliveredBy != input.AdminID {
+				return ErrFulfillmentExists
+			}
+			if err := tx.Fulfillments().FinalizeTelegramDelivery(input.OrderID, input.AdminID, payload, now); err != nil {
+				return err
+			}
+			existing.Payload = payload
+			existing.LogisticsJSON = nil
+			existing.Status = constants.FulfillmentStatusDelivered
+			existing.DeliveredAt = deliveredAt
+			created = existing
+			return tx.Orders().UpdateFields(order.ID, map[string]interface{}{"status": constants.OrderStatusDelivered, "updated_at": now})
 		}
 
 		fulfillment := &fulfillmentdomain.Fulfillment{

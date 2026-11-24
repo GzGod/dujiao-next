@@ -2286,9 +2286,9 @@
     }
   },
   "paidSupport": {
-    "botPrompt": "付款已確認，請點擊下方按鈕啟動發貨機器人，綁定本單並等待交付。",
-    "botClaim": "前往機器人領取商品",
-    "claudeTitle": "Claude 付款成功，請聯絡 TG 領取",
+    "botPrompt": "付款已確認，請點擊下方按鈕聯絡客服發貨。",
+    "botClaim": "聯絡客服發貨",
+    "claudeTitle": "Claude 付款成功",
     "claudePrompt": "請透過 Telegram 聯絡 {'@'}xuegaozhanshen，提供訂單編號，我們會人工安排 Claude 帳號交付。無需前往核銷站，付款不代表已出貨。",
     "title": "付款成功",
     "prompt": "不會使用或核銷？聯絡客服，我們幫你處理。",

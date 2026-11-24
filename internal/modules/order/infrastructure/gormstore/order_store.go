@@ -528,7 +528,7 @@ func (r *Store) UpdateStatus(id uint, status string, updates map[string]interfac
 		updates = map[string]interface{}{}
 	}
 	updates["status"] = status
-	return r.db.Model(&orderdomain.Order{}).Where("orders.deleted_at IS NULL AND id = ?", id).Updates(updates).Error
+	return r.updateDeliveryProtectedFields(id, updates)
 }
 
 // ListByUser 获取用户订单列表
@@ -800,7 +800,7 @@ func (r *Store) UpdateFields(id uint, updates map[string]interface{}) error {
 	if id == 0 || len(updates) == 0 {
 		return nil
 	}
-	return r.db.Model(&orderdomain.Order{}).Where("orders.deleted_at IS NULL AND id = ?", id).Updates(updates).Error
+	return r.updateDeliveryProtectedFields(id, updates)
 }
 
 // UpdateChildrenStatus 把所有非目标状态的子订单批量更新为 targetStatus,返回受影响行数。
@@ -868,4 +868,45 @@ func (r *Store) GetByIDForUpdateWithChildren(id uint) (*orderdomain.Order, error
 		return nil, err
 	}
 	return &order, nil
+}
+
+// updateDeliveryProtectedFields serializes status/refund writes with Telegram
+// delivery reservations. Any failure rolls back the caller's refund transaction.
+func (r *Store) updateDeliveryProtectedFields(id uint, updates map[string]interface{}) error {
+	_, status := updates["status"]
+	_, refund := updates["refunded_amount"]
+	if !status && !refund {
+		return r.db.Model(&orderdomain.Order{}).Where("id = ? AND deleted_at IS NULL", id).Updates(updates).Error
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var initial orderdomain.Order
+		if err := tx.Where("id = ? AND deleted_at IS NULL", id).First(&initial).Error; err != nil {
+			return err
+		}
+		root := id
+		if initial.ParentID != nil {
+			root = *initial.ParentID
+		}
+		var locked orderdomain.Order
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", root).First(&locked).Error; err != nil {
+			return err
+		}
+		var pending int64
+		scope := root
+		target, _ := updates["status"].(string)
+		query := tx.Table("fulfillments").Where("deleted_at IS NULL AND status = ?", "pending")
+		if !refund && (target == "delivered" || target == "completed" || target == "fulfilling") {
+			scope = id
+			query = query.Where("order_id = ?", scope)
+		} else {
+			query = query.Where("order_id = ? OR order_id IN (SELECT id FROM orders WHERE parent_id = ? AND deleted_at IS NULL)", scope, scope)
+		}
+		if err := query.Count(&pending).Error; err != nil {
+			return err
+		}
+		if pending > 0 {
+			return errors.New("order has a Telegram delivery in progress; review before changing status or refunding")
+		}
+		return tx.Model(&orderdomain.Order{}).Where("id = ? AND deleted_at IS NULL", id).Updates(updates).Error
+	})
 }
