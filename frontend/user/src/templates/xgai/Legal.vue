@@ -6,7 +6,7 @@
 
     <div v-else class="xmisc__body xmisc__legal">
       <h1 class="xmisc__legal-title">{{ title }}</h1>
-      <article v-if="type === 'terms'" class="xlegal-terms">
+      <article v-if="publishedTerms.length" class="xlegal-terms">
         <section v-for="section in publishedTerms" :key="section[0]">
           <h2>{{ section[0] }}</h2>
           <p v-for="paragraph in section.slice(1)" :key="paragraph">{{ paragraph }}</p>
@@ -29,12 +29,12 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FileText, Loader2 } from 'lucide-vue-next'
-import { serviceTerms } from '../../content/serviceTerms'
+import { serviceTerms, privacyPolicy } from '../../content/serviceTerms'
 import { useLegal } from '../../composables/useLegal'
 import './styles/xgai-misc.css'
 
 const { t, locale } = useI18n()
-const publishedTerms = computed(() => serviceTerms(locale.value))
+const publishedTerms = computed(() => props.type === 'terms' ? serviceTerms(locale.value) : privacyPolicy(locale.value))
 
 const props = defineProps<{
   type: 'terms' | 'privacy'

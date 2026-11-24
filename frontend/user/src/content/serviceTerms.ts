@@ -34,3 +34,25 @@ const traditional = zh.map(section => section.map(text => Array.from(text, chara
 export function serviceTerms(locale: string): string[][] {
   return locale === 'en-US' ? en : locale === 'zh-TW' ? traditional : zh
 }
+
+const privacyZh = [
+ ['适用范围', '本政策说明雪糕AI在注册、登录、下单、付款、交付、核销和售后过程中如何处理个人信息。'],
+ ['处理的信息', '根据您实际使用的功能，我们可能处理联系邮箱、账号及登录验证资料、订单及交付记录、付款渠道和交易标识、您主动提交的售后资料，以及保障安全所需的网络地址和访问日志。游客订单密码用于查单验证，请勿与其他网站的密码重复。', '涉及账号办理资料时，仅应提交对应服务明确要求的必要信息；不要在聊天或无关表单中提交支付密码、钱包私钥或助记词。'],
+ ['用途与必要共享', '相关信息用于身份及订单验证、金额核对、付款确认、交付、核销、售后处理、防范滥用和履行法定义务。', '完成服务可能需要使用支付、托管、邮件或办理服务的合作方。涉及提供账号资料、跨境传输或依法需要特别同意的处理，应另行告知处理目的、资料范围及必要事项，并按适用法律取得同意。我们不以本政策作为无限制共享的授权。'],
+ ['浏览器存储与安全', '网站可能使用 Cookie、浏览器本地存储或会话存储保存登录状态、购物选择、页面偏好及必要的查单状态。不要在公共设备保存登录或订单凭证；使用后应退出并清理相关存储。', '请妥善保护邮箱、订单密码和核销码。互联网传输及第三方系统无法保证绝对安全；发生异常时请及时联系客服。'],
+ ['保存与您的权利', '信息仅在提供服务、处理争议及履行适用法律义务所必需的期间保存。超出必要范围的信息应按适用法律删除或匿名化处理。', '您可通过站内客服申请访问、更正、删除相关资料，或提出撤回同意、账户处理等请求。为保护账号及订单安全，处理请求前可能需要核实身份；依法必须保留的交易资料不因撤回同意立即删除。'],
+ ['第三方及政策更新', '第三方支付、登录或核销服务有其自己的信息处理规则。访问前请查看相应说明。', '如本政策有重大变更，将以显著方式提示；依法需要重新同意的，另行取得同意。'],
+]
+const privacyEn = [
+ ['Scope', 'This policy explains personal-information processing for registration, login, orders, payment, delivery, redemption and support at XUEGAOAI.'],
+ ['Information processed', 'Depending on features used, information may include contact email, account and login-verification details, orders and delivery records, payment channels and transaction identifiers, support information you submit, and network addresses and access logs needed for security. Guest order passwords verify order access; do not reuse other passwords.', 'Submit account-processing information only when specifically required for the service. Never submit payment passwords, wallet private keys or seed phrases in chat or unrelated forms.'],
+ ['Purposes and necessary sharing', 'Information is used for identity and order verification, pricing and payment confirmation, delivery, redemption, support, abuse prevention and legal duties.', 'Payment, hosting, email or fulfillment partners may be needed. Account disclosure, cross-border transfers and processing requiring specific consent must be separately explained, including purpose and information scope, with consent obtained under applicable law. This policy is not unrestricted sharing authorization.'],
+ ['Browser storage and security', 'Cookies, local storage or session storage may retain login state, purchase selections, preferences and necessary order-access state. Avoid saving credentials on public devices; sign out and clear relevant storage afterward.', 'Protect your email, order passwords and redemption codes. Absolute security of internet transmission and third-party systems cannot be guaranteed. Contact support promptly about suspicious activity.'],
+ ['Retention and your rights', 'Information is retained only as needed for service, disputes and applicable legal obligations. Unnecessary information should be deleted or anonymized under applicable law.', 'Contact site support to request access, correction, deletion, withdrawal of consent or account-related action. Identity verification may be required for security. Legally required transaction records are not immediately deleted when consent is withdrawn.'],
+ ['Third parties and updates', 'Third-party payment, login and redemption services have their own processing rules. Review their notices before use.', 'Material policy changes will be highlighted and fresh consent obtained when required by law.'],
+]
+export function privacyPolicy(locale: string): string[][] {
+  if (locale === 'en-US') return privacyEn
+  if (locale === 'zh-TW') return privacyZh.map(section => section.map(text => Array.from(text, c => traditionalCharacters[c] || c).join('')))
+  return privacyZh
+}
