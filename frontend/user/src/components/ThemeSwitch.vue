@@ -1,5 +1,6 @@
 <template>
-  <div class="theme-switch" role="group" :aria-label="labels.group" :data-mode="mode" @keydown="onKey">
+  <div class="theme-switch" role="group" :aria-label="labels.group" :data-mode="mode" :data-optical="optical || undefined" @keydown="onKey" @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onCancel" @click.capture="onClick">
+    <canvas ref="canvas" class="theme-switch__canvas" aria-hidden="true" />
     <span class="theme-switch__thumb" aria-hidden="true" />
     <button v-for="item in options" :key="item.mode" type="button" :aria-label="labels[item.mode]" :title="labels[item.mode]" :aria-pressed="mode === item.mode" @click="setTheme(item.mode)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><template v-for="(row,y) in item.pixels" :key="y"><rect v-for="(pixel,x) in row" v-show="pixel === '1'" :key="x" :x="2+Number(x)*2.8" :y="2+y*2.8" width="2" height="2" rx=".35" /></template></svg>
@@ -7,11 +8,12 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { createGlassThemeRenderer } from './theme/glass-theme-renderer'
 import { useI18n } from 'vue-i18n'
 import { useTheme, type ThemeMode } from '@/utils/theme'
 const { locale } = useI18n()
-const { mode, setTheme } = useTheme()
+const { mode, theme, setTheme } = useTheme()
 const translations = {
  'zh-CN': { group:'切换显示主题', dark:'夜间', light:'日间', system:'跟随系统' },
  'zh-TW': { group:'切換顯示主題', dark:'夜間', light:'日間', system:'跟隨系統' },
@@ -23,6 +25,44 @@ const options: {mode:ThemeMode;pixels:string[]}[] = [
  {mode:'light',pixels:['0001000','0100010','0011100','1011101','0011100','0100010','0001000']},
  {mode:'system',pixels:['1111111','1000001','1000001','1000001','1111111','0001000','0011100']},
 ]
+const canvas = ref<HTMLCanvasElement>()
+const optical = ref(false)
+let renderer: ReturnType<typeof createGlassThemeRenderer> = null
+let pointer: {id:number;start:number;moved:boolean}|null = null
+let suppressClick = false
+onMounted(() => {
+ try {
+  if(canvas.value) renderer = createGlassThemeRenderer(canvas.value, mode.value, theme.value === 'dark')
+  optical.value = Boolean(renderer)
+ } catch { optical.value = false }
+})
+onUnmounted(() => renderer?.destroy())
+watch([mode,theme],()=>renderer?.update(mode.value,theme.value==='dark'))
+function onDown(event:PointerEvent) {
+ if(event.button!==0)return
+ pointer={id:event.pointerId,start:event.clientX,moved:false};suppressClick=false
+}
+function onMove(event:PointerEvent) {
+ if(!pointer||pointer.id!==event.pointerId)return
+ if(Math.abs(event.clientX-pointer.start)>3)pointer.moved=true
+ if(!pointer.moved)return
+ const group=event.currentTarget as HTMLElement
+ group.setPointerCapture(event.pointerId)
+ const rect=group.getBoundingClientRect()
+ renderer?.drag((event.clientX-rect.left)/rect.width*3-.5)
+}
+function onUp(event:PointerEvent) {
+ if(!pointer||pointer.id!==event.pointerId)return
+ const moved=pointer.moved;pointer=null
+ if(moved){
+  const rect=(event.currentTarget as HTMLElement).getBoundingClientRect()
+  const index=Math.max(0,Math.min(2,Math.floor((event.clientX-rect.left)/rect.width*3)))
+  suppressClick=true;setTheme(options[index]!.mode)
+ }
+ renderer?.release()
+}
+function onCancel(){pointer=null;renderer?.update(mode.value,theme.value==='dark');renderer?.release()}
+function onClick(event:MouseEvent){if(suppressClick&&event.detail>0){event.preventDefault();event.stopPropagation();suppressClick=false}}
 function onKey(event:KeyboardEvent) {
  if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return
  event.preventDefault()
@@ -44,4 +84,9 @@ function onKey(event:KeyboardEvent) {
 .theme-switch[data-mode=system] .theme-switch__thumb{transform:translateX(64px)}
 @media(prefers-reduced-motion:reduce){.theme-switch__thumb{transition:none}}
 @media(forced-colors:active){.theme-switch button[aria-pressed=true]{outline:2px solid Highlight}}
+.theme-switch{touch-action:pan-y}
+.theme-switch__canvas{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);pointer-events:none}
+.theme-switch[data-optical=true]{background:transparent;border-color:transparent;box-shadow:none}
+.theme-switch[data-optical=true] .theme-switch__thumb,.theme-switch[data-optical=true] svg{visibility:hidden}
+@media(forced-colors:active){.theme-switch__canvas{display:none}.theme-switch[data-optical=true] .theme-switch__thumb,.theme-switch[data-optical=true] svg{visibility:visible}}
 </style>
