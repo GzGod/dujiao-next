@@ -1485,7 +1485,15 @@
       "tableActions": "操作",
       "visit": "访问",
       "verifyTitle": "域名验证",
-      "verifyDesc": "自定义域名提交后进入待审核状态：请先将该域名解析（CNAME/A 记录）指向平台，再等待平台人工核验，通过后即生效。"
+      "dnsTitle": "域名解析配置",
+      "dnsWaiting": "等待平台绑定域名并生成专属解析记录，请勿自行填写主站地址。",
+      "dnsHint": "在域名服务商添加以下记录。Cloudflare 先选择“仅 DNS”，等待解析和 HTTPS 证书生效。根域名填 {'@'}；不要填写 https:// 或路径。",
+      "dnsPending": "等待 DNS 解析",
+      "tlsPending": "等待 HTTPS 证书",
+      "dnsReady": "解析及证书已就绪",
+      "dnsRecord": "记录名称",
+      "dnsValue": "记录内容",
+      "verifyDesc": "提交后由平台绑定接入并提供专属 DNS 记录；请按下方记录配置解析，平台核对证书就绪后完成接入。"
     },
     "site": {
       "title": "店铺设置",

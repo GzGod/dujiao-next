@@ -35,6 +35,22 @@ func (r *Store) ListHiddenProductIDs(resellerID uint) ([]uint, error) {
 	}
 
 	hidden := map[uint]struct{}{}
+	profile, err := r.GetProfileByID(resellerID)
+	if err != nil {
+		return nil, err
+	}
+	if profile != nil && profile.SupplyPricing != nil {
+		var productIDs []uint
+		if err := r.db.Model(&productdomain.Product{}).Where("deleted_at IS NULL").Pluck("id", &productIDs).Error; err != nil {
+			return nil, err
+		}
+		for _, id := range productIDs {
+			if !profile.CanSupplyProduct(id) {
+				hidden[id] = struct{}{}
+			}
+		}
+	}
+
 	var productHidden []uint
 	if err := r.db.Model(&resellerdomain.ProductSetting{}).
 		Where("reseller_id = ? AND sku_id = 0 AND is_listed = ? AND deleted_at IS NULL", resellerID, false).

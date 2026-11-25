@@ -136,12 +136,15 @@ func (s *ManagementService) ApproveProfile(ctx context.Context, adminID, profile
 		}
 		// Existing active sites are untouched. Only first approval with no
 		// administrator-specified scope receives the ChatGPT allowlist.
-		if profile.SupplyPricing == nil {
+		if profile.SupplyPricing == nil || profile.SupplyPricing.AllowedProductIDs == nil {
 			ids, err := repoTx.DefaultChatGPTProductIDs()
 			if err != nil {
 				return err
 			}
-			profile.SupplyPricing = &resellerdomain.SupplyPricing{AllowedProductIDs: &ids}
+			if profile.SupplyPricing == nil {
+				profile.SupplyPricing = &resellerdomain.SupplyPricing{}
+			}
+			profile.SupplyPricing.AllowedProductIDs = &ids
 		}
 		now := time.Now()
 		profile.Status = resellerdomain.ProfileStatusActive
@@ -348,6 +351,9 @@ func (s *ManagementService) UpdateProfileOperationalConfig(adminID, profileID ui
 		}
 		now := time.Now()
 		if input.SupplyPricing != nil {
+			if input.SupplyPricing.AllowedProductIDs == nil && profile.SupplyPricing != nil {
+				input.SupplyPricing.AllowedProductIDs = profile.SupplyPricing.AllowedProductIDs
+			}
 			profile.SupplyPricing = input.SupplyPricing
 		}
 		profile.DefaultMarkupPercent = money.FromDecimal(input.DefaultMarkupPercent)
@@ -697,4 +703,43 @@ func isValidResellerSubdomainLabel(label string) bool {
 		}
 	}
 	return true
+}
+
+// UpdateDomainDNS records provider-issued DNS instructions; it does not approve a domain.
+func (s *ManagementService) UpdateDomainDNS(adminID, domainID uint, input resellerdomain.DomainDNS) (*resellerdomain.Domain, error) {
+	if s == nil || s.store == nil || adminID == 0 || domainID == 0 {
+		return nil, productcontract.ErrNotFound
+	}
+	input.CNAME = strings.ToLower(strings.TrimSpace(input.CNAME))
+	input.RecordName = strings.TrimSpace(input.RecordName)
+	input.TXTHost = strings.TrimSpace(input.TXTHost)
+	input.TXTValue = strings.TrimSpace(input.TXTValue)
+	if input.CNAME == "" || len(input.CNAME) > 253 || strings.ContainsAny(input.CNAME, " /:\t\n") || len(input.RecordName) > 253 || len(input.TXTHost) > 253 || len(input.TXTValue) > 512 {
+		return nil, resellercontract.ErrDomainInvalid
+	}
+	if input.Status != "pending_dns" && input.Status != "pending_tls" && input.Status != "ready" {
+		return nil, resellercontract.ErrDomainInvalid
+	}
+	if (input.TXTHost == "") != (input.TXTValue == "") {
+		return nil, resellercontract.ErrDomainInvalid
+	}
+	input.UpdatedAt = time.Now()
+	err := s.store.WithinManagementTransaction(func(repo resellercontract.ManagementStore) error {
+		row, err := repo.GetDomainByIDForUpdate(domainID)
+		if err != nil {
+			return err
+		}
+		if row == nil {
+			return productcontract.ErrNotFound
+		}
+		if row.Type != resellerdomain.DomainTypeCustom {
+			return resellercontract.ErrDomainInvalid
+		}
+		row.DNS = &input
+		return repo.UpdateDomain(row)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.store.GetDomainByID(domainID)
 }

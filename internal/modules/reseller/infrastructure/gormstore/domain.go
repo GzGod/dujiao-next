@@ -39,6 +39,7 @@ func (r *Store) UpsertDomain(input resellerdomain.Domain) (*resellerdomain.Domai
 	existing.ResellerID = input.ResellerID
 	existing.Type = input.Type
 	existing.VerificationToken = input.VerificationToken
+	existing.DNS = input.DNS
 	existing.VerificationStatus = input.VerificationStatus
 	existing.Status = input.Status
 	existing.IsPrimary = input.IsPrimary

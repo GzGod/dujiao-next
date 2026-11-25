@@ -219,6 +219,7 @@ export interface ResellerManagementProfileData {
 }
 
 export interface ResellerDomainData {
+ dns?: { cname: string; record_name: string; txt_host: string; txt_value: string; status: string; updated_at: string }
     id: number
     domain: string
     type: string

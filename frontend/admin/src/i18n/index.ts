@@ -3841,6 +3841,7 @@ const messages = {
         failed: "供货价加载或保存失败",
       },
       resellerProfileDetail: {
+        dns: {title: 'DNS 接入配置', hint: '先在 Railway 绑定该域名，将生成的专属记录填写在此。状态须按 DNS 与证书实际结果填写，保存不会自动审核域名。', cname: 'CNAME 目标', name: "CNAME 名称（根域名填 @）", txtHost: 'TXT 名称', txtValue: 'TXT 内容', status: '接入状态', pendingDNS: '等待 DNS', pendingTLS: '等待证书', ready: 'DNS 与证书已就绪', save: '保存解析配置', saved: '解析配置已保存'},
         title: '分销商详情',
         back: '返回',
         editOperations: '编辑运营配置',
@@ -8472,6 +8473,7 @@ const messages = {
         failed: "供貨價載入或儲存失敗",
       },
       resellerProfileDetail: {
+        dns: {title: 'DNS 接入設定', hint: '先在 Railway 綁定該網域，將產生的專屬記錄填寫於此。狀態須依 DNS 與憑證實際結果填寫，儲存不會自動審核網域。', cname: 'CNAME 目標', name: "CNAME 名稱（根網域填 @）", txtHost: 'TXT 名稱', txtValue: 'TXT 內容', status: '接入狀態', pendingDNS: '等待 DNS', pendingTLS: '等待憑證', ready: 'DNS 與憑證已就緒', save: '儲存解析設定', saved: '解析設定已儲存'},
         title: '分銷商詳情',
         back: '返回',
         editOperations: '編輯營運設定',
@@ -13103,6 +13105,7 @@ const messages = {
         failed: "Unable to load or save supply prices",
       },
       resellerProfileDetail: {
+        dns: {title: 'DNS connection setup', hint: 'Bind this domain in Railway first and enter its dedicated records here. Record the actual DNS and certificate status. Saving does not approve the domain.', cname: 'CNAME target', name: "CNAME name (@ for root)", txtHost: 'TXT name', txtValue: 'TXT value', status: 'Connection status', pendingDNS: 'Waiting for DNS', pendingTLS: 'Waiting for certificate', ready: 'DNS and certificate ready', save: 'Save DNS configuration', saved: 'DNS configuration saved'},
         title: 'Reseller Detail',
         back: 'Back',
         editOperations: 'Edit Operations',

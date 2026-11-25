@@ -322,3 +322,28 @@ func TestResellerPricingRepositoryRelatedAccountAndSnapshot(t *testing.T) {
 		t.Fatalf("missing snapshot should be nil, got %+v", missing)
 	}
 }
+
+func TestSupplyAllowlistHidesUnapprovedProducts(t *testing.T) {
+	db := openResellerPricingRepoTestDB(t)
+	profile := seedResellerProfile(t, db, "scope-owner@example.com")
+	gpt := productdomain.Product{Slug: "gpt-plus", TitleJSON: jsonmap.JSON{"zh-CN": "GPT Plus"}}
+	claude := productdomain.Product{Slug: "claude-pro", TitleJSON: jsonmap.JSON{"zh-CN": "Claude Pro"}}
+	if err := db.Create(&gpt).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&claude).Error; err != nil {
+		t.Fatal(err)
+	}
+	allowed := []uint{gpt.ID}
+	profile.SupplyPricing = &resellerdomain.SupplyPricing{AllowedProductIDs: &allowed}
+	if err := db.Save(profile).Error; err != nil {
+		t.Fatal(err)
+	}
+	hidden, err := New(db).ListHiddenProductIDs(profile.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hidden) != 1 || hidden[0] != claude.ID {
+		t.Fatalf("unexpected hidden products: %v", hidden)
+	}
+}

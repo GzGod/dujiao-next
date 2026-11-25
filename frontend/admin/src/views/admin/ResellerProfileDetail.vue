@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import ResellerDomainDNS from '@/components/admin/ResellerDomainDNS.vue'
 import ResellerSupplyPricing from '@/components/admin/ResellerSupplyPricing.vue'
 import { adminAPI } from '@/api/admin'
 import type { AdminResellerDomain, AdminResellerProfileDetail } from '@/api/types'
@@ -336,6 +337,7 @@ onMounted(fetchDetail)
         </TabsContent>
 
         <TabsContent value="domains" class="mt-0 space-y-4">
+          <ResellerDomainDNS v-for="domain in domains.filter(d => d.type === RESELLER_DOMAIN_TYPE_CUSTOM)" :key="domain.id" :domain="domain" @saved="fetchDetail" />
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div class="rounded-xl border border-border bg-card p-4">
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

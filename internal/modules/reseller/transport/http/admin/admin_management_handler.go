@@ -20,6 +20,7 @@ import (
 )
 
 type AdminManagementService interface {
+	UpdateDomainDNS(adminID, domainID uint, input resellerdomain.DomainDNS) (*resellerdomain.Domain, error)
 	ApproveProfile(ctx context.Context, adminID, profileID uint, input resellermodule.ResellerApproveInput) (*resellermodule.ResellerApproveResult, error)
 	RejectProfile(adminID, profileID uint, reason string) (*resellerdomain.Profile, error)
 	DisableProfile(adminID, profileID uint, reason string) (*resellerdomain.Profile, error)
@@ -407,4 +408,28 @@ func parseTimePointer(raw string) *time.Time {
 		return &parsed
 	}
 	return nil
+}
+
+func (h *AdminManagementHandler) UpdateDomainDNS(c *gin.Context) {
+	adminID, ok := ginutil.GetAdminID(c)
+	if !ok {
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	var input resellerdomain.DomainDNS
+	if err := c.ShouldBindJSON(&input); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	row, err := h.management.UpdateDomainDNS(adminID, id, input)
+	if err != nil {
+		respondAdminManagementError(c, err)
+		return
+	}
+	h.recordAudit(c, "reseller_domain_dns_update", "/admin/resellers/domains/:id/dns", gin.H{"domain_id": id})
+	response.Success(c, dto.NewResellerDomainResp(row))
 }

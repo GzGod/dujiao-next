@@ -172,6 +172,23 @@
                     <div class="mt-1 text-xs text-muted-foreground md:hidden">{{ domainTypeLabel(item.type) }}</div>
                   </div>
 
+                  <div class="rounded-lg border border-border bg-muted/20 p-3 md:col-span-5 md:order-last">
+                    <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {{ t('resellerConsole.domains.dnsTitle') }}
+                      <ResellerStatusBadge v-if="item.dns" :label="t('resellerConsole.domains.' + (item.dns.status === 'ready' ? 'dnsReady' : item.dns.status === 'pending_tls' ? 'tlsPending' : 'dnsPending'))" :tone="item.dns.status === 'ready' ? 'success' : 'warning'" />
+                    </div>
+                    <template v-if="item.dns">
+                      <p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ t('resellerConsole.domains.dnsHint') }}</p>
+                      <div class="mt-3 grid gap-2 text-xs">
+                        <div v-for="record in [{type:'CNAME',name:item.dns.record_name || '@',value:item.dns.cname}, ...(item.dns.txt_host ? [{type:'TXT',name:item.dns.txt_host,value:item.dns.txt_value}] : [])]" :key="record.type" class="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-[60px_140px_minmax(0,1fr)_auto] sm:items-center">
+                          <strong>{{ record.type }}</strong><code class="break-all">{{ record.name }}</code><code class="break-all">{{ record.value }}</code>
+                          <ResellerCopyButton :value="record.value" :label="t('resellerConsole.common.copy')" />
+                        </div>
+                      </div>
+                    </template>
+                    <p v-else class="mt-2 text-xs text-muted-foreground">{{ t('resellerConsole.domains.dnsWaiting') }}</p>
+                  </div>
+
                   <div class="flex items-center justify-between gap-3 md:block">
                     <span class="text-xs font-medium text-muted-foreground md:hidden">{{ t('resellerConsole.domains.tableStatus') }}</span>
                     <ResellerStatusBadge :label="domainStatusLabel(item.status)" :tone="domainTone(item.status)" dot />
@@ -252,12 +269,13 @@ const domains = computed(() => snapshot.value?.domains || [])
 const canSubmitDomain = computed(() => snapshot.value?.profile?.status === RESELLER_PROFILE_STATUS_ACTIVE)
 const isActiveVerifiedDomain = (domain: ResellerDomainData) =>
   domain.status === RESELLER_DOMAIN_STATUS_ACTIVE &&
-  domain.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED
+  domain.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED &&
+  (!domain.dns || domain.dns.status === 'ready')
 const systemDomain = computed(() => domains.value.find((d) => d.type === RESELLER_DOMAIN_TYPE_SUBDOMAIN) || null)
 const customDomains = computed(() => domains.value.filter((d) => d.type !== RESELLER_DOMAIN_TYPE_SUBDOMAIN))
 const activeDomains = computed(() => domains.value.filter(isActiveVerifiedDomain))
 const primaryDomain = computed(() => activeDomains.value.find((d) => d.is_primary) || null)
-const pendingDomains = computed(() => domains.value.filter((d) => d.status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || d.verification_status === RESELLER_DOMAIN_VERIFICATION_PENDING))
+const pendingDomains = computed(() => domains.value.filter((d) => d.status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || d.verification_status === RESELLER_DOMAIN_VERIFICATION_PENDING || (d.dns && d.dns.status !== 'ready')))
 
 const load = async () => {
   loading.value = true

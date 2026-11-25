@@ -15,6 +15,7 @@ func RegisterManagementRoutes(admin gin.IRoutes, handler *AdminManagementHandler
 	admin.POST("/resellers/profiles/:id/restore", handler.RestoreProfile)
 	admin.GET("/resellers/domains", handler.ListDomains)
 	admin.POST("/resellers/domains/:id/approve", handler.ApproveDomain)
+	admin.PUT("/resellers/domains/:id/dns", handler.UpdateDomainDNS)
 	admin.POST("/resellers/domains/:id/disable", handler.DisableDomain)
 	admin.POST("/resellers/domains/:id/set-primary", handler.SetPrimaryDomain)
 }

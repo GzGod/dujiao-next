@@ -306,6 +306,10 @@ func TestNewResellerDefaultsToChatGPTOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	profile.SupplyPricing = &resellerdomain.SupplyPricing{}
+	if err := db.Save(profile).Error; err != nil {
+		t.Fatal(err)
+	}
 	result, err := svc.ApproveProfile(context.Background(), 1, profile.ID, ResellerApproveInput{DefaultMarkupPercent: decimal.Zero, MaxMarkupPercent: decimal.NewFromInt(50)})
 	if err != nil {
 		t.Fatal(err)
@@ -321,6 +325,37 @@ func TestNewResellerDefaultsToChatGPTOnly(t *testing.T) {
 	for _, p := range products {
 		if !legacy.CanSupplyProduct(p.ID) {
 			t.Fatal("legacy site changed")
+		}
+	}
+}
+
+func TestDomainDNSInstructionsPersistWithoutApproving(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "dns-owner@example.test")
+	svc := newResellerManagementServiceForTest(db)
+	profile, err := svc.ApplyUserReseller(user.ID, ResellerApplyInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile.Status = resellerdomain.ProfileStatusActive
+	if err := db.Save(profile).Error; err != nil {
+		t.Fatal(err)
+	}
+	row := resellerdomain.Domain{ResellerID: profile.ID, Domain: "shop.customer.example", Type: resellerdomain.DomainTypeCustom, Status: resellerdomain.DomainStatusPendingReview, VerificationStatus: resellerdomain.DomainVerificationPending}
+	if err := db.Create(&row).Error; err != nil {
+		t.Fatal(err)
+	}
+	input := resellerdomain.DomainDNS{CNAME: "target.up.railway.app", RecordName: "shop", TXTHost: "_railway-verify.shop", TXTValue: "railway-verify=test", Status: "pending_dns"}
+	updated, err := svc.UpdateDomainDNS(1, row.ID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.DNS == nil || updated.DNS.CNAME != input.CNAME || updated.DNS.UpdatedAt.IsZero() || updated.Status != resellerdomain.DomainStatusPendingReview || updated.VerificationStatus != resellerdomain.DomainVerificationPending {
+		t.Fatalf("invalid DNS configuration: %+v", updated)
+	}
+	for _, invalid := range []resellerdomain.DomainDNS{{CNAME: "https://wrong.example", Status: "pending_dns"}, {CNAME: "ok.example", Status: "unknown"}, {CNAME: "ok.example", TXTHost: "_verify", Status: "pending_dns"}} {
+		if _, err := svc.UpdateDomainDNS(1, row.ID, invalid); err == nil {
+			t.Fatal("accepted invalid DNS input")
 		}
 	}
 }

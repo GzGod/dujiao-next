@@ -7,7 +7,17 @@ import (
 )
 
 // Domain 分销商域名绑定。
+type DomainDNS struct {
+	CNAME      string    `json:"cname"`
+	RecordName string    `json:"record_name"`
+	TXTHost    string    `json:"txt_host"`
+	TXTValue   string    `json:"txt_value"`
+	Status     string    `json:"status"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type Domain struct {
+	DNS                *DomainDNS `gorm:"serializer:json;type:json" json:"dns,omitempty"`
 	ID                 uint       `gorm:"primarykey" json:"id"`
 	ResellerID         uint       `gorm:"not null;index" json:"reseller_id"`
 	Domain             string     `gorm:"type:varchar(255);not null;index" json:"domain"`

@@ -1538,7 +1538,15 @@
       "tableActions": "Actions",
       "visit": "Visit",
       "verifyTitle": "Domain verification",
-      "verifyDesc": "A custom domain enters pending review after submission: first point its DNS (CNAME/A record) to the platform, then wait for manual review by the platform — it goes live once verified."
+      "dnsTitle": "Domain DNS setup",
+      "dnsWaiting": "Waiting for the platform to bind your domain and issue its DNS records. Do not use the main store address.",
+      "dnsHint": "Add these records at your DNS provider. In Cloudflare, start with DNS only and wait for DNS and HTTPS activation. Use {'@'} for the root domain; do not include https:// or a path.",
+      "dnsPending": "Waiting for DNS",
+      "tlsPending": "Waiting for HTTPS",
+      "dnsReady": "DNS and HTTPS ready",
+      "dnsRecord": "Record name",
+      "dnsValue": "Record value",
+      "verifyDesc": "After submission, the platform binds your domain and provides dedicated DNS records. Configure the records below; activation follows certificate verification."
     },
     "site": {
       "title": "Store Settings",
