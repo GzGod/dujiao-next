@@ -134,6 +134,15 @@ func (s *ManagementService) ApproveProfile(ctx context.Context, adminID, profile
 		if profile.Status != resellerdomain.ProfileStatusPendingReview && profile.Status != resellerdomain.ProfileStatusRejected {
 			return resellercontract.ErrProfileStatusInvalid
 		}
+		// Existing active sites are untouched. Only first approval with no
+		// administrator-specified scope receives the ChatGPT allowlist.
+		if profile.SupplyPricing == nil {
+			ids, err := repoTx.DefaultChatGPTProductIDs()
+			if err != nil {
+				return err
+			}
+			profile.SupplyPricing = &resellerdomain.SupplyPricing{AllowedProductIDs: &ids}
+		}
 		now := time.Now()
 		profile.Status = resellerdomain.ProfileStatusActive
 		profile.RejectReason = ""

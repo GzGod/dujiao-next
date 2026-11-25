@@ -61,6 +61,7 @@ type SiteConfigRepository interface {
 // ManagementStore 是入驻/审批/域名管理用例所需的持久化与事务端口。
 // WithinTransaction 不得向用例暴露具体数据库连接类型。
 type ManagementStore interface {
+	DefaultChatGPTProductIDs() ([]uint, error)
 	GetProductWithSettings(resellerID, productID uint) (*ProductSettingProductRow, error)
 	WithinManagementTransaction(fn func(store ManagementStore) error) error
 	GetProfileByUserID(userID uint) (*resellerdomain.Profile, error)

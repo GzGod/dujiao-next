@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"testing"
 	"time"
 
@@ -26,7 +28,7 @@ func openResellerManagementServiceTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db failed: %v", err)
 	}
-	if err := db.AutoMigrate(&userdomain.User{}, &admindomain.Admin{}, &resellerdomain.Profile{}, &resellerdomain.Domain{}, &resellerdomain.SiteConfig{}); err != nil {
+	if err := db.AutoMigrate(&productdomain.Product{}, &userdomain.User{}, &admindomain.Admin{}, &resellerdomain.Profile{}, &resellerdomain.Domain{}, &resellerdomain.SiteConfig{}); err != nil {
 		t.Fatalf("migrate failed: %v", err)
 	}
 	return db
@@ -287,5 +289,38 @@ func TestResellerManagementDisablePrimaryDomainPromotesNextActiveVerifiedDomain(
 	}
 	if !loadedSecondary.IsPrimary {
 		t.Fatalf("expected active verified secondary domain to become primary: %+v", loadedSecondary)
+	}
+}
+
+func TestNewResellerDefaultsToChatGPTOnly(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	for _, slug := range []string{"gpt-plus-top-up", "claude-pro-us", "us-ip"} {
+		p := productdomain.Product{Slug: slug, TitleJSON: jsonmap.JSON{"zh-CN": slug}}
+		if err := db.Create(&p).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	user := seedResellerManagementUser(t, db, "scope@example.test")
+	svc := newResellerManagementServiceForTest(db)
+	profile, err := svc.ApplyUserReseller(user.ID, ResellerApplyInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.ApproveProfile(context.Background(), 1, profile.ID, ResellerApproveInput{DefaultMarkupPercent: decimal.Zero, MaxMarkupPercent: decimal.NewFromInt(50)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var products []productdomain.Product
+	db.Find(&products)
+	for _, p := range products {
+		if result.Profile.CanSupplyProduct(p.ID) != (p.Slug == "gpt-plus-top-up") {
+			t.Fatalf("incorrect supply access for %s", p.Slug)
+		}
+	}
+	legacy := &resellerdomain.Profile{}
+	for _, p := range products {
+		if !legacy.CanSupplyProduct(p.ID) {
+			t.Fatal("legacy site changed")
+		}
 	}
 }

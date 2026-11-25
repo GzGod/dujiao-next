@@ -3,6 +3,7 @@ package gormstore
 import (
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
+	"strings"
 )
 
 // ListProductSettingsForPricing 批量获取分销定价所需的商品级与 SKU 级配置。
@@ -90,4 +91,25 @@ func uniqueUintSlice(values []uint) []uint {
 		result = append(result, value)
 	}
 	return result
+}
+
+// DefaultChatGPTProductIDs snapshots the main-site administrator's default scope.
+func (r *Store) DefaultChatGPTProductIDs() ([]uint, error) {
+	var products []productdomain.Product
+	if err := r.db.Select("id", "slug", "title_json").Where("deleted_at IS NULL").Find(&products).Error; err != nil {
+		return nil, err
+	}
+	ids := []uint{}
+	for _, p := range products {
+		text := strings.ToLower(p.Slug)
+		for _, v := range p.TitleJSON {
+			if title, ok := v.(string); ok {
+				text += " " + strings.ToLower(title)
+			}
+		}
+		if strings.Contains(text, "chatgpt") || strings.Contains(text, "gpt-") || strings.Contains(text, "gpt ") {
+			ids = append(ids, p.ID)
+		}
+	}
+	return ids, nil
 }
