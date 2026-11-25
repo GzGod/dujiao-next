@@ -1,7 +1,7 @@
 <template>
   <section class="inline-pay" aria-live="polite">
     <div class="inline-pay__top"><button v-if="!paid && !expired" type="button" class="inline-pay__back" @click="emit('back')">← {{ t('payment.inlineBack') }}</button><small v-else>{{ t('payment.title') }}</small><span v-if="remaining && !paid && !expired" class="inline-pay__timer">{{ remaining }}</span></div>
-    <div v-if="embeddedCashier" class="inline-pay__co-brand"><img class="inline-pay__shop-logo" :src="appStore.config?.brand?.site_logo || '/brand/xuegaoai-horizontal.svg'" :class="{ 'inline-pay__shop-logo--default': !appStore.config?.brand?.site_logo }" alt="雪糕AI" /><span aria-hidden="true">×</span><span class="inline-pay__gm-brand"><img src="/images/payments/gmwallet.png" alt="" /><b>GMwallet</b></span></div>
+    <div v-if="embeddedCashier" class="inline-pay__co-brand"><img class="inline-pay__shop-logo" :src="appStore.config?.brand?.site_logo || (theme === 'dark' ? '/brand/xuegaoai-horizontal-dark.svg' : '/brand/xuegaoai-horizontal.svg')" :class="{ 'inline-pay__shop-logo--default': !appStore.config?.brand?.site_logo }" alt="雪糕AI" /><span aria-hidden="true">×</span><span class="inline-pay__gm-brand"><img src="/images/payments/gmwallet.png" alt="" /><b>GMwallet</b></span></div>
     <div v-else class="inline-pay__method"><img v-if="isAlipay" src="/images/payments/alipay.ico" alt="" /><span v-else class="inline-pay__coins"><img src="/images/payments/usdt.svg" alt="" /><img src="/images/payments/usdc.svg" alt="" /></span><b>{{ currentChannel?.name || payment.channel_name || '—' }}</b></div>
     <h2>{{ paid ? t('payment.inlineSuccess') : expired ? t('payment.orderExpired') : t(isRedirect ? 'payment.redirectTitle' : 'payment.inlineScan') }}</h2>
     <strong>{{ formatPrice(payable.amount, payable.currency) }}</strong>
@@ -36,6 +36,7 @@ import { inlinePayableAmount, shouldRefreshInlineOrder } from '../../../utils/in
 import { reconcilePendingOrder } from '../../../utils/pendingOrders'
 import { CheckCircle2, Clock3, AlertCircle, ExternalLink } from 'lucide-vue-next'
 import { guestOrderAPI, userOrderAPI } from '../../../api'
+import { useTheme } from '../../../utils/theme'
 import { useAppStore } from '../../../stores/app'
 import { useLocalized } from '../../../composables/useProduct'
 
@@ -44,6 +45,7 @@ const emit = defineEmits<{ back: []; ready: [] }>()
 const { t } = useI18n()
 const { formatPrice } = useLocalized()
 const appStore = useAppStore()
+const { theme } = useTheme()
 const payment = ref<any>(props.result.payment || props.result)
 const currentChannelId = ref(Number(payment.value.channel_id || props.initialChannelId || 0))
 const currentChannel = computed(() => props.channels.find(channel => Number(channel.id) === currentChannelId.value))
@@ -195,7 +197,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(timer) })
 .inline-pay__gm-brand { display:inline-flex;align-items:center;gap:6px; }
 .inline-pay__gm-brand img { width:23px;height:23px;object-fit:contain; }
 .inline-pay__gm-brand b { font-size:13px;color:var(--x-ink);font-weight:650;letter-spacing:-.3px; }
-:global(.dark) .inline-pay__shop-logo--default { content:url('/brand/xuegaoai-horizontal-dark.svg'); }
+
 </style>
 
 <style scoped>
