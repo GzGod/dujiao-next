@@ -139,7 +139,7 @@ func (s *TelegramDeliveryService) Bind(ctx context.Context, token, chat, usernam
 			if !manualPaid(leaf) {
 				continue
 			}
-			_ = s.adminReply(ctx, s.AdminChatID, fmt.Sprintf(i18n.T("zh-CN", "telegram.admin_bound"), leaf.OrderNo, bound.Username, bound.ChatID),
+			_ = s.sendAdminOrderNotice(ctx, leaf.ID, fmt.Sprintf(i18n.T("zh-CN", "telegram.admin_bound"), leaf.OrderNo, bound.Username, bound.ChatID),
 				contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", leaf.ID)},
 				contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", leaf.ID)})
 		}
@@ -290,10 +290,18 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 		return err
 	}
 	if data == "" && text == "/start" {
-		return s.adminReply(ctx, chat, i18n.T("zh-CN", "telegram.admin_1"))
+		_, err := s.Sender.SendDelivery(ctx, contract.TelegramMessage{ChatID: chat, Text: i18n.T("zh-CN", "telegram.admin_1"), AdminMenu: true})
+		return err
 	}
-	if data == "" && text == "/orders" {
-		return s.NotifyAdminOrders(ctx, true)
+	if data == "" && (text == "/orders" || text == "/pending" || text == i18n.T("zh-CN", "telegram.pending_menu")) {
+		return s.listAdminPending(ctx, 0)
+	}
+	if strings.HasPrefix(data, "pending:") {
+		after, err := strconv.ParseUint(strings.TrimPrefix(data, "pending:"), 10, 64)
+		if err != nil {
+			return ErrFulfillmentInvalid
+		}
+		return s.listAdminPending(ctx, uint(after))
 	}
 	if strings.HasPrefix(data, "markdelivered:") {
 		id, err := strconv.ParseUint(strings.TrimPrefix(data, "markdelivered:"), 10, 64)
@@ -493,6 +501,9 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 // NotifyAdminOrders is invoked outside database transactions by the bootstrap
 // poller. Only the configured private administrator chat can receive these.
 func (s *TelegramDeliveryService) NotifyAdminOrders(ctx context.Context, force bool) error {
+	if err := s.SyncAdminNotices(ctx); err != nil {
+		return err
+	}
 	if _, err := s.adminIdentity(s.AdminChatID); err != nil {
 		return err
 	}
@@ -530,9 +541,122 @@ func (s *TelegramDeliveryService) NotifyAdminOrders(ctx context.Context, force b
 			status = i18n.T("zh-CN", "telegram.admin_17") + binding.Username + " · " + binding.ChatID
 		}
 		text := i18n.T("zh-CN", "telegram.admin_18") + order.OrderNo + i18n.T("zh-CN", "telegram.admin_19") + strings.Join(titles, " / ") + i18n.T("zh-CN", "telegram.admin_20") + order.TotalAmount.String() + " " + order.Currency + "\n" + status
-		if err := s.adminReply(ctx, s.AdminChatID, text, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", id)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", id)}); err != nil {
+		if err := s.sendAdminOrderNotice(ctx, id, text, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", id)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", id)}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *TelegramDeliveryService) sendAdminOrderNotice(ctx context.Context, orderID uint, text string, buttons ...contract.TelegramButton) error {
+	if _, err := s.adminIdentity(s.AdminChatID); err != nil {
+		return err
+	}
+	id, err := s.Sender.SendDelivery(ctx, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons})
+	if err != nil {
+		return err
+	}
+	return s.Store.SaveAdminNotice(&domain.TelegramAdminNotice{OrderID: orderID, ChatID: s.AdminChatID, MessageID: id, UpdatedAt: time.Now()})
+}
+
+// SyncAdminNotices reconciles messages with website changes, including refunds
+// performed outside the bot. No customer data or delivery payload is included.
+func (s *TelegramDeliveryService) SyncAdminNotices(ctx context.Context) error {
+	if _, err := s.adminIdentity(s.AdminChatID); err != nil {
+		return err
+	}
+	editor, ok := s.Sender.(contract.TelegramMessageEditor)
+	if !ok {
+		return nil
+	}
+	rows, err := s.Store.ListAdminNotices(s.AdminChatID)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		order, err := s.Fulfillment.orderStore.GetByID(row.OrderID)
+		if err != nil || order == nil {
+			continue
+		}
+		status := order.Status
+		if order.RefundedAmount.Decimal.IsPositive() && status != "refunded" {
+			status = "partially_refunded"
+		}
+		binding, _ := s.Status(order)
+		identity := ""
+		if binding != nil && binding.ChatID != "" {
+			identity = binding.Username + " · " + binding.ChatID
+		}
+		fingerprint := status + "|" + identity
+		terminal := status == "delivered" || status == "completed" || status == "refunded" || status == "canceled"
+		if terminal {
+			fingerprint = status
+		}
+		if row.Status == fingerprint {
+			continue
+		}
+		label := i18n.T("zh-CN", "telegram.notice_"+status)
+		if label == "telegram.notice_"+status {
+			label = status
+		}
+		text := fmt.Sprintf("%s\n%s%s", label, i18n.T("zh-CN", "telegram.admin_18"), order.OrderNo)
+		if identity != "" {
+			text += "\n" + i18n.T("zh-CN", "telegram.admin_17") + identity
+		}
+		buttons := []contract.TelegramButton{}
+		if manualPaid(order) && !terminal && status != "partially_refunded" {
+			buttons = append(buttons, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", order.ID)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", order.ID)})
+		}
+		if err := editor.EditDelivery(ctx, row.MessageID, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons}); err != nil {
+			continue
+		}
+		if err := s.Store.UpdateAdminNotice(row.ID, fingerprint); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// listAdminPending uses a stable ID cursor, so delivery of earlier orders does
+// not cause later pending orders to be skipped while paging.
+func (s *TelegramDeliveryService) listAdminPending(ctx context.Context, after uint) error {
+	if _, err := s.adminIdentity(s.AdminChatID); err != nil {
+		return err
+	}
+	ids, err := s.Store.ListTelegramPendingPage(after)
+	if err != nil {
+		return err
+	}
+	more := len(ids) > 10
+	if more {
+		ids = ids[:10]
+	}
+	if len(ids) == 0 {
+		return s.adminReply(ctx, s.AdminChatID, i18n.T("zh-CN", "telegram.admin_15"), contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.pending_all"), Callback: "pending:0"})
+	}
+	for _, id := range ids {
+		order, err := s.Fulfillment.orderStore.GetByID(id)
+		if err != nil || !manualPaid(order) {
+			continue
+		}
+		status := i18n.T("zh-CN", "telegram.admin_16")
+		if binding, _ := s.Status(order); binding != nil && binding.ChatID != "" {
+			status = i18n.T("zh-CN", "telegram.admin_17") + binding.Username + " · " + binding.ChatID
+		}
+		titles := []string{}
+		for _, item := range order.Items {
+			if title, ok := item.TitleJSON["zh-CN"].(string); ok {
+				titles = append(titles, title)
+			}
+		}
+		message := i18n.T("zh-CN", "telegram.notice_"+order.Status) + "\n" + order.OrderNo + "\n" + strings.Join(titles, " / ") + "\n" + order.TotalAmount.String() + " " + order.Currency + "\n" + status
+		if err := s.sendAdminOrderNotice(ctx, id, message, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", id)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", id)}); err != nil {
+			return err
+		}
+	}
+	buttons := []contract.TelegramButton{{Text: i18n.T("zh-CN", "telegram.pending_refresh"), Callback: "pending:0"}}
+	if more {
+		buttons = append(buttons, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.pending_next"), Callback: fmt.Sprintf("pending:%d", ids[len(ids)-1])})
+	}
+	return s.adminReply(ctx, s.AdminChatID, i18n.T("zh-CN", "telegram.pending_footer"), buttons...)
 }

@@ -233,3 +233,23 @@ func (r *Store) AdvanceAdminSession(chat, nonce, stage string, next *domain.Tele
 	res := r.db.Model(&domain.TelegramAdminSession{}).Where("chat_id = ? AND nonce = ? AND stage = ? AND expires_at > ?", chat, nonce, stage, time.Now()).Updates(map[string]interface{}{"nonce": next.Nonce, "ciphertext": next.Ciphertext, "stage": next.Stage, "expires_at": next.ExpiresAt})
 	return res.RowsAffected == 1, res.Error
 }
+
+func (r *Store) SaveAdminNotice(row *domain.TelegramAdminNotice) error { return r.db.Create(row).Error }
+func (r *Store) ListAdminNotices(chat string) ([]domain.TelegramAdminNotice, error) {
+	var rows []domain.TelegramAdminNotice
+	err := r.db.Where("chat_id = ? AND status NOT IN ?", chat, []string{"delivered", "completed", "refunded", "canceled"}).Order("updated_at ASC").Limit(100).Find(&rows).Error
+	return rows, err
+}
+func (r *Store) UpdateAdminNotice(id uint, status string) error {
+	return r.db.Model(&domain.TelegramAdminNotice{}).Where("id = ?", id).Updates(map[string]interface{}{"status": status, "updated_at": time.Now()}).Error
+}
+
+func (r *Store) ListTelegramPendingPage(after uint) ([]uint, error) {
+	var ids []uint
+	err := r.db.Model(&orderdomain.Order{}).
+		Where("orders.deleted_at IS NULL AND orders.reseller_id IS NULL AND orders.id > ? AND orders.status IN ?", after, []string{"paid", "fulfilling"}).
+		Where("NOT EXISTS (SELECT 1 FROM orders c WHERE c.parent_id = orders.id AND c.deleted_at IS NULL)").
+		Where("EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id AND oi.fulfillment_type = ?)", "manual").
+		Order("orders.id ASC").Limit(11).Pluck("orders.id", &ids).Error
+	return ids, err
+}

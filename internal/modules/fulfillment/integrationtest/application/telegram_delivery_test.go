@@ -135,7 +135,7 @@ func TestTelegramExpiredTokenAndConcurrentSendClaim(t *testing.T) {
 
 func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	db := setupFulfillmentServiceTestDB(t)
-	if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{}); err != nil {
+	if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminNotice{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{}); err != nil {
 		t.Fatal(err)
 	}
 	sql, _ := db.DB()
@@ -151,6 +151,14 @@ func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	ctx := context.Background()
 	if err := svc.AdminAction(ctx, "42", "", "/orders"); err == nil || sender.calls != 0 {
 		t.Fatal("customer obtained admin notifications")
+	}
+	for _, text := range []string{"/start", "/pending", "📦 未发货订单"} {
+		if err := svc.AdminAction(ctx, "42", "", text); err == nil || sender.calls != 0 {
+			t.Fatal("customer accessed administrator menu")
+		}
+	}
+	if err := svc.AdminAction(ctx, "5760638358", "", "/start"); err != nil || !sender.message.AdminMenu || sender.message.ChatID != "5760638358" {
+		t.Fatal("administrator menu not private")
 	}
 	if err := svc.NotifyAdminOrders(ctx, false); err != nil {
 		t.Fatal(err)
@@ -311,7 +319,7 @@ func TestAdministratorMustResolveUncertainSendWithoutAutomaticRetry(t *testing.T
 	for _, resolution := range []string{"received:", "unsent:"} {
 		t.Run(resolution, func(t *testing.T) {
 			db := setupFulfillmentServiceTestDB(t)
-			_ = db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{})
+			_ = db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminNotice{}, &domain.TelegramAdminSession{}, &domain.TelegramUpdateReceipt{})
 			order := &orderdomain.Order{OrderNo: "REVIEW-ORDER", Status: constants.OrderStatusPaid, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "fixture"}}}}
 			if err := db.Create(order).Error; err != nil {
 				t.Fatal(err)
@@ -427,7 +435,7 @@ func TestAdminMarkDeliveredAndCancelPreparation(t *testing.T) {
 	for _, scenario := range []string{"mark", "cancel", "refunded", "reserved"} {
 		t.Run(scenario, func(t *testing.T) {
 			db := setupFulfillmentServiceTestDB(t)
-			if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminSession{}); err != nil {
+			if err := db.AutoMigrate(&domain.TelegramDelivery{}, &domain.TelegramAdminNotice{}, &domain.TelegramAdminSession{}); err != nil {
 				t.Fatal(err)
 			}
 			sql, _ := db.DB()
@@ -489,5 +497,82 @@ func TestAdminMarkDeliveredAndCancelPreparation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type editableAdminSender struct {
+	deliverySender
+	edits []contract.TelegramMessage
+}
+
+func (s *editableAdminSender) EditDelivery(_ context.Context, _ int64, m contract.TelegramMessage) error {
+	s.edits = append(s.edits, m)
+	return nil
+}
+func TestAdminOrderNoticesReconcileDeliveryAndRefund(t *testing.T) {
+	for _, status := range []string{"delivered", "refunded"} {
+		t.Run(status, func(t *testing.T) {
+			db := setupFulfillmentServiceTestDB(t)
+			if err := db.AutoMigrate(&domain.TelegramAdminNotice{}, &domain.TelegramDelivery{}); err != nil {
+				t.Fatal(err)
+			}
+			order := &orderdomain.Order{OrderNo: "NOTICE-" + status, Status: status}
+			if err := db.Create(order).Error; err != nil {
+				t.Fatal(err)
+			}
+			fs := store.New(db)
+			os := orderstore.New(db, "test-guest-credential-secret-with-32-bytes")
+			sender := &editableAdminSender{}
+			svc := &app.TelegramDeliveryService{Store: fs, Sender: sender, Fulfillment: app.New(app.Options{OrderStore: os, FulfillmentStore: fs}), BotUsername: "fixture_bot", TokenSecret: strings.Repeat("s", 32), AdminChatID: "5760638358", AuthorizeAdmin: func() (uint, error) { return 7, nil }}
+			for _, id := range []int64{101, 102} {
+				if err := fs.SaveAdminNotice(&domain.TelegramAdminNotice{OrderID: order.ID, ChatID: "5760638358", MessageID: id}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := svc.SyncAdminNotices(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if len(sender.edits) != 2 {
+				t.Fatalf("not all prior messages updated: %d", len(sender.edits))
+			}
+			for _, m := range sender.edits {
+				if m.ChatID != "5760638358" || len(m.Buttons) != 0 || !strings.Contains(m.Text, order.OrderNo) {
+					t.Fatal("unsafe or incomplete notice edit")
+				}
+			}
+			if err := svc.SyncAdminNotices(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if len(sender.edits) != 2 {
+				t.Fatal("unchanged terminal notice edited again")
+			}
+		})
+	}
+}
+
+func TestPendingOrdersCursorDoesNotSkipAfterDelivery(t *testing.T) {
+	db := setupFulfillmentServiceTestDB(t)
+	for i := 0; i < 13; i++ {
+		status := "paid"
+		if i == 12 {
+			status = "refunded"
+		}
+		order := &orderdomain.Order{OrderNo: fmt.Sprintf("PAGE-%d", i), Status: status, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 1, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "fixture"}}}}
+		if err := db.Create(order).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	fs := store.New(db)
+	ids, err := fs.ListTelegramPendingPage(0)
+	if err != nil || len(ids) != 11 {
+		t.Fatalf("first page: %v %v", ids, err)
+	}
+	cursor := ids[9]
+	if err := db.Model(&orderdomain.Order{}).Where("id <= ?", cursor).Update("status", "delivered").Error; err != nil {
+		t.Fatal(err)
+	}
+	next, err := fs.ListTelegramPendingPage(cursor)
+	if err != nil || len(next) != 2 || next[0] != ids[10] {
+		t.Fatalf("cursor skipped orders: %v %v", next, err)
 	}
 }

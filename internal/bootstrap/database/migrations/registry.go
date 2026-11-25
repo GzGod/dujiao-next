@@ -74,6 +74,7 @@ func AutoMigrate() error {
 		&fulfillmentdomain.Fulfillment{},
 		&fulfillmentdomain.TelegramDelivery{},
 		&fulfillmentdomain.TelegramAdminSession{},
+		&fulfillmentdomain.TelegramAdminNotice{},
 		&fulfillmentdomain.TelegramUpdateReceipt{},
 		&coupondomain.Coupon{},
 		&coupondomain.CouponUsage{},

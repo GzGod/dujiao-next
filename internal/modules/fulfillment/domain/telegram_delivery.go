@@ -42,3 +42,15 @@ type TelegramUpdateReceipt struct {
 }
 
 func (TelegramUpdateReceipt) TableName() string { return "fulfillment_telegram_updates" }
+
+// TelegramAdminNotice tracks every administrator order message for status edits.
+type TelegramAdminNotice struct {
+	ID        uint   `gorm:"primaryKey"`
+	OrderID   uint   `gorm:"index"`
+	ChatID    string `gorm:"size:32"`
+	MessageID int64
+	Status    string `gorm:"size:64"`
+	UpdatedAt time.Time
+}
+
+func (TelegramAdminNotice) TableName() string { return "fulfillment_telegram_admin_notices" }

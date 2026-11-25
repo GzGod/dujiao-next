@@ -8,11 +8,15 @@ import (
 )
 
 type TelegramDeliveryStore interface {
+	SaveAdminNotice(*domain.TelegramAdminNotice) error
+	ListAdminNotices(chat string) ([]domain.TelegramAdminNotice, error)
+	UpdateAdminNotice(id uint, status string) error
 	SaveAdminSession(*domain.TelegramAdminSession) error
 	AdvanceAdminSession(chat, nonce, stage string, next *domain.TelegramAdminSession) (bool, error)
 	GetAdminSession(chat string) (*domain.TelegramAdminSession, error)
 	ConsumeAdminSession(chat, nonce, stage string) (bool, error)
 	AcceptTelegramUpdate(id int64, chat string, now time.Time) (bool, error)
+	ListTelegramPendingPage(after uint) ([]uint, error)
 	ListTelegramPendingOrders(includeNotified bool) ([]uint, error)
 	ClaimAdminNotification(id uint) (bool, error)
 	GetTelegramDeliveryByToken(hash string) (*domain.TelegramDelivery, error)
@@ -31,6 +35,7 @@ type TelegramButton struct {
 }
 type TelegramMessage struct {
 	ChatID, Text, OrderURL, SupportURL string
+	AdminMenu                          bool
 	Buttons                            []TelegramButton
 }
 type TelegramDeliverySender interface {
@@ -41,4 +46,8 @@ var ErrTelegramRejected = errors.New("telegram explicitly rejected delivery")
 
 type TelegramCallbackAcknowledger interface {
 	AnswerCallback(context.Context, string) error
+}
+
+type TelegramMessageEditor interface {
+	EditDelivery(context.Context, int64, TelegramMessage) error
 }

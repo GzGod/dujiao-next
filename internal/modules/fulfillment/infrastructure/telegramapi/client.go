@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dujiao-next/internal/i18n"
 	contract "github.com/dujiao-next/internal/modules/fulfillment/contract"
 	"io"
 	"net/http"
@@ -30,6 +31,9 @@ func (c *Client) SendDelivery(ctx context.Context, m contract.TelegramMessage) (
 	}
 	if len(buttons) > 0 {
 		payload["reply_markup"] = map[string]interface{}{"inline_keyboard": [][]map[string]string{buttons}}
+	}
+	if m.AdminMenu {
+		payload["reply_markup"] = map[string]interface{}{"keyboard": [][]map[string]string{{{"text": i18n.T("zh-CN", "telegram.pending_menu")}}}, "resize_keyboard": true, "is_persistent": true, "one_time_keyboard": false}
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -84,5 +88,43 @@ func (c *Client) AnswerCallback(ctx context.Context, id string) error {
 	}
 	defer res.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 4096))
+	return nil
+}
+
+// EditDelivery updates the existing administrator card and explicitly clears stale buttons.
+func (c *Client) EditDelivery(ctx context.Context, id int64, m contract.TelegramMessage) error {
+	buttons := []map[string]string{}
+	for _, b := range m.Buttons {
+		buttons = append(buttons, map[string]string{"text": b.Text, "callback_data": b.Callback})
+	}
+	keyboard := [][]map[string]string{}
+	if len(buttons) > 0 {
+		keyboard = append(keyboard, buttons)
+	}
+	body, _ := json.Marshal(map[string]interface{}{"chat_id": m.ChatID, "message_id": id, "text": m.Text, "disable_web_page_preview": true, "reply_markup": map[string]interface{}{"inline_keyboard": keyboard}})
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.telegram.org/bot"+c.Token+"/editMessageText", bytes.NewReader(body))
+	if err != nil {
+		return errors.New("telegram edit failed")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := c.HTTP
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return errors.New("telegram edit failed")
+	}
+	defer res.Body.Close()
+	var result struct {
+		OK          bool   `json:"ok"`
+		Description string `json:"description"`
+	}
+	if json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&result) != nil {
+		return errors.New("telegram edit failed")
+	}
+	if !result.OK && result.Description != "Bad Request: message is not modified" {
+		return errors.New("telegram edit failed")
+	}
 	return nil
 }
