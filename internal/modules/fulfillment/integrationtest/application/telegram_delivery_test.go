@@ -181,6 +181,9 @@ func TestAdminBotOnlyOwnerCanReceiveAndConfirmDelivery(t *testing.T) {
 	if sender.message.ChatID != "5760638358" || !strings.Contains(sender.message.Text, "42") || !strings.Contains(sender.message.Text, "customer") || !strings.Contains(sender.message.Text, order.OrderNo) || len(sender.message.Buttons) != 2 {
 		t.Fatal("binding did not notify exclusive administrator with identity and order actions")
 	}
+	if len(sender.message.Entities) != 1 || sender.message.Entities[0].URL != "tg://user?id=42" {
+		t.Fatal("bound customer is not a clickable private-chat link")
+	}
 	calls = sender.calls
 	if err := svc.Bind(ctx, u.Query().Get("start"), "42", "customer"); err != nil || sender.calls != calls {
 		t.Fatal("repeated start generated notification")
@@ -566,6 +569,10 @@ func TestPendingOrdersCursorDoesNotSkipAfterDelivery(t *testing.T) {
 	ids, err := fs.ListTelegramPendingPage(0)
 	if err != nil || len(ids) != 11 {
 		t.Fatalf("first page: %v %v", ids, err)
+	}
+	previous, err := fs.PreviousTelegramPendingCursor(ids[9])
+	if err != nil || previous != 0 {
+		t.Fatalf("previous first page: %d %v", previous, err)
 	}
 	cursor := ids[9]
 	if err := db.Model(&orderdomain.Order{}).Where("id <= ?", cursor).Update("status", "delivered").Error; err != nil {

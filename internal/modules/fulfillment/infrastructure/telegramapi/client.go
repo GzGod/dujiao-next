@@ -26,6 +26,9 @@ func (c *Client) SendDelivery(ctx context.Context, m contract.TelegramMessage) (
 		buttons = append(buttons, map[string]string{"text": "查看订单 / Orders", "url": m.OrderURL})
 	}
 	payload := map[string]interface{}{"chat_id": m.ChatID, "text": m.Text, "protect_content": true, "disable_web_page_preview": true}
+	if len(m.Entities) > 0 {
+		payload["entities"] = m.Entities
+	}
 	for _, b := range m.Buttons {
 		buttons = append(buttons, map[string]string{"text": b.Text, "callback_data": b.Callback})
 	}
@@ -101,7 +104,7 @@ func (c *Client) EditDelivery(ctx context.Context, id int64, m contract.Telegram
 	if len(buttons) > 0 {
 		keyboard = append(keyboard, buttons)
 	}
-	body, _ := json.Marshal(map[string]interface{}{"chat_id": m.ChatID, "message_id": id, "text": m.Text, "disable_web_page_preview": true, "reply_markup": map[string]interface{}{"inline_keyboard": keyboard}})
+	body, _ := json.Marshal(map[string]interface{}{"chat_id": m.ChatID, "message_id": id, "text": m.Text, "entities": m.Entities, "disable_web_page_preview": true, "reply_markup": map[string]interface{}{"inline_keyboard": keyboard}})
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.telegram.org/bot"+c.Token+"/editMessageText", bytes.NewReader(body))
 	if err != nil {
 		return errors.New("telegram edit failed")

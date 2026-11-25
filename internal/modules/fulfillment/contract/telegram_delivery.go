@@ -16,6 +16,7 @@ type TelegramDeliveryStore interface {
 	GetAdminSession(chat string) (*domain.TelegramAdminSession, error)
 	ConsumeAdminSession(chat, nonce, stage string) (bool, error)
 	AcceptTelegramUpdate(id int64, chat string, now time.Time) (bool, error)
+	PreviousTelegramPendingCursor(after uint) (uint, error)
 	ListTelegramPendingPage(after uint) ([]uint, error)
 	ListTelegramPendingOrders(includeNotified bool) ([]uint, error)
 	ClaimAdminNotification(id uint) (bool, error)
@@ -33,7 +34,14 @@ type TelegramButton struct {
 	Text     string
 	Callback string
 }
+type TelegramEntity struct {
+	Type   string `json:"type"`
+	Offset int    `json:"offset"`
+	Length int    `json:"length"`
+	URL    string `json:"url"`
+}
 type TelegramMessage struct {
+	Entities                           []TelegramEntity
 	ChatID, Text, OrderURL, SupportURL string
 	AdminMenu                          bool
 	Buttons                            []TelegramButton

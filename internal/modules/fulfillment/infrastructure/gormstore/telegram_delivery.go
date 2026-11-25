@@ -253,3 +253,15 @@ func (r *Store) ListTelegramPendingPage(after uint) ([]uint, error) {
 		Order("orders.id ASC").Limit(11).Pluck("orders.id", &ids).Error
 	return ids, err
 }
+
+func (r *Store) PreviousTelegramPendingCursor(after uint) (uint, error) {
+	var ids []uint
+	err := r.db.Model(&orderdomain.Order{}).Where("orders.deleted_at IS NULL AND orders.reseller_id IS NULL AND orders.id <= ? AND orders.status IN ?", after, []string{"paid", "fulfilling"}).Where("NOT EXISTS (SELECT 1 FROM orders c WHERE c.parent_id = orders.id AND c.deleted_at IS NULL)").Where("EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id AND oi.fulfillment_type = ?)", "manual").Order("orders.id DESC").Limit(11).Pluck("orders.id", &ids).Error
+	if err != nil {
+		return 0, err
+	}
+	if len(ids) < 11 {
+		return 0, nil
+	}
+	return ids[10], nil
+}

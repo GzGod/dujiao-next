@@ -296,6 +296,17 @@ func (s *TelegramDeliveryService) AdminAction(ctx context.Context, chat, data, t
 	if data == "" && (text == "/orders" || text == "/pending" || text == i18n.T("zh-CN", "telegram.pending_menu")) {
 		return s.listAdminPending(ctx, 0)
 	}
+	if strings.HasPrefix(data, "pendingback:") {
+		cursor, err := strconv.ParseUint(strings.TrimPrefix(data, "pendingback:"), 10, 64)
+		if err != nil {
+			return ErrFulfillmentInvalid
+		}
+		previous, err := s.Store.PreviousTelegramPendingCursor(uint(cursor))
+		if err != nil {
+			return err
+		}
+		return s.listAdminPending(ctx, previous)
+	}
 	if strings.HasPrefix(data, "pending:") {
 		after, err := strconv.ParseUint(strings.TrimPrefix(data, "pending:"), 10, 64)
 		if err != nil {
@@ -552,7 +563,7 @@ func (s *TelegramDeliveryService) sendAdminOrderNotice(ctx context.Context, orde
 	if _, err := s.adminIdentity(s.AdminChatID); err != nil {
 		return err
 	}
-	id, err := s.Sender.SendDelivery(ctx, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons})
+	id, err := s.Sender.SendDelivery(ctx, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons, Entities: s.adminCustomerLink(orderID, text)})
 	if err != nil {
 		return err
 	}
@@ -607,7 +618,7 @@ func (s *TelegramDeliveryService) SyncAdminNotices(ctx context.Context) error {
 		if manualPaid(order) && !terminal && status != "partially_refunded" {
 			buttons = append(buttons, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.admin_21"), Callback: fmt.Sprintf("deliver:%d", order.ID)}, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.mark_done"), Callback: fmt.Sprintf("markdelivered:%d", order.ID)})
 		}
-		if err := editor.EditDelivery(ctx, row.MessageID, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons}); err != nil {
+		if err := editor.EditDelivery(ctx, row.MessageID, contract.TelegramMessage{ChatID: s.AdminChatID, Text: text, Buttons: buttons, Entities: s.adminCustomerLink(row.OrderID, text)}); err != nil {
 			continue
 		}
 		if err := s.Store.UpdateAdminNotice(row.ID, fingerprint); err != nil {
@@ -655,8 +666,37 @@ func (s *TelegramDeliveryService) listAdminPending(ctx context.Context, after ui
 		}
 	}
 	buttons := []contract.TelegramButton{{Text: i18n.T("zh-CN", "telegram.pending_refresh"), Callback: "pending:0"}}
+	if after > 0 {
+		buttons = append(buttons, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.pending_previous"), Callback: fmt.Sprintf("pendingback:%d", after)})
+	}
 	if more {
 		buttons = append(buttons, contract.TelegramButton{Text: i18n.T("zh-CN", "telegram.pending_next"), Callback: fmt.Sprintf("pending:%d", ids[len(ids)-1])})
 	}
 	return s.adminReply(ctx, s.AdminChatID, i18n.T("zh-CN", "telegram.pending_footer"), buttons...)
+}
+
+// Telegram text entities use UTF-16 offsets; names remain plain text, never HTML.
+func (s *TelegramDeliveryService) adminCustomerLink(orderID uint, text string) []contract.TelegramEntity {
+	order, err := s.Fulfillment.orderStore.GetByID(orderID)
+	if err != nil || order == nil {
+		return nil
+	}
+	binding, err := s.Status(order)
+	if err != nil || binding == nil {
+		return nil
+	}
+	id, err := strconv.ParseInt(binding.ChatID, 10, 64)
+	if err != nil || id <= 0 {
+		return nil
+	}
+	label := binding.Username + " · " + binding.ChatID
+	index := strings.LastIndex(text, label)
+	if index < 0 {
+		label = binding.ChatID
+		index = strings.LastIndex(text, label)
+	}
+	if index < 0 {
+		return nil
+	}
+	return []contract.TelegramEntity{{Type: "text_link", Offset: len(utf16.Encode([]rune(text[:index]))), Length: len(utf16.Encode([]rune(label))), URL: fmt.Sprintf("tg://user?id=%d", id)}}
 }
