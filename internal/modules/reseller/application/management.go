@@ -396,7 +396,14 @@ func (s *ManagementService) SubmitUserCustomDomain(userID uint, rawDomain string
 	if err != nil {
 		return nil, err
 	}
-	// 暂不启用 DNS 自动校验，自定义域名走后台人工审核。
+	// Bound the number of pending/provider allocations for each reseller.
+	existingDomains, err := s.store.ListDomainsByResellerID(profile.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(existingDomains) >= 10 {
+		return nil, resellercontract.ErrDomainInvalid
+	}
 	row, err := s.store.UpsertDomain(resellerdomain.Domain{
 		ResellerID:         profile.ID,
 		Domain:             domain,
@@ -736,6 +743,35 @@ func (s *ManagementService) UpdateDomainDNS(adminID, domainID uint, input resell
 			return resellercontract.ErrDomainInvalid
 		}
 		row.DNS = &input
+		return repo.UpdateDomain(row)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.store.GetDomainByID(domainID)
+}
+
+func (s *ManagementService) RequestUserDomainCheck(userID, domainID uint) (*resellerdomain.Domain, error) {
+	profile, err := s.store.GetProfileByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil || profile.Status != resellerdomain.ProfileStatusActive {
+		return nil, productcontract.ErrNotFound
+	}
+	err = s.store.WithinManagementTransaction(func(repo resellercontract.ManagementStore) error {
+		row, err := repo.GetDomainByIDForUpdate(domainID)
+		if err != nil {
+			return err
+		}
+		if row == nil || row.ResellerID != profile.ID || row.Type != resellerdomain.DomainTypeCustom || row.Status == resellerdomain.DomainStatusDisabled {
+			return productcontract.ErrNotFound
+		}
+		now := time.Now()
+		if row.CheckLease != "" || (row.DNS != nil && now.Sub(row.DNS.UpdatedAt) < 30*time.Second) {
+			return nil
+		}
+		row.NextCheckAt = &now
 		return repo.UpdateDomain(row)
 	})
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 
 // Domain 分销商域名绑定。
 type DomainDNS struct {
+	ErrorCode  string    `json:"error_code,omitempty"`
 	CNAME      string    `json:"cname"`
 	RecordName string    `json:"record_name"`
 	TXTHost    string    `json:"txt_host"`
@@ -17,6 +18,9 @@ type DomainDNS struct {
 }
 
 type Domain struct {
+	ProviderID         string     `gorm:"type:varchar(128)" json:"-"`
+	CheckLease         string     `gorm:"type:varchar(64)" json:"-"`
+	NextCheckAt        *time.Time `gorm:"index" json:"-"`
 	DNS                *DomainDNS `gorm:"serializer:json;type:json" json:"dns,omitempty"`
 	ID                 uint       `gorm:"primarykey" json:"id"`
 	ResellerID         uint       `gorm:"not null;index" json:"reseller_id"`

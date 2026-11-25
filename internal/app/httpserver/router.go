@@ -165,6 +165,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	adminNotificationHandler := notificationtransport.NewAdminHandler(c.SettingService, c.NotificationLogService, c.NotificationService)
 	adminProcurementHandler := procurementtransport.NewAdminHandler(c.ProcurementOrderService)
 	resellerHandlers := resellerbootstrap.New(c)
+	resellerbootstrap.StartDomainProvisioning(c)
 	userResellerHandler := resellerHandlers.User
 	userResellerProductSettingHandler := resellerHandlers.UserProductSetting
 	userResellerFinanceHandler := resellerHandlers.UserFinance

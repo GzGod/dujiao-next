@@ -149,3 +149,7 @@ func TestUserHandlerSiteConfigUpdateAndGet(t *testing.T) {
 		t.Fatalf("unexpected get body: %s", recorder.Body.String())
 	}
 }
+
+func (s managementStub) RequestUserDomainCheck(userID, domainID uint) (*resellerdomain.Domain, error) {
+	return nil, s.err
+}

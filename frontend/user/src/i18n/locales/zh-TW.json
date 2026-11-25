@@ -1538,15 +1538,20 @@
       "tableActions": "操作",
       "visit": "造訪",
       "verifyTitle": "域名驗證",
+      "dnsError": "接入尚未完成",
+      "certificateFailed": "憑證簽發失敗，平台將自動重試；請確認 DNS 記錄。",
+      "providerUnavailable": "暫時無法同步網域平台，可能涉及權限、網域衝突或數量限制。平台會自動重試，請聯絡管理員確認。",
+      "recheck": "重新檢查",
+      "checkQueued": "已提交檢查請求，請稍後重新整理。",
       "dnsTitle": "網域解析設定",
-      "dnsWaiting": "等待平台綁定網域並產生專屬解析記錄，請勿自行填寫主站位址。",
+      "dnsWaiting": "正在等待自動綁定並產生 DNS 記錄，通常一分鐘內開始處理。",
       "dnsHint": "在網域服務商新增以下記錄。Cloudflare 先選擇「僅 DNS」，等待解析和 HTTPS 憑證生效。根網域填 {'@'}；不要填寫 https:// 或路徑。",
       "dnsPending": "等待 DNS 解析",
       "tlsPending": "等待 HTTPS 憑證",
       "dnsReady": "解析及憑證已就緒",
       "dnsRecord": "記錄名稱",
       "dnsValue": "記錄內容",
-      "verifyDesc": "提交後由平台綁定並提供專屬 DNS 記錄；請依下方記錄設定解析，平台確認憑證就緒後完成接入。"
+      "verifyDesc": "提交後自動綁定並產生專屬 DNS 記錄；請依下方記錄設定解析，解析及 HTTPS 憑證就緒後自動啟用。"
     },
     "site": {
       "title": "店鋪設定",

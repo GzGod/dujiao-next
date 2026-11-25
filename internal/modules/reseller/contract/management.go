@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"context"
 	"time"
 
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
@@ -139,4 +140,14 @@ type FrontendStore interface {
 	RotateFrontendPreview(uint, string, string, time.Time) (bool, error)
 	PublishFrontend(uint, string) (bool, error)
 	DisableFrontend(uint) error
+}
+
+// DomainProvisioner uses only the fixed hosting provider and server-side credentials.
+type DomainProvisioner interface {
+	EnsureDomain(context.Context, string) (string, *resellerdomain.DomainDNS, error)
+}
+
+type DomainProvisionStore interface {
+	ClaimDomainChecks(time.Time, string, int) ([]resellerdomain.Domain, error)
+	CompleteDomainCheck(uint, string, string, *resellerdomain.DomainDNS) (bool, error)
 }

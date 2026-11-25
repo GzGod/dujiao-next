@@ -1485,15 +1485,20 @@
       "tableActions": "操作",
       "visit": "访问",
       "verifyTitle": "域名验证",
+      "dnsError": "接入暂未完成",
+      "certificateFailed": "证书签发失败，平台将自动重试；请核对 DNS 记录。",
+      "providerUnavailable": "暂时无法同步域名平台，可能涉及权限、域名冲突或数量限制。平台会自动重试，请联系管理员核查。",
+      "recheck": "重新检查",
+      "checkQueued": "已提交检查请求，请稍后刷新查看。",
       "dnsTitle": "域名解析配置",
-      "dnsWaiting": "等待平台绑定域名并生成专属解析记录，请勿自行填写主站地址。",
+      "dnsWaiting": "正在等待自动绑定并生成 DNS 记录，通常一分钟内开始处理。",
       "dnsHint": "在域名服务商添加以下记录。Cloudflare 先选择“仅 DNS”，等待解析和 HTTPS 证书生效。根域名填 {'@'}；不要填写 https:// 或路径。",
       "dnsPending": "等待 DNS 解析",
       "tlsPending": "等待 HTTPS 证书",
       "dnsReady": "解析及证书已就绪",
       "dnsRecord": "记录名称",
       "dnsValue": "记录内容",
-      "verifyDesc": "提交后由平台绑定接入并提供专属 DNS 记录；请按下方记录配置解析，平台核对证书就绪后完成接入。"
+      "verifyDesc": "提交后自动绑定并生成专属 DNS 记录；请按下方记录设置解析，解析和 HTTPS 证书就绪后自动启用。"
     },
     "site": {
       "title": "店铺设置",

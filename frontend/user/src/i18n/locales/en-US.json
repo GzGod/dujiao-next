@@ -1538,15 +1538,20 @@
       "tableActions": "Actions",
       "visit": "Visit",
       "verifyTitle": "Domain verification",
+      "dnsError": "Connection incomplete",
+      "certificateFailed": "Certificate issuance failed. The platform will retry automatically; please check your DNS records.",
+      "providerUnavailable": "Unable to sync the hosting platform. Permissions, domain conflicts or domain limits may be involved. Automatic retries continue; contact the administrator.",
+      "recheck": "Check again",
+      "checkQueued": "Check requested. Refresh shortly to see the result.",
       "dnsTitle": "Domain DNS setup",
-      "dnsWaiting": "Waiting for the platform to bind your domain and issue its DNS records. Do not use the main store address.",
+      "dnsWaiting": "Waiting for automatic binding and DNS records. Processing normally starts within a minute.",
       "dnsHint": "Add these records at your DNS provider. In Cloudflare, start with DNS only and wait for DNS and HTTPS activation. Use {'@'} for the root domain; do not include https:// or a path.",
       "dnsPending": "Waiting for DNS",
       "tlsPending": "Waiting for HTTPS",
       "dnsReady": "DNS and HTTPS ready",
       "dnsRecord": "Record name",
       "dnsValue": "Record value",
-      "verifyDesc": "After submission, the platform binds your domain and provides dedicated DNS records. Configure the records below; activation follows certificate verification."
+      "verifyDesc": "Submission automatically binds the domain and generates dedicated DNS records. Configure the records below; activation follows successful DNS and HTTPS verification."
     },
     "site": {
       "title": "Store Settings",

@@ -2,9 +2,12 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 
@@ -87,4 +90,48 @@ func (r *DomainResolver) ResolveHost(ctx context.Context, rawHost string) (resel
 	}
 	_ = cache.SetResellerDomain(ctx, host, value)
 	return resellercontract.ResellerTenantContext(host, domain.ResellerID, domain.Profile.UserID, primaryDomain), nil
+}
+
+// DomainProvisioningService polls provider status outside database transactions.
+type DomainProvisioningService struct {
+	Store    resellercontract.DomainProvisionStore
+	Provider resellercontract.DomainProvisioner
+}
+
+func (s *DomainProvisioningService) Sync(ctx context.Context) error {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return err
+	}
+	lease := hex.EncodeToString(random[:])
+	rows, err := s.Store.ClaimDomainChecks(time.Now(), lease, 10)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		id, dns, err := s.Provider.EnsureDomain(ctx, row.Domain)
+		if err != nil {
+			dns = row.DNS
+			if dns == nil {
+				dns = &resellerdomain.DomainDNS{}
+			}
+			dns.Status = "error"
+			dns.ErrorCode = "provider_unavailable"
+		}
+		if dns == nil {
+			continue
+		}
+		dns.UpdatedAt = time.Now()
+		changed, saveErr := s.Store.CompleteDomainCheck(row.ID, lease, id, dns)
+		if saveErr != nil {
+			return saveErr
+		}
+		if changed {
+			_ = cache.DelResellerDomain(ctx, row.Domain)
+		}
+	}
+	return nil
 }

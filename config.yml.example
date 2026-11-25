@@ -204,3 +204,8 @@ web:
 # DELIVERY_TELEGRAM_ADMIN_USERNAME: existing website super-admin username.
 # Both are required; bot actions revalidate that website admin on every operation.
 # Administrator notifications never go to customer chats or Telegram groups.
+
+# Optional automatic reseller custom-domain provisioning (Railway only):
+# RESELLER_RAILWAY_TOKEN: a production-scoped project token, server-side only.
+# RAILWAY_PROJECT_ID / RAILWAY_ENVIRONMENT_ID / RAILWAY_SERVICE_ID are supplied by Railway.
+# DNS and HTTPS are checked automatically; customers still configure their own DNS.

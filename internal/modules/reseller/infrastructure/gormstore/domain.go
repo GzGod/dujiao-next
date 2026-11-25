@@ -40,6 +40,9 @@ func (r *Store) UpsertDomain(input resellerdomain.Domain) (*resellerdomain.Domai
 	existing.Type = input.Type
 	existing.VerificationToken = input.VerificationToken
 	existing.DNS = input.DNS
+	existing.ProviderID = ""
+	existing.NextCheckAt = nil
+	existing.CheckLease = ""
 	existing.VerificationStatus = input.VerificationStatus
 	existing.Status = input.Status
 	existing.IsPrimary = input.IsPrimary
@@ -205,4 +208,88 @@ func (r *Store) ListDomains(filter resellercontract.DomainListFilter) ([]reselle
 
 func normalizeDomainForRepository(raw string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(raw)), ".")
+}
+
+// ClaimDomainChecks uses a conditional write to lease work across replicas.
+func (r *Store) ClaimDomainChecks(now time.Time, lease string, limit int) ([]resellerdomain.Domain, error) {
+	var candidates []resellerdomain.Domain
+	err := r.db.Where("reseller_domains.deleted_at IS NULL AND reseller_domains.type = ? AND reseller_domains.status IN ? AND (next_check_at IS NULL OR next_check_at <= ?)", resellerdomain.DomainTypeCustom, []string{resellerdomain.DomainStatusPendingReview, resellerdomain.DomainStatusActive}, now).
+		Joins("JOIN reseller_profiles ON reseller_profiles.id = reseller_domains.reseller_id AND reseller_profiles.deleted_at IS NULL AND reseller_profiles.status = ?", resellerdomain.ProfileStatusActive).
+		Select("reseller_domains.*").Order("next_check_at ASC, reseller_domains.id ASC").Limit(limit).Find(&candidates).Error
+	if err != nil {
+		return nil, err
+	}
+	claimed := make([]resellerdomain.Domain, 0, len(candidates))
+	for _, row := range candidates {
+		until := now.Add(10 * time.Minute)
+		result := r.db.Model(&resellerdomain.Domain{}).Where("id = ? AND deleted_at IS NULL AND status IN ? AND (next_check_at IS NULL OR next_check_at <= ?)", row.ID, []string{resellerdomain.DomainStatusPendingReview, resellerdomain.DomainStatusActive}, now).Updates(map[string]interface{}{"check_lease": lease, "next_check_at": until})
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		if result.RowsAffected == 1 {
+			claimed = append(claimed, row)
+		}
+	}
+	return claimed, nil
+}
+
+func (r *Store) CompleteDomainCheck(id uint, lease, providerID string, dns *resellerdomain.DomainDNS) (bool, error) {
+	changed := false
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var snapshot resellerdomain.Domain
+		if err := tx.Where("id = ? AND deleted_at IS NULL AND check_lease = ?", id, lease).First(&snapshot).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			return err
+		}
+		var profile resellerdomain.Profile
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL", snapshot.ResellerID).First(&profile).Error; err != nil {
+			return err
+		}
+		if profile.Status != resellerdomain.ProfileStatusActive {
+			return nil
+		}
+		var row resellerdomain.Domain
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND deleted_at IS NULL AND check_lease = ?", id, lease).First(&row).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			return err
+		}
+		if row.Status != resellerdomain.DomainStatusPendingReview && row.Status != resellerdomain.DomainStatusActive {
+			return nil
+		}
+		now := time.Now()
+		next := now.Add(2 * time.Minute)
+		if dns.Status == "ready" {
+			next = now.Add(30 * time.Minute)
+		} else if dns.ErrorCode != "" {
+			next = now.Add(5 * time.Minute)
+		}
+		if providerID != "" {
+			row.ProviderID = providerID
+		}
+		row.DNS = dns
+		row.NextCheckAt = &next
+		row.CheckLease = ""
+		if dns.Status == "ready" {
+			row.Status = resellerdomain.DomainStatusActive
+			row.VerificationStatus = resellerdomain.DomainVerificationVerified
+			row.VerifiedAt = &now
+			var primary int64
+			if err := tx.Model(&resellerdomain.Domain{}).Where("reseller_id = ? AND id <> ? AND is_primary = ? AND status = ? AND deleted_at IS NULL", row.ResellerID, row.ID, true, resellerdomain.DomainStatusActive).Count(&primary).Error; err != nil {
+				return err
+			}
+			if primary == 0 {
+				row.IsPrimary = true
+			}
+		}
+		if err := tx.Model(&resellerdomain.Domain{}).Where("id = ? AND check_lease = ?", row.ID, lease).Select("*").Updates(&row).Error; err != nil {
+			return err
+		}
+		changed = true
+		return nil
+	})
+	return changed, err
 }

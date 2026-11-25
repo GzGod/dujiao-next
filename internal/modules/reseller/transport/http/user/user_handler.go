@@ -24,6 +24,7 @@ import (
 )
 
 type ManagementService interface {
+	RequestUserDomainCheck(userID, domainID uint) (*resellerdomain.Domain, error)
 	GetUserManagementSnapshot(userID uint) (*resellerdomain.Profile, []resellerdomain.Domain, bool, error)
 	ApplyUserReseller(userID uint, input resellermodule.ResellerApplyInput) (*resellerdomain.Profile, error)
 	SubmitUserCustomDomain(userID uint, rawDomain string) (*resellerdomain.Domain, error)
@@ -485,4 +486,22 @@ func (h *UserHandler) Redeem(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	c.Header("Referrer-Policy", "no-referrer")
 	c.Data(result.StatusCode, "application/json; charset=utf-8", data)
+}
+
+func (h *UserHandler) RecheckDomain(c *gin.Context) {
+	uid, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	row, err := h.management.RequestUserDomainCheck(uid, id)
+	if err != nil {
+		respondUserManagementError(c, err, "error.save_failed")
+		return
+	}
+	response.Success(c, dto.NewResellerDomainResp(row))
 }

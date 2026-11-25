@@ -17,6 +17,7 @@ export const resellerAPI = {
     disableFrontend: () => userApi.delete('/reseller/frontend'),
     managementProfile: () => userApi.get('/reseller/profile'),
     apply: (data: ResellerApplyPayload) => userApi.post('/reseller/apply', data),
+    recheckDomain: (id: number) => userApi.post(`/reseller/domains/${id}/recheck`, {}),
     domains: () => userApi.get('/reseller/domains'),
     submitDomain: (data: ResellerCustomDomainPayload) => userApi.post('/reseller/domains', data),
     siteConfig: () => userApi.get('/reseller/site-config'),

@@ -175,9 +175,10 @@
                   <div class="rounded-lg border border-border bg-muted/20 p-3 md:col-span-5 md:order-last">
                     <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
                       {{ t('resellerConsole.domains.dnsTitle') }}
-                      <ResellerStatusBadge v-if="item.dns" :label="t('resellerConsole.domains.' + (item.dns.status === 'ready' ? 'dnsReady' : item.dns.status === 'pending_tls' ? 'tlsPending' : 'dnsPending'))" :tone="item.dns.status === 'ready' ? 'success' : 'warning'" />
+                      <ResellerStatusBadge v-if="item.dns" :label="t('resellerConsole.domains.' + (item.dns.status === 'ready' ? 'dnsReady' : item.dns.status === 'error' ? 'dnsError' : item.dns.status === 'pending_tls' ? 'tlsPending' : 'dnsPending'))" :tone="item.dns.status === 'ready' ? 'success' : 'warning'" />
                     </div>
-                    <template v-if="item.dns">
+                    <p v-if="item.dns?.error_code" class="mt-2 text-xs text-destructive">{{ t('resellerConsole.domains.' + (item.dns.error_code === 'certificate_failed' ? 'certificateFailed' : 'providerUnavailable')) }}</p>
+                    <template v-if="item.dns?.cname">
                       <p class="mt-2 text-xs leading-relaxed text-muted-foreground">{{ t('resellerConsole.domains.dnsHint') }}</p>
                       <div class="mt-3 grid gap-2 text-xs">
                         <div v-for="record in [{type:'CNAME',name:item.dns.record_name || '@',value:item.dns.cname}, ...(item.dns.txt_host ? [{type:'TXT',name:item.dns.txt_host,value:item.dns.txt_value}] : [])]" :key="record.type" class="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-[60px_140px_minmax(0,1fr)_auto] sm:items-center">
@@ -205,6 +206,7 @@
                   </div>
 
                   <div class="flex flex-wrap items-center gap-2 md:justify-end">
+                    <Button type="button" variant="outline" size="sm" :disabled="checkingDomainId === item.id || item.status === 'disabled'" @click="recheckDomain(item.id)">{{ t('resellerConsole.domains.recheck') }}</Button>
                     <ResellerCopyButton :value="item.domain" :label="t('resellerConsole.common.copy')" />
                     <Button v-if="isActiveVerifiedDomain(item)" as-child variant="ghost" size="sm">
                       <a :href="`https://${item.domain}`" target="_blank" rel="noopener noreferrer">
@@ -261,6 +263,7 @@ import { getResellerDomainStatusKey } from '../../utils/resellerManagement'
 const { t } = useI18n()
 const loading = ref(false)
 const submitting = ref(false)
+const checkingDomainId = ref<number | null>(null)
 const snapshot = ref<ResellerManagementSnapshotData | null>(null)
 const alert = ref<PageAlert | null>(null)
 const domainForm = reactive({ domain: '' })
@@ -286,6 +289,15 @@ const load = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const recheckDomain = async (id: number) => {
+  checkingDomainId.value = id
+  try {
+    await resellerAPI.recheckDomain(id)
+    await load()
+    alert.value = { level: 'success', message: t('resellerConsole.domains.checkQueued') }
+  } finally { checkingDomainId.value = null }
 }
 
 const submitDomain = async () => {
