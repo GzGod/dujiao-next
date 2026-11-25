@@ -45,6 +45,7 @@ export const sortByBrandThenPrice = <T>(products: T[]): T[] =>
 /** Product-specific artwork supplied by the storefront owner. */
 export const productArtworkUrl = (product: any): string => {
   const text = [textOf(product?.title), textOf(product?.slug)].join(' ')
+  if (product?.slug === 'us-residential-ip-monthly') return '/images/products/us-residential-ip-monthly.png'
   if (!/claude/i.test(text)) return ''
   let name = ''
   if (/门户|門戶|portal/i.test(text)) name = 'claude-korea-portal'

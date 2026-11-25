@@ -1276,6 +1276,7 @@
     }
   },
   "payment": {
+    "ipDeliveryHint": "Payment confirmed. Contact Telegram support with your order number to receive your US residential IP.",
     "inlineGmCashier": "GMwallet network and token checkout",
     "gptRedeemHint": "Your code is ready. Copy it and open redemption to submit the required account details, then confirm the top-up result.",
     "gptDeliveryPending": "Payment confirmed. Preparing your redemption code; refresh delivery status shortly.",

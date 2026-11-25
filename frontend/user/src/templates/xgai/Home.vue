@@ -211,7 +211,7 @@ usePageSeo({ title: () => t('xgai.seo.title'), description: () => t('xgai.seo.de
 // ---------- 商品 ----------
 const products = ref<any[]>([])
 const loading = ref(true)
-type Filter = 'all' | 'openai' | 'claude' | 'kyc'
+type Filter = 'all' | 'openai' | 'claude' | 'kyc' | 'ip'
 const filter = ref<Filter>('all')
 const findByTitle = (pattern: RegExp) => products.value.filter(p => pattern.test(getLocalizedText(p.title))).sort((a,b) => Number(a.price_amount)-Number(b.price_amount))[0] || null
 const isKycProduct = isKycServiceProduct
@@ -220,9 +220,10 @@ const filters = computed(() => [
   { value: 'openai' as Filter, label: 'ChatGPT' },
   { value: 'claude' as Filter, label: 'Claude' },
   { value: 'kyc' as Filter, label: 'KYC' },
+  { value: 'ip' as Filter, label: 'IP' },
 ])
 const visibleProducts = computed(() => {
-  const list = products.value.filter(p => filter.value === 'all' || (filter.value === 'kyc' ? isKycProduct(p) : filter.value === 'claude' ? !isKycProduct(p) && /claude/i.test(getLocalizedText(p.title)) : detectAiBrand(p) === 'openai' && !isKycProduct(p)))
+  const list = products.value.filter(p => filter.value === 'all' || (filter.value === 'ip' ? p.category?.slug === 'ip' || p.slug === 'us-residential-ip-monthly' : filter.value === 'kyc' ? isKycProduct(p) : filter.value === 'claude' ? !isKycProduct(p) && /claude/i.test(getLocalizedText(p.title)) : detectAiBrand(p) === 'openai' && !isKycProduct(p)))
   return sortByBrandThenPrice(list)
 })
 const processSteps = computed(() => [
