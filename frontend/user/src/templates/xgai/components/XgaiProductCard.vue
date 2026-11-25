@@ -98,7 +98,18 @@ const hasPromotion = computed(() => {
   const base = amountToCents(props.product?.price_amount)
   return promo !== null && base !== null && promo < base
 })
-const paidAmount = computed(() => (hasPromotion.value ? props.product?.promotion_price_amount : props.product?.price_amount))
+const paidAmount = computed(() => {
+  const skus = (props.product?.skus || []).filter((sku: any) => sku.is_active)
+  if (skus.length) {
+    const amounts = skus.map((sku: any) => {
+      const candidates = [sku.price_amount, sku.member_price_amount, sku.promotion_price_amount]
+        .map(amountToCents).filter((value: number | null): value is number => value !== null && value > 0)
+      return candidates.length ? Math.min(...candidates) : null
+    }).filter((value: number | null): value is number => value !== null)
+    if (amounts.length) return centsToAmount(Math.min(...amounts))
+  }
+  return hasPromotion.value ? props.product?.promotion_price_amount : props.product?.price_amount
+})
 const priceText = computed(() => fmt(paidAmount.value))
 const originalText = computed(() => (hasPromotion.value ? fmt(props.product?.price_amount) : ''))
 // 官方价对比：只在确实更便宜时出现（规则见 utils/officialPrice）
