@@ -598,7 +598,7 @@ func (s *TelegramDeliveryService) SyncAdminNotices(ctx context.Context) error {
 		if binding != nil && binding.ChatID != "" {
 			identity = binding.Username + " · " + binding.ChatID
 		}
-		fingerprint := status + "|" + identity
+		fingerprint := "v2|" + status + "|" + identity
 		terminal := status == "delivered" || status == "completed" || status == "refunded" || status == "canceled"
 		if terminal {
 			fingerprint = status
@@ -611,6 +611,17 @@ func (s *TelegramDeliveryService) SyncAdminNotices(ctx context.Context) error {
 			label = status
 		}
 		text := fmt.Sprintf("%s\n%s%s", label, i18n.T("zh-CN", "telegram.admin_18"), order.OrderNo)
+		var products []string
+		for _, item := range order.Items {
+			title, _ := item.TitleJSON["zh-CN"].(string)
+			if title == "" {
+				title, _ = item.TitleJSON["en-US"].(string)
+			}
+			if title != "" {
+				products = append(products, fmt.Sprintf("%s × %d", title, item.Quantity))
+			}
+		}
+		text += i18n.T("zh-CN", "telegram.admin_19") + strings.Join(products, " / ") + i18n.T("zh-CN", "telegram.admin_20") + order.TotalAmount.String() + " " + order.Currency
 		if identity != "" {
 			text += "\n" + i18n.T("zh-CN", "telegram.admin_17") + identity
 		}

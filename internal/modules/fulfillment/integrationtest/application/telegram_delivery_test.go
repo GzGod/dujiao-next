@@ -519,7 +519,7 @@ func TestAdminOrderNoticesReconcileDeliveryAndRefund(t *testing.T) {
 			if err := db.AutoMigrate(&domain.TelegramAdminNotice{}, &domain.TelegramDelivery{}); err != nil {
 				t.Fatal(err)
 			}
-			order := &orderdomain.Order{OrderNo: "NOTICE-" + status, Status: status}
+			order := &orderdomain.Order{OrderNo: "NOTICE-" + status, Status: status, Items: []orderdomain.OrderItem{{ProductID: 1, Quantity: 2, FulfillmentType: "manual", TitleJSON: jsonmap.JSON{"zh-CN": "Claude Pro 测试商品"}}}}
 			if err := db.Create(order).Error; err != nil {
 				t.Fatal(err)
 			}
@@ -539,7 +539,7 @@ func TestAdminOrderNoticesReconcileDeliveryAndRefund(t *testing.T) {
 				t.Fatalf("not all prior messages updated: %d", len(sender.edits))
 			}
 			for _, m := range sender.edits {
-				if m.ChatID != "5760638358" || len(m.Buttons) != 0 || !strings.Contains(m.Text, order.OrderNo) {
+				if m.ChatID != "5760638358" || len(m.Buttons) != 0 || !strings.Contains(m.Text, order.OrderNo) || !strings.Contains(m.Text, "Claude Pro 测试商品 × 2") {
 					t.Fatal("unsafe or incomplete notice edit")
 				}
 			}
