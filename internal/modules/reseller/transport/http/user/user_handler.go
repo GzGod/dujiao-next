@@ -1,9 +1,12 @@
 package userhttp
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"mime/multipart"
+	"time"
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
@@ -428,4 +431,58 @@ func (h *UserHandler) RedemptionSite(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": site})
+}
+
+// Redeem proxies the fixed customer API; never forwards browser credentials.
+func (h *UserHandler) Redeem(c *gin.Context) {
+	op := c.Param("operation")
+	if op != "verify" && op != "submit" && op != "progress" {
+		c.Status(404)
+		return
+	}
+	host := resellercontract.NormalizeHost(c.Request.Host)
+	if host != "xuegaogx.cc" {
+		lookup, ok := h.siteConfig.(interface {
+			RedemptionSite(string) (map[string]interface{}, error)
+		})
+		if !ok {
+			c.Status(403)
+			return
+		}
+		site, err := lookup.RedemptionSite(host)
+		if err != nil || site == nil {
+			c.Status(403)
+			return
+		}
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 100000)
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil || !json.Valid(body) {
+		c.Status(400)
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 35*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://redeem.xuegaogx.cc/api/v1/redemptions/"+op, bytes.NewReader(body))
+	if err != nil {
+		c.Status(502)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://redeem.xuegaogx.cc")
+	client := &http.Client{Timeout: 35 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	result, err := client.Do(req)
+	if err != nil {
+		c.Status(502)
+		return
+	}
+	defer result.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(result.Body, 1<<20))
+	if err != nil || !json.Valid(data) {
+		c.Status(502)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.Header("Referrer-Policy", "no-referrer")
+	c.Data(result.StatusCode, "application/json; charset=utf-8", data)
 }

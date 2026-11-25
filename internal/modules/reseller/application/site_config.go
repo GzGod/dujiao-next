@@ -68,8 +68,11 @@ type ResellerNavConfigInput struct {
 }
 
 type ResellerThemeInput struct {
-	Template     string `json:"template"`
-	PrimaryColor string `json:"primary_color"`
+	RedemptionTitle string `json:"redemption_title"`
+	RedemptionIntro string `json:"redemption_intro"`
+	RedemptionStyle string `json:"redemption_style"`
+	Template        string `json:"template"`
+	PrimaryColor    string `json:"primary_color"`
 }
 
 type ResellerSiteConfigInput struct {
@@ -512,7 +515,7 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 		// Only allowlisted values reach the browser, including legacy DB rows.
 		template, _ := cfg.ThemeJSON["template"].(string)
 		color, _ := cfg.ThemeJSON["primary_color"].(string)
-		if theme, err := normalizeResellerTheme(ResellerThemeInput{Template: template, PrimaryColor: color}); err == nil {
+		if theme, err := normalizeResellerTheme(ResellerThemeInput{Template: template, PrimaryColor: color, RedemptionTitle: resellerThemeString(cfg.ThemeJSON, "redemption_title"), RedemptionIntro: resellerThemeString(cfg.ThemeJSON, "redemption_intro"), RedemptionStyle: resellerThemeString(cfg.ThemeJSON, "redemption_style")}); err == nil {
 			if template != "" && template != "inherit" {
 				out["storefront_template"] = template
 			}
@@ -907,7 +910,14 @@ func normalizeResellerTheme(input ResellerThemeInput) (jsonmap.JSON, error) {
 			return nil, newResellerFieldError("theme")
 		}
 	}
-	return jsonmap.JSON{"template": template, "primary_color": strings.ToLower(color)}, nil
+	style := strings.TrimSpace(input.RedemptionStyle)
+	if style != "" && style != "glass" && style != "simple" {
+		return nil, newResellerFieldError("theme")
+	}
+	if len([]rune(input.RedemptionTitle)) > 120 || len([]rune(input.RedemptionIntro)) > 1500 {
+		return nil, newResellerFieldError("theme")
+	}
+	return jsonmap.JSON{"template": template, "primary_color": strings.ToLower(color), "redemption_title": strings.TrimSpace(input.RedemptionTitle), "redemption_intro": strings.TrimSpace(input.RedemptionIntro), "redemption_style": style}, nil
 }
 
 func (s *FrontendService) requireFrontendDomain(resellerID uint) error {
@@ -960,4 +970,9 @@ func (s *SiteConfigService) RedemptionSite(host string) (map[string]interface{},
 func resellerThemeColor(theme map[string]interface{}) string {
 	value, _ := theme["primary_color"].(string)
 	return value
+}
+
+func resellerThemeString(theme map[string]interface{}, key string) string {
+	v, _ := theme[key].(string)
+	return v
 }

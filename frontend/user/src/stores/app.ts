@@ -25,6 +25,7 @@ export const useAppStore = defineStore('app', () => {
         return '/favicon.svg'
     })
     const redemptionUrl = (pathname = '/') => {
+        if (isResellerTenant.value) return '/redeem'
         const url = new URL(pathname, 'https://redeem.xuegaogx.cc')
         if (isResellerTenant.value && config.value?.tenant?.host) url.searchParams.set('site', config.value.tenant.host)
         return url.href

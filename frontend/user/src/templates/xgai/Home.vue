@@ -2,7 +2,7 @@
   <div class="xhome">
     <section class="xshop-intro x-container">
       <div><small class="x-eyebrow">{{ t('xgai.products.eyebrow') }}</small><h1>{{ t('xgai.shop.title') }}</h1><p>{{ t('xgai.shop.description') }}</p></div>
-      <div class="xshop-intro__links"><a :href="'https://redeem.xuegaogx.cc/'" class="x-btn x-btn--primary">{{ t('xgai.nav.redeem') }} <ArrowUpRight /></a><RouterLink :to="userAuthStore.isAuthenticated ? '/me/orders' : '/guest/orders'" class="x-btn">{{ t('xgai.shop.orders') }} <ArrowRight /></RouterLink></div>
+      <div class="xshop-intro__links"><a :href="appStore.redemptionUrl()" class="x-btn x-btn--primary">{{ t('xgai.nav.redeem') }} <ArrowUpRight /></a><RouterLink :to="userAuthStore.isAuthenticated ? '/me/orders' : '/guest/orders'" class="x-btn">{{ t('xgai.shop.orders') }} <ArrowRight /></RouterLink></div>
     </section>
 
     <!-- 商品 -->

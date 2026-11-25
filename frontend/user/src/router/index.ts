@@ -150,6 +150,11 @@ const router = createRouter({
             component: templateView('ProductDetail', productDetailViewLoader),
         },
         {
+            path: '/redeem',
+            name: 'reseller-redeem',
+            component: () => import('../views/Redemption.vue'),
+        },
+        {
             path: '/cart',
             name: 'cart',
             component: templateView('Cart', cartViewLoader),

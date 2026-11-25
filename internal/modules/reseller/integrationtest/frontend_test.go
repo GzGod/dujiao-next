@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -165,7 +166,7 @@ func TestResellerThemeOverlayAndValidation(t *testing.T) {
 			t.Fatal("invalid theme accepted")
 		}
 	}
-	theme := app.ResellerThemeInput{Template: "xgai", PrimaryColor: "#8844cc"}
+	theme := app.ResellerThemeInput{Template: "xgai", PrimaryColor: "#8844cc", RedemptionTitle: "My redemption", RedemptionIntro: "My instructions", RedemptionStyle: "simple"}
 	if _, e := service.UpdateUserSiteConfig(context.Background(), user.ID, app.ResellerSiteConfigInput{SiteName: "Own shop", Theme: &theme}); e != nil {
 		t.Fatal(e)
 	}
@@ -178,6 +179,12 @@ func TestResellerThemeOverlayAndValidation(t *testing.T) {
 	out, e := service.ApplyPublicConfigOverlay(context.Background(), tenant, base)
 	if e != nil || out["storefront_template"] != "xgai" || out["reseller_theme"] == nil {
 		t.Fatalf("overlay failed: %v %v", out, e)
+	}
+	themeBytes, _ := json.Marshal(out["reseller_theme"])
+	themeView := map[string]interface{}{}
+	_ = json.Unmarshal(themeBytes, &themeView)
+	if themeView["redemption_title"] != "My redemption" || themeView["redemption_style"] != "simple" {
+		t.Fatal("redemption design not preserved")
 	}
 	if base["storefront_template"] != "classic" {
 		t.Fatal("main config mutated")

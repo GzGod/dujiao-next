@@ -58,6 +58,7 @@
         </div>
 
         <div v-show="activeSection === 'brand'" class="mt-0">
+      <RedemptionEditor v-if="form.theme" v-model="form.theme" />
       <!-- 基础品牌 -->
       <section class="rounded-2xl border bg-card p-4 sm:p-5">
         <div class="mb-4 flex items-center gap-3">
@@ -353,6 +354,7 @@
 </template>
 
 <script setup lang="ts">
+import RedemptionEditor from './RedemptionEditor.vue'
 import { computed, defineAsyncComponent, onMounted, reactive, ref, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -490,6 +492,7 @@ const announcementTypeOptions = [
 ]
 
 const createBlankForm = (): ResellerSiteConfigPayload => ({
+    theme:{template:'inherit',primary_color:'#0071e3',redemption_title:'',redemption_intro:'',redemption_style:'glass'},
     site_name: '',
     logo: '',
     favicon: '',
@@ -544,6 +547,7 @@ const announcementPreviewHtml = computed(() => {
 const assignForm = (config?: ResellerSiteConfigData) => {
     const next = createBlankForm()
     if (config) {
+        next.theme = {...next.theme,...config.theme} as any
         next.site_name = config.site_name || ''
         next.logo = config.logo || ''
         next.favicon = config.favicon || ''

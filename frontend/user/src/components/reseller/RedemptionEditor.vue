@@ -1,0 +1,11 @@
+<template><section class="rounded-2xl border bg-card p-5 space-y-4"><h3 class="font-bold">{{ text.heading }}</h3><p class="text-sm text-muted-foreground">{{ text.hint }}</p><label class="block">{{ text.title }}<input v-model="model.redemption_title" maxlength="120" class="block border rounded-lg p-3 w-full bg-background" /></label><label class="block">{{ text.intro }}<textarea v-model="model.redemption_intro" maxlength="1500" class="block border rounded-lg p-3 w-full bg-background" /></label><label class="block">{{ text.color }}<input v-model="model.primary_color" type="color" /></label><label class="block">{{ text.layout }}<select v-model="model.redemption_style" class="bg-background border rounded-lg p-2"><option value="glass">{{ text.glass }}</option><option value="simple">{{ text.simple }}</option></select></label><div class="border rounded-2xl p-5" :style="{borderColor:model.primary_color}"><h4 class="font-bold text-xl">{{ model.redemption_title||text.defaultTitle }}</h4><p class="my-3 text-sm">{{ model.redemption_intro||text.hint }}</p><span class="inline-block rounded-lg p-3 text-white" :style="{backgroundColor:model.primary_color||'#0071e3'}">{{ text.verify }}</span></div></section></template>
+<script setup lang="ts">
+import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
+const model=defineModel<any>({required:true});const {locale}=useI18n()
+const labels={
+'zh-CN':{heading:'核销页面装修',hint:'沿用分站 Logo、站名和客服。这里只改变外观，验码和提交规则保持统一。',title:'页面标题',intro:'介绍与公告',color:'主题色',layout:'面板样式',glass:'玻璃面板',simple:'简洁面板',defaultTitle:'兑换核销',verify:'验证核销码'},
+'zh-TW':{heading:'核銷頁面裝修',hint:'沿用分站 Logo、站名和客服。僅改變外觀，驗碼與提交規則保持統一。',title:'頁面標題',intro:'介紹與公告',color:'主題色',layout:'面板樣式',glass:'玻璃面板',simple:'簡潔面板',defaultTitle:'兌換核銷',verify:'驗證核銷碼'},
+'en-US':{heading:'Redemption page design',hint:'Uses your site logo, name and support. Appearance settings do not change verification or submission rules.',title:'Page title',intro:'Introduction and notice',color:'Accent color',layout:'Panel style',glass:'Glass panel',simple:'Simple panel',defaultTitle:'Redeem your code',verify:'Verify code'}}
+const text=computed(()=>labels[locale.value as keyof typeof labels]||labels['en-US'])
+</script>
