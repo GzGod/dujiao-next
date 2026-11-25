@@ -18,7 +18,8 @@ watch(() => props.domain, domain => Object.assign(form, { cname: '', record_name
 async function save() {
   saving.value = true
   try {
-    await adminAPI.updateResellerDomainDNS(props.domain.id, { ...form })
+    const { updated_at: _updatedAt, ...payload } = form
+    await adminAPI.updateResellerDomainDNS(props.domain.id, payload)
     notifySuccess(t(`${key}.saved`))
     emit('saved')
   } catch (error) { notifyError(error instanceof Error ? error.message : t('admin.common.saveFailed')) } finally { saving.value = false }

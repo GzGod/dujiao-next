@@ -504,7 +504,7 @@ export const adminAPI = {
     api.post(`/admin/resellers/profiles/${id}/restore`, {}),
   getResellerDomains: (params?: Record<string, unknown>) =>
     api.get('/admin/resellers/domains', { params }),
-  updateResellerDomainDNS: (id: number, data: NonNullable<import('./types').AdminResellerDomain['dns']>) => api.put(`/admin/resellers/domains/${id}/dns`, data),
+  updateResellerDomainDNS: (id: number, data: Omit<NonNullable<import('./types').AdminResellerDomain['dns']>, 'updated_at'>) => api.put(`/admin/resellers/domains/${id}/dns`, data),
   approveResellerDomain: (id: number) =>
     api.post(`/admin/resellers/domains/${id}/approve`, {}),
   disableResellerDomain: (id: number) =>
