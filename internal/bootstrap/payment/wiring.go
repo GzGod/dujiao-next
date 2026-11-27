@@ -33,8 +33,10 @@ func New(c *container.Container) Handlers {
 
 	latest := paymenttransport.NewLatestHandler(guestOrders, userOrders, pendingLookupAdapter{payments: c.PaymentStore})
 	if recorder, ok := c.PaymentStore.(interface {
+		AckQRAlert(uint, string) error
 		RecordQRSave(context.Context, uint, uint, string, string) (int, bool, string, error)
 	}); ok {
+		latest.AckQRAlert = recorder.AckQRAlert
 		latest.RecordQR = recorder.RecordQRSave
 	}
 	latest.QRAlert = alerter.EnqueuePaymentExceptionAlert

@@ -45,7 +45,7 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 			return ErrOrderNotFound
 		}
 		// 只有未支付订单可以取消：已支付订单取消会退回钱包、释放已消耗库存，必须走退款流程
-		if locked.QRAlipaySaveCount != checkedCount {
+		if locked.QRAlipaySaveCount != checkedCount || locked.QRWaitPaymentID != order.QRWaitPaymentID {
 			return ErrOrderCancelNotAllowed
 		}
 		if locked.Status != order.Status || locked.Status != constants.OrderStatusPendingPayment {

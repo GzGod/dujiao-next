@@ -158,7 +158,7 @@ export interface AdminOrder {
   risk_review_list_kinds?: string[]
   qr_save_email?: string
   payment_risk_decision?: { score: number; threshold?: number; pay_delay_known?: boolean; pay_delay_seconds?: number; features?: {
-    paid_count_30m?: number; paid_count_24h?: number; unpaid_count_30m?: number; unpaid_count_24h?: number
+    short_minutes?: number; long_hours?: number; paid_count_30m?: number; paid_count_24h?: number; unpaid_count_30m?: number; unpaid_count_24h?: number
   }; hard_rules?: string[]; signals?: Record<string, number>; review_admin_id?: number; reviewed_at?: string }
   id: number
   order_no: string

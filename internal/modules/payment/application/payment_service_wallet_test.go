@@ -2323,3 +2323,102 @@ func TestQRSaveThirdGesturePausesAlipayOnly(t *testing.T) {
 		})
 	}
 }
+
+func TestHeldOrderAdminAlert(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	var message string
+	svc.SendRiskTelegram = func(text string) error { message = text; return nil }
+	notifications := &riskNotificationRecorder{}
+	svc.notificationSvc = notifications
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "settlement_mode": "hold_notice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Risk Test", constants.PaymentChannelTypeWechat)
+	previous := createUnderpaidOrder(t, db, "RISK-PREVIOUS", 0, 150)
+	now := time.Now()
+	if err := db.Model(previous).Updates(map[string]interface{}{
+		"guest_email": "risk@example.com", "risk_device_hash": strings.Repeat("a", 64), "risk_ip": "192.0.2.9", "created_at": now.Add(-48 * time.Hour), "paid_at": now, "status": constants.OrderStatusPaid,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "RISK-CURRENT", 0, 150)
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"guest_email": "different@example.com", "risk_device_hash": strings.Repeat("a", 64), "risk_ip": "192.0.2.16",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&orderdomain.OrderItem{OrderID: order.ID, ProductID: 1, Quantity: 1, TitleJSON: jsonmap.JSON{"zh-CN": "风控联调测试商品", "en-US": "Risk Test Product"}, FulfillmentType: "manual"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payment, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: result.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+		Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if payment.Status != constants.PaymentStatusSuccess || order.PaidAt == nil || order.RiskHoldStatus != "pending_review" {
+		t.Fatalf("expected successful receipt with held order, got %s / %s", payment.Status, order.RiskHoldStatus)
+	}
+	for _, field := range []string{"150", "CNY", "different@example.com", "multi_paid_strong_identity"} {
+		if !strings.Contains(message, field) {
+			t.Fatalf("missing %s: %s", field, message)
+		}
+	}
+	if !strings.Contains(message, "风控联调测试商品") && !strings.Contains(message, "Risk Test Product") {
+		t.Fatal(message)
+	}
+	hardRules, ok := order.PaymentRiskDecision["hard_rules"].([]interface{})
+	if !ok || len(hardRules) != 1 || hardRules[0] != "multi_paid_strong_identity" {
+		t.Fatalf("older order paid recently must count for the repeat-payment rule: %v", hardRules)
+	}
+	signals, ok := order.PaymentRiskDecision["signals"].(map[string]interface{})
+	if !ok || signals["same_device_contact_switch"] != float64(40) || signals["subnet_burst_high_amount"] != float64(30) {
+		t.Fatalf("expected device contact-switch and subnet burst signals: %+v", order.PaymentRiskDecision)
+	}
+}
+
+func TestQRAlertRecoveryAfterTelegramFailure(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if err := db.AutoMigrate(&paymentdomain.QRSaveEvent{}); err != nil {
+		t.Fatal(err)
+	}
+	o := createUnderpaidOrder(t, db, "QR-RETRY", 0, 100)
+	due := time.Now().Add(-time.Second)
+	event := paymentdomain.QRSaveEvent{OrderID: o.ID, EventID: "test-event", OrderEmail: "retry@example.invalid", AlertRetryAt: &due}
+	if err := db.Create(&event).Error; err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	svc.SendRiskTelegram = func(message string) error {
+		calls++
+		if !strings.Contains(message, event.OrderEmail) {
+			t.Fatal(message)
+		}
+		if calls == 1 {
+			return errors.New("temporary telegram error")
+		}
+		return nil
+	}
+	now := time.Now()
+	if err := svc.RecoverRiskAlerts(now); err == nil {
+		t.Fatal("missing send failure")
+	}
+	for _, delay := range []time.Duration{time.Minute, 6 * time.Minute, 12 * time.Minute} {
+		if err := svc.RecoverRiskAlerts(now.Add(delay)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("expected one retry, got %d sends", calls)
+	}
+}

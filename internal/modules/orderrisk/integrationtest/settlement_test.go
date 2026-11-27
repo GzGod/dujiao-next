@@ -237,3 +237,22 @@ func TestSettlementVelocityThresholds(t *testing.T) {
 		})
 	}
 }
+
+func TestSettlementAmountTimeAndCountOverrides(t *testing.T) {
+	cfg := settingssecurity.DefaultOrderRiskControlConfig()
+	cfg.SettlementLimits.FirstAmount = 300
+	cfg.SettlementLimits.SlowSeconds = 180
+	cfg.SettlementLimits.ShortUnpaid = 5
+	facts := riskcontract.SettlementFacts{NewIP: true, NewContact: true, Amount: 29999, PaymentDelay: 179 * time.Second, Unpaid30m: 3}
+	got := riskcontract.EvaluateSettlement(facts, cfg)
+	if got.Hold || got.Signals[risk.RuleSlowPayment] != 0 || got.Signals[risk.RuleFirstHigh] != 0 {
+		t.Fatal(got)
+	}
+	facts.Amount++
+	facts.PaymentDelay += time.Second
+	facts.Unpaid30m = 5
+	got = riskcontract.EvaluateSettlement(facts, cfg)
+	if !got.Hold || got.Signals[risk.RuleSlowPayment] == 0 || got.Signals[risk.RuleFirstHigh] == 0 || len(got.HardRules) == 0 {
+		t.Fatal(got)
+	}
+}

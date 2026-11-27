@@ -857,10 +857,10 @@ watch(
             </p>
             <template v-if="selectedOrder.payment_risk_decision.features">
               <p v-if="selectedOrder.payment_risk_decision.features.paid_count_30m != null && selectedOrder.payment_risk_decision.features.paid_count_24h != null">
-                {{ t('admin.orders.riskPaidCounts', { short: selectedOrder.payment_risk_decision.features.paid_count_30m, day: selectedOrder.payment_risk_decision.features.paid_count_24h }) }}
+                {{ t('admin.orders.riskPaidCounts', { minutes: selectedOrder.payment_risk_decision.features.short_minutes ?? 30, hours: selectedOrder.payment_risk_decision.features.long_hours ?? 24, short: selectedOrder.payment_risk_decision.features.paid_count_30m, day: selectedOrder.payment_risk_decision.features.paid_count_24h }) }}
               </p>
               <p v-if="selectedOrder.payment_risk_decision.features.unpaid_count_30m != null && selectedOrder.payment_risk_decision.features.unpaid_count_24h != null">
-                {{ t('admin.orders.riskUnpaidCounts', { short: selectedOrder.payment_risk_decision.features.unpaid_count_30m, day: selectedOrder.payment_risk_decision.features.unpaid_count_24h }) }}
+                {{ t('admin.orders.riskUnpaidCounts', { minutes: selectedOrder.payment_risk_decision.features.short_minutes ?? 30, hours: selectedOrder.payment_risk_decision.features.long_hours ?? 24, short: selectedOrder.payment_risk_decision.features.unpaid_count_30m, day: selectedOrder.payment_risk_decision.features.unpaid_count_24h }) }}
               </p>
             </template>
             <p v-if="selectedOrder.payment_risk_evaluated_at">

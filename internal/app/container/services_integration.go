@@ -1,6 +1,7 @@
 package container
 
 import (
+	"context"
 	catalogmappingbootstrap "github.com/dujiao-next/internal/bootstrap/catalogmapping"
 	telegrambroadcast "github.com/dujiao-next/internal/bootstrap/telegrambroadcast"
 	"github.com/dujiao-next/internal/logger"
@@ -17,6 +18,8 @@ import (
 	downstreamcallbackcredentialreader "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/credentialreader"
 	downstreamcallbackorderreader "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/orderreader"
 	downstreamcallbackqueue "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/queueadapter"
+	fulfillmentcontract "github.com/dujiao-next/internal/modules/fulfillment/contract"
+	"github.com/dujiao-next/internal/modules/fulfillment/infrastructure/telegramapi"
 	notificationapp "github.com/dujiao-next/internal/modules/notification/application"
 	notificationasyncqueue "github.com/dujiao-next/internal/modules/notification/infrastructure/asyncqueue"
 	notificationfeishu "github.com/dujiao-next/internal/modules/notification/infrastructure/feishu"
@@ -39,6 +42,8 @@ import (
 	notifybotapi "github.com/dujiao-next/internal/modules/telegram/notify/infrastructure/botapi"
 	"github.com/dujiao-next/internal/platform/database/gormdb"
 	agentapproval "github.com/dujiao-next/internal/workflows/agentapproval/infrastructure/gormuow"
+	"os"
+	"strings"
 )
 
 // initIntegrationServices 装配通知、站点对接、支付、采购、渠道与 Telegram 集成。
@@ -130,6 +135,13 @@ func (c *Container) initIntegrationServices() {
 		PaymentProviderRegistry: c.PaymentProviderRegistry,
 		ResellerAccounting:      c.ResellerAccountingLedger,
 	})
+	if token, chat := strings.TrimSpace(os.Getenv("DELIVERY_TELEGRAM_BOT_TOKEN")), strings.TrimSpace(os.Getenv("DELIVERY_TELEGRAM_ADMIN_ID")); token != "" && chat != "" {
+		bot := &telegramapi.Client{Token: token}
+		c.PaymentService.SendRiskTelegram = func(text string) error {
+			_, err := bot.SendDelivery(context.Background(), fulfillmentcontract.TelegramMessage{ChatID: chat, Text: text})
+			return err
+		}
+	}
 	c.PaymentService.ConfirmQRExpiry = c.OrderService.ConfirmQRExpiry
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,

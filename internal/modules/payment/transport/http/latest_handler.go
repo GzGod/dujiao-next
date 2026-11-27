@@ -62,6 +62,7 @@ type CashierClient interface {
 
 type LatestHandler struct {
 	RecordQR    func(context.Context, uint, uint, string, string) (int, bool, string, error)
+	AckQRAlert  func(uint, string) error
 	QRAlert     func(string, string, string, jsonmap.JSON) error
 	Cashier     CashierClient
 	guestOrders GuestOrderLookup
@@ -233,9 +234,11 @@ func (h *LatestHandler) QRSave(guest bool) gin.HandlerFunc {
 		}
 		if alert {
 			err = h.QRAlert("POST", "/payments/qr-event", c.ClientIP(), qrAlertDetails(o, orderEmail, count))
+			if err == nil && h.AckQRAlert != nil {
+				err = h.AckQRAlert(o.ID, req.EventID)
+			}
 			if err != nil {
-				ginutil.RespondError(c, response.CodeInternal, "error.internal_error", nil)
-				return
+				ginutil.RequestLog(c).Warnw("qr_alert_pending_retry", "order_id", o.ID)
 			}
 		}
 		response.Success(c, gin.H{"count": count})

@@ -569,7 +569,8 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 			facts.PaymentDelay = payment.PaidAt.Sub(ready)
 		}
 	}
-	since := now.Add(-24 * time.Hour)
+	limits := riskConfig.SettlementLimits.Normalized()
+	since := now.Add(-time.Duration(limits.LongHours) * time.Hour)
 	identity := ordercontract.ListFilter{UserID: order.UserID, ExcludeID: order.ID, Page: 1, PageSize: 100, SkipRelations: true}
 	if order.UserID == 0 {
 		identity.GuestEmail = strings.TrimSpace(order.GuestEmail)
@@ -603,7 +604,7 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 	for _, previous := range recent {
 		seenRecent[previous.ID] = true
 	}
-	shortWindow := now.Add(-30 * time.Minute)
+	shortWindow := now.Add(-time.Duration(limits.ShortMinutes) * time.Minute)
 	if order.RiskIP != "" {
 		ipHistory := ordercontract.ListFilter{RiskIP: order.RiskIP, ExcludeID: order.ID, Page: 1, PageSize: 1, SkipRelations: true}
 		_, total, err := orderRepo.ListAdmin(ipHistory)
@@ -635,7 +636,7 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 			}
 		}
 	}
-	if facts.Amount >= 15000 && order.RiskIP != "" {
+	if facts.Amount >= limits.HighAmount*100 && order.RiskIP != "" {
 		subnet := ordercontract.ListFilter{ExcludeID: order.ID, PaidFrom: &shortWindow, Page: 1, PageSize: 50, SkipRelations: true}
 		if ip, err := netip.ParseAddr(order.RiskIP); err == nil && ip.Is4() {
 			masked := netip.PrefixFrom(ip, 24).Masked().Addr().String()
@@ -649,8 +650,8 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 			return err
 		}
 		for _, previous := range neighbors {
-			if previous.PaymentRiskAmountFen >= 15000 ||
-				strings.EqualFold(previous.Currency, "CNY") && previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(150)) {
+			if previous.PaymentRiskAmountFen >= limits.HighAmount*100 ||
+				strings.EqualFold(previous.Currency, "CNY") && previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(limits.HighAmount)) {
 				facts.SubnetBurst = true
 				break
 			}
@@ -709,12 +710,12 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 	}); ok {
 		eligible := make([]uint, 0, len(recent))
 		for _, previous := range recent {
-			if previous.PaidAt == nil || previous.PaidAt.Before(now.Add(-2*time.Hour)) {
+			if previous.PaidAt == nil || previous.PaidAt.Before(now.Add(-time.Duration(limits.ReorderMinutes)*time.Minute)) {
 				continue
 			}
-			if previous.PaymentRiskAmountFen >= 15000 ||
+			if previous.PaymentRiskAmountFen >= limits.HighAmount*100 ||
 				previous.PaymentRiskAmountFen == 0 && strings.EqualFold(previous.Currency, "CNY") &&
-					previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(150)) {
+					previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(limits.HighAmount)) {
 				eligible = append(eligible, previous.ID)
 			}
 		}
@@ -737,6 +738,7 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 		"pay_delay_known": delayKnown,
 		"threshold":       riskConfig.SettlementThreshold,
 		"features": jsonmap.JSON{
+			"short_minutes": limits.ShortMinutes, "long_hours": limits.LongHours,
 			"paid_count_30m": facts.PaidCount30m, "paid_count_24h": facts.PaidCount24h,
 			"paid_amount_fen_30m": facts.PaidAmount30m, "paid_amount_fen_24h": facts.PaidAmount24h,
 			"unpaid_count_30m": facts.Unpaid30m, "unpaid_count_24h": facts.Unpaid24h,

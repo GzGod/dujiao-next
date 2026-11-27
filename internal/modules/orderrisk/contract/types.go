@@ -63,6 +63,7 @@ type SettlementFacts riskdomain.SettlementFacts
 // EvaluateSettlement applies only recognized, bounded rule overrides.
 func EvaluateSettlement(f SettlementFacts, cfg settingssecurity.OrderRiskControlConfig) riskdomain.SettlementDecision {
 	policy := riskdomain.DefaultSettlementPolicy()
+	policy.Limits = cfg.SettlementLimits
 	if cfg.SettlementThreshold > 0 && cfg.SettlementThreshold <= 800 {
 		policy.Threshold = cfg.SettlementThreshold
 	}

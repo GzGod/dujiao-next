@@ -51,3 +51,24 @@ func TestSelectUsesOwnedTradeAndValidatedAssets(t *testing.T) {
 		t.Fatal(result, err, calls)
 	}
 }
+
+func TestConfirmExpiredRequiresExactTradeAndTerminalState(t *testing.T) {
+	original := http.DefaultTransport
+	defer func() { http.DefaultTransport = original }()
+	for _, tc := range []struct {
+		trade, status string
+		expired       bool
+	}{{"OWN", "1", false}, {"OWN", "2", false}, {"OWN", "3", true}, {"OWN", "4", false}, {"OWN", "5", false}, {"OWN", "6", false}, {"OTHER", "3", false}} {
+		http.DefaultTransport = transportFunc(func(r *http.Request) (*http.Response, error) {
+			if r.Method != "GET" || r.URL.Path != "/pay/check-status/OWN" {
+				t.Fatal(r.Method, r.URL.Path)
+			}
+			body := "{\"status_code\":200,\"data\":{\"trade_id\":\"" + tc.trade + "\",\"status\":" + tc.status + "}}"
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+		})
+		expired, _ := ConfirmExpired(context.Background(), "https://pay.xuegaogx.cc/cashier/OWN", "OWN")
+		if expired != tc.expired {
+			t.Fatal(tc)
+		}
+	}
+}

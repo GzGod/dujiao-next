@@ -3,6 +3,7 @@ package domain
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/dujiao-next/internal/shared/risklimits"
 	"strings"
 	"time"
 )
@@ -42,6 +43,7 @@ type SettlementFacts struct {
 }
 
 type SettlementPolicy struct {
+	Limits    risklimits.Limits
 	Threshold int
 	Weights   map[string]int
 }
@@ -63,24 +65,25 @@ func DefaultSettlementPolicy() SettlementPolicy {
 }
 
 func EvaluateSettlement(f SettlementFacts, p SettlementPolicy) SettlementDecision {
+	limits := p.Limits.Normalized()
 	d := SettlementDecision{Signals: make(map[string]int)}
 	if f.Blacklisted {
 		d.HardRules = append(d.HardRules, "blacklist_hit")
 		d.Hold = true
 		return d
 	}
-	if !f.RecentMonitoredWalletFunding && f.CustomerAge >= 7*24*time.Hour && f.HistoricalSuccessfulOrders >= 2 {
+	if !f.RecentMonitoredWalletFunding && f.CustomerAge >= time.Duration(limits.LoyalDays)*24*time.Hour && f.HistoricalSuccessfulOrders >= int(limits.LoyalOrders) {
 		d.Exempt = true
 		return d
 	}
 	if f.ApproximateContact {
 		d.HardRules = append(d.HardRules, "contact_variant_approx")
 	}
-	if (f.PaidCount30m > 0 && (f.Amount >= 15000 || f.PaidAmount30m+f.Amount >= 30000)) ||
-		f.PaidCount24h >= 2 || f.PaidAmount24h+f.Amount >= 40000 && f.PaidCount24h > 0 {
+	if (f.PaidCount30m > 0 && (f.Amount >= limits.RepeatAmount*100 || f.PaidAmount30m+f.Amount >= limits.ShortTotal*100)) ||
+		int64(f.PaidCount24h)+1 >= limits.PaidCount || f.PaidAmount24h+f.Amount >= limits.LongTotal*100 && f.PaidCount24h > 0 {
 		d.HardRules = append(d.HardRules, "multi_paid_strong_identity")
 	}
-	if f.Unpaid30m >= 3 || f.Unpaid24h >= 4 {
+	if int64(f.Unpaid30m) >= limits.ShortUnpaid || int64(f.Unpaid24h) >= limits.LongUnpaid {
 		d.HardRules = append(d.HardRules, "unpaid_probe_burst")
 	}
 	add := func(key string, hit bool, weight int) {
@@ -89,8 +92,8 @@ func EvaluateSettlement(f SettlementFacts, p SettlementPolicy) SettlementDecisio
 			d.Score += weight
 		}
 	}
-	add(RuleFirstHigh, f.NewContact && f.NewIP && f.Amount >= 20000, p.Weights[RuleFirstHigh])
-	add(RuleSlowPayment, f.PaymentDelay >= 150*time.Second, p.Weights[RuleSlowPayment])
+	add(RuleFirstHigh, f.NewContact && f.NewIP && f.Amount >= limits.FirstAmount*100, p.Weights[RuleFirstHigh])
+	add(RuleSlowPayment, f.PaymentDelay >= time.Duration(limits.SlowSeconds)*time.Second, p.Weights[RuleSlowPayment])
 	add(RuleDeviceSwitch, f.DeviceSwitch, p.Weights[RuleDeviceSwitch])
 	probeWeight := p.Weights[RuleUnpaidModerate]
 	if f.Unpaid30m == 1 {

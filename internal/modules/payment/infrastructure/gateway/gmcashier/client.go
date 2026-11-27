@@ -100,3 +100,20 @@ func (Client) Cashier(ctx context.Context, payURL, network, token string) (jsonm
 	}
 	return jsonmap.JSON{"order": order, "supported_assets": config["supported_assets"]}, nil
 }
+
+// ConfirmExpired checks the original merchant trade, including the parent of any network selection.
+func ConfirmExpired(ctx context.Context, payURL, ref string) (bool, error) {
+	trade, err := tradeID(payURL)
+	if err != nil || ref != trade {
+		return false, errors.New("cashier trade mismatch")
+	}
+	data, err := request(ctx, http.MethodGet, "/pay/check-status/"+url.PathEscape(trade), nil)
+	if err != nil {
+		return false, err
+	}
+	if data["trade_id"] != trade {
+		return false, errors.New("cashier status trade mismatch")
+	}
+	status, ok := data["status"].(float64)
+	return ok && status == 3, nil
+}

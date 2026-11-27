@@ -48,6 +48,7 @@ var (
 
 // PaymentService 支付服务
 type PaymentService struct {
+	SendRiskTelegram        func(string) error
 	ConfirmQRExpiry         func(uint) (bool, error)
 	orderRepo               ordercontract.Store
 	productRepo             productcontract.Repository

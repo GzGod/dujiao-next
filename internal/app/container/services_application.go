@@ -1,6 +1,7 @@
 package container
 
 import (
+	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/gmcashier"
 	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/xorpay"
 
 	"context"
@@ -121,7 +122,18 @@ func (c *Container) initApplicationServices() {
 			return false, err
 		}
 		for _, p := range payments {
-			if p.ProviderType != "xorpay" || p.ProviderRef == "" || p.PaidAt != nil || p.Status == "success" {
+			if p.ProviderRef == "" || p.PaidAt != nil || p.Status == "success" {
+				return false, nil
+			}
+			switch p.ProviderType {
+			case "epusdt", "bepusdt":
+				expired, err := gmcashier.ConfirmExpired(context.Background(), p.PayURL, p.ProviderRef)
+				if err != nil || !expired {
+					return false, err
+				}
+				continue
+			case "xorpay":
+			default:
 				return false, nil
 			}
 			ch, err := c.PaymentChannelStore.GetByID(p.ChannelID)

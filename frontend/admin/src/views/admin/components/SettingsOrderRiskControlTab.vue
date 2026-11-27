@@ -21,6 +21,22 @@ const defaultRateLimit = (guest: boolean) => ({
   block_seconds: 120,
 })
 
+const defaultSettlementLimits: Record<string, number> = {
+  first_amount: 200,
+  slow_seconds: 150,
+  short_minutes: 30,
+  long_hours: 24,
+  repeat_amount: 150,
+  short_total: 300,
+  long_total: 400,
+  paid_count: 3,
+  short_unpaid: 3,
+  long_unpaid: 4,
+  reorder_minutes: 120,
+  high_amount: 150,
+  loyal_days: 7,
+  loyal_orders: 2,
+}
 const defaultSettlementWeights: Record<string, number> = {
   first_seen_high_amount: 25,
   slow_qr_payment: 35,
@@ -41,6 +57,7 @@ const form = reactive({
   risky_email_domains_text: '',
   settlement_threshold: 60,
   settlement_weights: { ...defaultSettlementWeights },
+  settlement_limits: { ...defaultSettlementLimits },
   enabled: false,
   common: {
     ip_blacklist_text: '',
@@ -99,6 +116,8 @@ const loadNestedConfig = (data: Record<string, unknown>) => {
   form.risky_email_domains_text = Array.isArray(data.risky_email_domains) ? data.risky_email_domains.join('\n') : ''
   form.settlement_mode = data.settlement_mode === 'hold_notice' || data.settlement_mode === 'silent_trap' ? data.settlement_mode : 'shadow'
   form.settlement_threshold = numberValue(data.settlement_threshold, 60)
+  const limits = data.settlement_limits as Record<string, unknown> | undefined
+  for (const [key, fallback] of Object.entries(defaultSettlementLimits)) form.settlement_limits[key] = numberValue(limits?.[key], fallback)
   const weights = data.settlement_weights as Record<string, unknown> | undefined
   for (const [key, fallback] of Object.entries(defaultSettlementWeights)) {
     form.settlement_weights[key] = numberValue(weights?.[key], fallback)
@@ -186,6 +205,7 @@ const save = async () => {
         risky_email_domains: normalizeLines(form.risky_email_domains_text),
         settlement_threshold: Number(form.settlement_threshold),
         settlement_weights: { ...form.settlement_weights },
+        settlement_limits: { ...form.settlement_limits },
         enabled: form.enabled,
         common: {
           ip_blacklist: normalizeLines(form.common.ip_blacklist_text),
@@ -289,6 +309,10 @@ onMounted(loadConfig)
         </span>
       </label>
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label v-for="(_, key) in defaultSettlementLimits" :key="key" class="grid gap-2 text-sm">
+          {{ t('admin.settings.orderRiskControl.limits.' + key) }}
+          <Input v-model.number="form.settlement_limits[key]" type="number" min="1" />
+        </label>
         <label v-for="(_, key) in defaultSettlementWeights" :key="key" class="grid gap-2 text-sm">
           {{ t('admin.settings.orderRiskControl.rules.' + key) }}
           <Input v-model.number="form.settlement_weights[key]" type="number" min="0" max="100" />

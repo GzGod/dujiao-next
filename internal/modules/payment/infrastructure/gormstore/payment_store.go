@@ -353,15 +353,41 @@ func (r *Store) RecordQRSave(ctx context.Context, orderID, paymentID uint, event
 			if alert {
 				updates["expires_at"] = time.Now()
 			}
-			return tx.Table("orders").Where("id = ?", orderID).Updates(updates).Error
+			if err := tx.Table("orders").Where("id = ?", orderID).Updates(updates).Error; err != nil {
+				return err
+			}
+		} else {
+			var total int64
+			if err := tx.Model(&paymentdomain.QRSaveEvent{}).Where("order_id = ? AND provider = ?", orderID, p.ProviderType).Count(&total).Error; err != nil {
+				return err
+			}
+			count = int(total)
+			alert = count == 3
 		}
-		var total int64
-		if err := tx.Model(&paymentdomain.QRSaveEvent{}).Where("order_id = ? AND provider = ?", orderID, p.ProviderType).Count(&total).Error; err != nil {
-			return err
+		if alert {
+			return tx.Model(&paymentdomain.QRSaveEvent{}).Where("order_id = ? AND event_id = ?", orderID, eventID).Update("alert_retry_at", time.Now().Add(time.Minute)).Error
 		}
-		count = int(total)
-		alert = count == 3
 		return nil
 	})
 	return count, alert, email, err
+}
+
+func (r *Store) AckQRAlert(order uint, event string) error {
+	return r.db.Model(&paymentdomain.QRSaveEvent{}).Where("order_id = ? AND event_id = ?", order, event).Update("alert_retry_at", nil).Error
+}
+func (r *Store) ClaimQRAlerts(now time.Time) ([]paymentdomain.QRSaveEvent, error) {
+	var due, claimed []paymentdomain.QRSaveEvent
+	if err := r.db.Where("alert_retry_at <= ?", now).Order("alert_retry_at,id").Limit(20).Find(&due).Error; err != nil {
+		return nil, err
+	}
+	for _, event := range due {
+		res := r.db.Model(&paymentdomain.QRSaveEvent{}).Where("id = ? AND alert_retry_at <= ?", event.ID, now).Update("alert_retry_at", now.Add(5*time.Minute))
+		if res.Error != nil {
+			return claimed, res.Error
+		}
+		if res.RowsAffected == 1 {
+			claimed = append(claimed, event)
+		}
+	}
+	return claimed, nil
 }

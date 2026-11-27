@@ -3,6 +3,7 @@ package settingssecurity
 import (
 	"encoding/hex"
 	"encoding/json"
+	"github.com/dujiao-next/internal/shared/risklimits"
 	"net"
 	"net/mail"
 	"net/netip"
@@ -71,6 +72,7 @@ type OrderRiskMemberPolicy struct {
 
 // OrderRiskControlConfig 订单风控配置。游客邮箱仅用于订单业务，不作为风控身份。
 type OrderRiskControlConfig struct {
+	SettlementLimits    risklimits.Limits     `json:"settlement_limits"`
 	AlipayRiskSubject   string                `json:"alipay_risk_subject"`
 	RiskyEmailDomains   []string              `json:"risky_email_domains,omitempty"`
 	SettlementThreshold int                   `json:"settlement_threshold"`
@@ -123,6 +125,7 @@ func DefaultOrderRiskControlConfig() OrderRiskControlConfig {
 // NormalizeOrderRiskControlConfig 归一化风控配置；0 始终表示对应限制关闭。
 func NormalizeOrderRiskControlConfig(cfg OrderRiskControlConfig) OrderRiskControlConfig {
 	defaults := DefaultOrderRiskControlConfig()
+	cfg.SettlementLimits = cfg.SettlementLimits.Normalized()
 	cfg.Version = orderRiskControlVersion
 	cfg.AlipayRiskSubject = strings.TrimSpace(cfg.AlipayRiskSubject)
 	if cfg.AlipayRiskSubject == "" || !utf8.ValidString(cfg.AlipayRiskSubject) ||

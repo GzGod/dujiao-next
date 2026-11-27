@@ -491,7 +491,20 @@ func (s *PaymentService) dispatchRiskReviewAlert(order *orderdomain.Order) error
 		"alert_value": fmt.Sprint(order.PaymentRiskDecision["score"]), "alert_threshold": "-",
 		"message": fmt.Sprintf(i18n.T(locale, "notification.order_risk_review_message"), order.OrderNo),
 	}
-	if err := s.notificationSvc.Enqueue(notificationcontract.EnqueueInput{
+	if s.SendRiskTelegram != nil {
+		detail, err := s.orderRepo.GetByID(order.ID)
+		if err != nil {
+			return err
+		}
+		if detail == nil {
+			return orderapp.ErrOrderNotFound
+		}
+		fields := s.buildOrderNotificationPayload(detail, nil)
+		message := fmt.Sprintf("已付款订单待核验\n订单号：%s\n金额：%s %s\n下单邮箱：%s\n命中规则：%v\n商品：%s", detail.OrderNo, fields["amount"], fields["currency"], fields["customer_email"], detail.PaymentRiskDecision["hard_rules"], fields["items_summary"])
+		if err := s.SendRiskTelegram(message); err != nil {
+			return err
+		}
+	} else if err := s.notificationSvc.Enqueue(notificationcontract.EnqueueInput{
 		EventType: constants.NotificationEventExceptionAlert, BizType: constants.NotificationBizTypeOrder,
 		BizID: order.ID, Locale: locale, Data: data,
 	}); err != nil {
@@ -502,8 +515,34 @@ func (s *PaymentService) dispatchRiskReviewAlert(order *orderdomain.Order) error
 
 // RecoverRiskAlerts re-enqueues pending alerts after transient queue failures.
 func (s *PaymentService) RecoverRiskAlerts(now time.Time) error {
-	if s.notificationSvc == nil || s.queue == nil || !s.queue.Enabled() {
-		return nil
+	var failures []error
+	if store, ok := s.paymentRepo.(interface {
+		ClaimQRAlerts(time.Time) ([]paymentdomain.QRSaveEvent, error)
+		AckQRAlert(uint, string) error
+	}); ok && s.SendRiskTelegram != nil {
+		events, err := store.ClaimQRAlerts(now)
+		if err != nil {
+			failures = append(failures, err)
+		}
+		for _, e := range events {
+			order, err := s.orderRepo.GetByID(e.OrderID)
+			if err == nil && order == nil {
+				err = orderapp.ErrOrderNotFound
+			}
+			if err == nil {
+				fields := s.buildOrderNotificationPayload(order, nil)
+				err = s.SendRiskTelegram(fmt.Sprintf("付款码风控提醒（补发）\n订单号：%s\n金额：%s %s\n下单邮箱：%s\n疑似保存付款码：3 次\n商品：%s", order.OrderNo, fields["amount"], fields["currency"], e.OrderEmail, fields["items_summary"]))
+			}
+			if err == nil {
+				err = store.AckQRAlert(e.OrderID, e.EventID)
+			}
+			if err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	if s.notificationSvc == nil && s.SendRiskTelegram == nil {
+		return errors.Join(failures...)
 	}
 	orders, _, err := s.orderRepo.ListAdmin(ordercontract.ListFilter{
 		RiskAlertDue: &now, SkipRelations: true, Page: 1, PageSize: 100,
@@ -511,7 +550,7 @@ func (s *PaymentService) RecoverRiskAlerts(now time.Time) error {
 	if err != nil {
 		return err
 	}
-	var failures []error
+
 	for i := range orders {
 		order := &orders[i]
 		if err := s.dispatchRiskReviewAlert(order); err != nil {
