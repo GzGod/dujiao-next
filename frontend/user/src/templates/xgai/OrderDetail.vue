@@ -47,6 +47,7 @@
           </div>
         </div>
 
+        <DeliveryReviewNotice v-if="order.delivery_under_review" :order-no="order.order_no" />
         <VaultOrderBody
           :order="order"
           variant="user"
@@ -62,6 +63,7 @@
 import { useI18n } from 'vue-i18n'
 import { AlertCircle } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import DeliveryReviewNotice from './components/DeliveryReviewNotice.vue'
 import VaultOrderBody from '../vault/components/VaultOrderBody.vue'
 import { useOrderDetail } from '../../composables/useOrderDetail'
 import './styles/xgai-orders.css'

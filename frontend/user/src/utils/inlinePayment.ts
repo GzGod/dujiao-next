@@ -11,6 +11,7 @@ export function inlinePayableAmount(payment: any, order: any): { amount: string;
 }
 
 export function shouldRefreshInlineOrder(order: any, gpt: boolean, hasCode: boolean, expired: boolean): boolean {
+  if (order?.delivery_under_review) return true
   if (order?.status === 'pending_payment') return !expired
   // Paid GPT orders may still be waiting for asynchronous upstream fulfillment.
   return gpt && !hasCode && ['paid', 'processing', 'fulfilling', 'partially_delivered', 'delivered', 'completed'].includes(order?.status)

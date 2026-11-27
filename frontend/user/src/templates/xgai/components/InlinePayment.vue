@@ -7,7 +7,7 @@
     <strong>{{ formatPrice(payable.amount, payable.currency) }}</strong>
     <GmInlineCashier @gesture="recordGesture" v-if="embeddedCashier && !paid && !expired" :order-no="result.order_no" :guest="guest" :email="email" :password="password" @ready="emit('ready')" />
     <Transition v-if="!embeddedCashier || paid || expired" name="qr-reveal" appear mode="out-in">
-      <div v-if="paid && deliveryUnderReview" class="inline-pay__result" key="review"><CheckCircle2 /><p>{{ t('payment.deliveryUnderReview') }}</p></div>
+      <div v-if="paid && deliveryUnderReview" class="inline-pay__result" key="review"><Clock3 /><DeliveryReviewNotice :order-no="result.order_no" /></div>
       <div v-else-if="paid" class="inline-pay__result" key="paid"><CheckCircle2 /><p>{{ t(isIp ? 'payment.ipDeliveryHint' : isClaude ? 'payment.claudeBotHint' : isGpt ? (deliveryCode ? 'payment.gptRedeemHint' : 'payment.gptDeliveryPending') : 'payment.inlineSuccessHint') }}</p><template v-if="isGpt && deliveryCode"><code class="inline-pay__code">{{ deliveryCode }}</code><button type="button" class="x-btn x-btn--ghost" @click="copyCode">{{ t(codeCopied ? 'payment.gptCodeCopied' : 'payment.gptCopyCode') }}</button></template><a v-if="isGpt" :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.gptRedeemOpen') }} →</a><a v-if="isIp" href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('floatingSupport.title') }} →</a><a v-if="isClaude && botUrl" :href="botUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.claudeBotOpen') }} →</a><button v-else-if="isClaude" type="button" class="x-btn x-btn--primary" :disabled="botLoading" @click="loadBot">{{ t(botLoading ? 'common.loading' : 'payment.claudeBotRetry') }}</button></div>
       <div v-else-if="waitingForExpiry" class="inline-pay__result" key="qr-review"><Clock3 /><p>{{ t(gestureCount >= 3 ? 'payment.qrIssuePaused' : 'payment.qrIssueWaiting') }}</p></div>
       <div v-else-if="expired" class="inline-pay__result" key="expired"><Clock3 /><p>{{ t('payment.orderExpired') }}</p></div>
@@ -31,6 +31,7 @@
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
+import DeliveryReviewNotice from './DeliveryReviewNotice.vue'
 import GmInlineCashier from './GmInlineCashier.vue'
 import { embeddedGmCashierUrl } from '../../../utils/inlinePayment'
 import { resolvePaymentPresentationMode } from '../../../utils/paymentResumePolicy'
@@ -84,7 +85,7 @@ const currentChannel = computed(() => props.channels.find(channel => Number(chan
 const isAlipay = computed(() => String(currentChannel.value?.channel_type || payment.value.channel_type).includes('alipay'))
 const isRedirect = computed(() => resolvePaymentPresentationMode(payment.value.interaction_mode || currentChannel.value?.interaction_mode) === 'redirect')
 const order = ref(props.result.order)
-const deliveryUnderReview = computed(() => Boolean(order.value?.delivery_under_review))
+const deliveryUnderReview = computed(() => Boolean(order.value?.delivery_under_review ?? (!order.value?.status && props.result.delivery_under_review)))
 const payable = computed(() => paid.value ? { amount: String(order.value?.total_amount || props.result.order?.total_amount || '0'), currency: order.value?.currency || 'CNY' } : inlinePayableAmount(payment.value, order.value))
 const isIp = computed(() => inlineOrderItems(order.value).some((item: any) => item.slug === 'us-residential-ip-monthly' || /家宽|家寬|residential IP/i.test(JSON.stringify(item.title || item.product_title || ''))))
 const isClaude = computed(() => inlineOrderItems(order.value || props.result.order).some((item: any) => { const title = JSON.stringify(item.title || item.product_title || ''); return /claude/i.test(title) && /pro|max|成品|account/i.test(title) && !/门户|門戶|portal/i.test(title) }))
