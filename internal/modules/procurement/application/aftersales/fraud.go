@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 )
 
@@ -36,7 +37,15 @@ func FraudOperation(ctx context.Context, remote FraudRemote, orderNo, action str
 		if err := remote.PauseRedemption(ctx, orderNo, fmt.Sprintf("xgai-fraud-pause-%x", sum[:16])); err != nil {
 			return current, err
 		}
-		return remote.InspectRedemption(ctx, orderNo)
+		updated, err := remote.InspectRedemption(ctx, orderNo)
+		if err != nil {
+			return current, err
+		}
+		if updated == nil || updated.Pause == nil ||
+			(updated.Pause.Status != "paused" && updated.Pause.Status != "payment_review") {
+			return current, errors.New("upstream pause outcome unconfirmed")
+		}
+		return updated, nil
 	case "upstream_refund":
 		if current.Financial == "refunded" && current.Progress == "destroyed" {
 			return current, nil
@@ -47,14 +56,21 @@ func FraudOperation(ctx context.Context, remote FraudRemote, orderNo, action str
 		}
 		sum := sha256.Sum256([]byte(orderNo))
 		result, err := remote.RefundRedemption(ctx, orderNo, fmt.Sprintf("xgai-fraud-refund-%x", sum[:16]), current.Revision)
-		if err != nil {
-			return current, err
+		if err == nil && supplierRefundConfirmed(result) {
+			return result, nil
 		}
-		if result == nil || result.Financial != "refunded" || result.Progress != "destroyed" {
-			return current, errors.New("upstream destruction and refund unconfirmed")
+		// An interrupted response can arrive after GPTGET completed the refund.
+		// Read back the original order without resubmitting the mutation.
+		observed, inspectErr := remote.InspectRedemption(ctx, orderNo)
+		if inspectErr == nil && supplierRefundConfirmed(observed) {
+			return observed, nil
 		}
-		return result, nil
+		return current, errors.Join(errors.New("upstream destruction and refund unconfirmed"), err, inspectErr)
 	default:
 		return current, nil
 	}
+}
+
+func supplierRefundConfirmed(state *procurementcontract.RedemptionState) bool {
+	return state != nil && state.Financial == "refunded" && state.Progress == "destroyed"
 }
