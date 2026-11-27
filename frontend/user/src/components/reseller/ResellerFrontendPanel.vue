@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 const { t } = useI18n()
 const key = 'resellerFrontend'
 const { confirm } = useConfirmDialog()
-const props = defineProps<{ domainUrl: string }>()
+const props = defineProps<{ domainUrl: string; customOnly?: boolean }>()
 const redemptionUrl = computed(() => {try{return 'https://redeem.xuegaogx.cc/?site='+encodeURIComponent(new URL(props.domainUrl).hostname)}catch{return ''}})
 const state = ref<any>({})
 const config = ref<any>(null)
@@ -36,7 +36,7 @@ async function saveTheme() {
  await run(async()=>{
   if(!/^#[\da-f]{6}$/i.test(color.value)) throw Error(t(`${key}.invalidColor`))
   const latest = (await resellerAPI.siteConfig()).data.data?.config || {site_name:''}
-  const response = await resellerAPI.updateSiteConfig({...latest,theme:{template:template.value,primary_color:color.value}})
+  const response = await resellerAPI.updateSiteConfig({...latest,theme:{...latest.theme,template:template.value,primary_color:color.value}})
   config.value=response.data.data;success.value=t(`${key}.themeSaved`)
  })
 }
@@ -74,7 +74,7 @@ onMounted(load)
   <p v-if="success" role="status" class="rounded-lg border border-success/40 p-3 text-sm text-success">{{success}}</p>
   <template v-if="available">
    <section v-if="redemptionUrl" class="rounded-xl border p-4 space-y-2"><h3 class="font-semibold">{{t(`${key}.redemption`)}}</h3><p class="text-sm text-muted-foreground">{{t(`${key}.redemptionHint`)}}</p><a :href="redemptionUrl" target="_blank" rel="noopener noreferrer" class="break-all text-primary underline">{{redemptionUrl}}</a></section>
-   <section class="rounded-xl border p-4 space-y-4">
+   <section v-if="!customOnly" class="rounded-xl border p-4 space-y-4">
     <h3 class="font-semibold">{{t(`${key}.readyMade`)}}</h3>
     <div class="grid gap-4 sm:grid-cols-2">
      <label class="space-y-2"><span class="block text-sm">{{t(`${key}.template`)}}</span><select v-model="template" class="h-10 w-full rounded-lg border bg-background px-3"><option value="xgai">{{t(`${key}.xgai`)}}</option><option value="classic">{{t(`${key}.classic`)}}</option><option value="vault">{{t(`${key}.vault`)}}</option><option value="inherit">{{t(`${key}.inherit`)}}</option></select></label>
@@ -88,7 +88,7 @@ onMounted(load)
     <p class="text-sm text-muted-foreground">{{t(`${key}.limits`)}}</p>
     <label class="block"><span class="mb-2 block text-sm">{{t(`${key}.upload`)}}</span><input type="file" accept=".zip,application/zip" :disabled="busy" class="w-full text-sm file:mr-3 file:rounded-lg file:border file:bg-muted file:px-4 file:py-2" @change="upload" /></label>
     <div v-if="state.draft_hash" class="text-xs text-muted-foreground font-mono break-all">{{t(`${key}.draft`)}}: {{state.draft_hash.slice(0,12)}} · {{Math.ceil(state.draft_size/1024)}} KB</div>
-    <div class="flex flex-wrap gap-2"><Button variant="outline" :disabled="busy||!state.draft_hash||!domainUrl" @click="preview">{{t(`${key}.preview`)}}</Button><Button :disabled="busy||!state.draft_hash||!domainUrl" @click="publish">{{t(`${key}.publish`)}}</Button><Button variant="outline" :disabled="busy||!active" @click="restore">{{t(`${key}.restore`)}}</Button></div>
+    <p class="text-sm text-muted-foreground" role="status">{{busy ? t('resellerUX.busy') : !domainUrl ? t(`${key}.needDomain`) : !state.draft_hash ? t('resellerUX.needZip') : t('resellerUX.readyPublish')}}</p><div class="flex flex-wrap gap-2"><Button variant="outline" :disabled="busy||!state.draft_hash||!domainUrl" @click="preview">{{t(`${key}.preview`)}}</Button><Button :disabled="busy||!state.draft_hash||!domainUrl" @click="publish">{{t(`${key}.publish`)}}</Button><Button variant="outline" :disabled="busy||!active" @click="restore">{{t(`${key}.restore`)}}</Button></div>
     <p v-if="!domainUrl" class="text-sm text-warning">{{t(`${key}.needDomain`)}}</p><p class="text-xs text-muted-foreground">{{t(`${key}.previewHint`)}}</p>
     <iframe v-if="previewUrl" :src="previewUrl" :title="t(`${key}.preview`)" sandbox="allow-scripts" referrerpolicy="no-referrer" class="h-[520px] w-full rounded-xl border bg-white" />
    </section>

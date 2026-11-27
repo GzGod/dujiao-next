@@ -173,6 +173,7 @@
                   </div>
 
                   <div class="rounded-lg border border-border bg-muted/20 p-3 md:col-span-5 md:order-last">
+                    <ol class="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4"><li v-for="(step,index) in ['submitted','dns','certificate','online']" :key="step" class="rounded-lg border p-2 text-xs" :class="domainStage(item) >= index ? 'border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground'"><span class="mr-1 font-mono">{{index+1}}</span>{{t('resellerUX.'+step)}}</li></ol>
                     <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
                       {{ t('resellerConsole.domains.dnsTitle') }}
                       <ResellerStatusBadge v-if="item.dns" :label="t('resellerConsole.domains.' + (item.dns.status === 'ready' ? 'dnsReady' : item.dns.status === 'error' ? 'dnsError' : item.dns.status === 'pending_tls' ? 'tlsPending' : 'dnsPending'))" :tone="item.dns.status === 'ready' ? 'success' : 'warning'" />
@@ -235,6 +236,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { domainStage } from '../../utils/resellerWorkspace'
 import { useI18n } from 'vue-i18n'
 import { CircleAlert, ExternalLink, Globe2, Link2, Plus, RotateCw } from 'lucide-vue-next'
 import { resellerAPI, type ResellerDomainData, type ResellerManagementSnapshotData } from '../../api'

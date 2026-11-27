@@ -57,7 +57,7 @@ func applyResellerOrderSnapshotFilter(query *gorm.DB, filter resellercontract.Or
 		Where("orders.parent_id IS NULL").
 		Where("orders.reseller_id = reseller_order_snapshots.reseller_id")
 	if status := strings.TrimSpace(filter.Status); status != "" {
-		query = query.Where("orders.status = ?", status)
+		query = query.Where("orders.status IN ?", strings.Split(status, ","))
 	}
 	if orderNo := strings.TrimSpace(filter.OrderNo); orderNo != "" {
 		query = query.Where("orders.order_no LIKE ?", "%"+orderNo+"%")
@@ -98,8 +98,10 @@ func (r *Store) ListOrderSnapshotsByReseller(filter resellercontract.OrderSnapsh
 		Select("reseller_order_snapshots.*").
 		Preload("Order", "deleted_at IS NULL").
 		Preload("Order.Items", "deleted_at IS NULL").
+		Preload("Order.Fulfillment", func(db *gorm.DB) *gorm.DB { return db.Select("id", "order_id", "redemption_progress", "updated_at") }).
 		Preload("Order.Children", "deleted_at IS NULL").
 		Preload("Order.Children.Items", "deleted_at IS NULL").
+		Preload("Order.Children.Fulfillment", func(db *gorm.DB) *gorm.DB { return db.Select("id", "order_id", "redemption_progress", "updated_at") }).
 		Order("orders.id DESC").
 		Find(&rows).Error; err != nil {
 		return nil, 0, err
@@ -167,8 +169,10 @@ func (r *Store) GetOrderSnapshotByResellerOrderNo(resellerID uint, orderNo strin
 		Where("orders.order_no = ?", orderNo).
 		Preload("Order", "deleted_at IS NULL").
 		Preload("Order.Items", "deleted_at IS NULL").
+		Preload("Order.Fulfillment", func(db *gorm.DB) *gorm.DB { return db.Select("id", "order_id", "redemption_progress", "updated_at") }).
 		Preload("Order.Children", "deleted_at IS NULL").
 		Preload("Order.Children.Items", "deleted_at IS NULL").
+		Preload("Order.Children.Fulfillment", func(db *gorm.DB) *gorm.DB { return db.Select("id", "order_id", "redemption_progress", "updated_at") }).
 		First(&snapshot).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

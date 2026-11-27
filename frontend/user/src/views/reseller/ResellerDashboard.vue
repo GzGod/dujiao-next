@@ -88,10 +88,10 @@
             </Button>
           </div>
         </div>
-        <div v-show="!setupCollapsed" class="mt-4 grid gap-3 lg:grid-cols-5">
+        <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"><div class="h-full bg-primary transition-[width]" :style="{width: `${completedSetupCount / setupChecklist.length * 100}%`}" /></div><div v-show="!setupCollapsed" class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <RouterLink
             v-for="item in setupChecklist"
-            :key="item.to"
+            :key="item.label"
             :to="item.to"
             class="group flex min-h-[124px] flex-col justify-between rounded-xl border bg-card p-4 transition-shadow hover:shadow-md"
           >
@@ -219,6 +219,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { isStorefrontReady } from '../../utils/resellerWorkspace'
 import { useI18n } from 'vue-i18n'
 import {
   Banknote,
@@ -239,7 +240,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { resellerAPI } from '../../api'
-import type { ResellerDomainData, ResellerSiteConfigSnapshotData } from '../../api/types'
+import type { ResellerSiteConfigSnapshotData } from '../../api/types'
 import ResellerDataTable from '../../components/reseller-console/ResellerDataTable.vue'
 import ResellerDonut from '../../components/reseller-console/ResellerDonut.vue'
 import ResellerMetricCard from '../../components/reseller-console/ResellerMetricCard.vue'
@@ -250,10 +251,6 @@ import ResellerStatusBadge, { type ResellerBadgeTone } from '../../components/re
 import { useResellerFinance } from '../../composables/reseller/useResellerFinance'
 import { useResellerOrders } from '../../composables/reseller/useResellerOrders'
 import { useResellerProfile } from '../../composables/reseller/useResellerProfile'
-import {
-  RESELLER_DOMAIN_STATUS_ACTIVE,
-  RESELLER_DOMAIN_VERIFICATION_VERIFIED,
-} from '../../constants/reseller'
 import {
   formatResellerConsoleAmount,
   formatResellerConsoleDate,
@@ -272,9 +269,7 @@ const setupLoading = ref(false)
 const siteSnapshot = ref<ResellerSiteConfigSnapshotData | null>(null)
 const configuredProductCount = ref(0)
 
-const isActiveVerifiedDomain = (domain: ResellerDomainData) =>
-  domain.status === RESELLER_DOMAIN_STATUS_ACTIVE &&
-  domain.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED
+const isActiveVerifiedDomain = isStorefrontReady
 
 const primaryDomainObj = computed(() => {
   const domains = profileSnapshot.value?.domains || []
@@ -329,10 +324,7 @@ const balanceSegments = computed(() =>
     .filter((s) => s.value > 0),
 )
 
-const siteBrandConfigured = computed(() => {
-  const cfg = siteSnapshot.value?.config
-  return Boolean(cfg?.site_name || cfg?.logo || cfg?.favicon)
-})
+
 
 const quickActions = computed(() => [
   { to: '/reseller/withdraws', label: t('resellerConsole.nav.withdraws'), icon: Upload },
@@ -342,6 +334,7 @@ const quickActions = computed(() => [
 ])
 
 const setupChecklist = computed(() => [
+  { to: '/reseller/site', label: t('resellerUX.logo'), description: t('resellerUX.logoHint'), icon: Palette, done: Boolean(siteSnapshot.value?.config?.logo) },
   {
     to: '/reseller/apply',
     label: t('resellerConsole.dashboard.setup.profileEnabled'),
@@ -358,10 +351,10 @@ const setupChecklist = computed(() => [
   },
   {
     to: '/reseller/site',
-    label: t('resellerConsole.dashboard.setup.siteBrand'),
+    label: t('resellerUX.storeName'),
     description: t('resellerConsole.dashboard.setup.siteBrandDescription'),
     icon: Palette,
-    done: siteBrandConfigured.value,
+    done: Boolean(siteSnapshot.value?.config?.site_name?.trim()),
   },
   {
     to: '/reseller/products',

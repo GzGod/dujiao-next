@@ -31,6 +31,13 @@
       </Button>
     </div>
 
+    <section class="mb-5 rounded-xl border bg-muted/20 p-4 space-y-3">
+      <div class="flex flex-wrap items-center gap-3"><label class="flex items-center gap-2 text-sm"><input type="checkbox" :checked="rows.length > 0 && selectedIDs.length === rows.length" :disabled="bulkBusy || loading" @change="selectedIDs = ($event.target as HTMLInputElement).checked ? rows.map(row => row.product.id) : []" />{{t('resellerUX.selectPage')}}</label><span class="text-xs text-muted-foreground">{{t('resellerUX.selected',{count:selectedIDs.length})}}</span></div>
+      <div class="flex flex-wrap gap-2"><select v-model="bulkMode" :disabled="bulkBusy" class="h-10 rounded-lg border bg-background px-3"><option value="markup">{{t('resellerUX.bulkMarkup')}}</option><option value="list">{{t('resellerUX.bulkList')}}</option><option value="hide">{{t('resellerUX.bulkHide')}}</option></select><Input v-if="bulkMode === 'markup'" v-model="bulkPercent" :disabled="bulkBusy" type="number" min="0" step="0.01" class="w-28" :aria-label="t('resellerUX.percent')" /><Button :disabled="!selectedIDs.length || bulkBusy || saving" @click="prepareBulk">{{t('resellerUX.checkBulk')}}</Button></div>
+      <p class="text-xs text-muted-foreground">{{t('resellerUX.bulkHint')}} {{t('resellerUX.marginHint')}}</p>
+      <div v-if="bulkDraft.length" class="space-y-2"><div v-for="entry in bulkDraft" :key="entry.id" class="rounded-lg border bg-card p-3 text-sm"><strong>{{entry.title}}</strong><div v-for="item in entry.preview.items" :key="item.sku_id" class="mt-1 flex flex-wrap gap-3 font-mono text-xs"><span>{{t(item.sku_id === 0 ? 'personalCenter.reseller.productSettings.productLevelRule' : 'personalCenter.reseller.productSettings.skuLevelRule')}} {{item.sku_id || ''}}</span><span>{{t('resellerUX.supply')}} {{item.base_price_amount}}</span><span>{{t('resellerUX.retail')}} {{item.effective_price_amount}}</span><span>{{t('resellerUX.margin')}} {{estimatedMargin(item.effective_price_amount,item.base_price_amount)}}</span><span>{{t(item.is_listed ? 'resellerUX.listed' : 'resellerUX.hidden')}}</span><span v-if="!item.valid" class="text-destructive">{{t('resellerUX.invalidRule')}}</span></div></div><Button :disabled="bulkBusy || bulkDraft.some(entry => entry.preview.items.some(item => !item.valid))" @click="applyBulk">{{t('resellerUX.applyBulk')}}</Button><Button variant="outline" :disabled="bulkBusy" @click="bulkDraft=[]">{{t('common.cancel')}}</Button></div>
+      <p v-if="bulkResult" role="status" class="text-sm">{{bulkResult}}</p>
+    </section>
     <div v-if="loading" class="space-y-3">
       <div v-for="idx in 3" :key="idx" class="h-20 animate-pulse rounded-xl border bg-muted"></div>
     </div>
@@ -49,7 +56,7 @@
         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-              <div class="truncate font-bold text-foreground">{{ getProductTitle(row.product.title) }}</div>
+              <input type="checkbox" v-model="selectedIDs" :value="row.product.id" :disabled="bulkBusy" :aria-label="getProductTitle(row.product.title)" /><div class="truncate font-bold text-foreground">{{ getProductTitle(row.product.title) }}</div>
               <Badge :variant="countListedSkus(row) > 0 ? 'success' : 'neutral'" size="xs">
                 {{ countListedSkus(row) > 0 ? t('personalCenter.reseller.productSettings.displayed') : t('personalCenter.reseller.productSettings.hidden') }}
               </Badge>
@@ -59,7 +66,7 @@
           <Button
             type="button"
             size="sm"
-            :disabled="detailLoading || saving"
+            :disabled="detailLoading || saving || bulkBusy"
             @click="openEditor(row.product.id)"
           >
             {{ t('personalCenter.reseller.productSettings.edit') }}
@@ -67,11 +74,11 @@
         </div>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
           <div class="rounded-lg border bg-muted/30 px-3 py-2">
-            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{{ t('personalCenter.reseller.productSettings.basePrice') }}</div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{{ t('resellerUX.supply') }}</div>
             <div class="mt-1 font-mono text-sm font-bold text-foreground">{{ row.product.price_amount }}</div>
           </div>
           <div class="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">{{ t('personalCenter.reseller.productSettings.effectivePrice') }}</div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">{{ t('resellerUX.retail') }}</div>
             <div class="mt-1 font-mono text-sm font-bold text-primary">{{ summarizeProductEffectivePrice(row) }}</div>
           </div>
           <div class="rounded-lg border bg-muted/30 px-3 py-2">
@@ -80,6 +87,7 @@
           </div>
         </div>
 
+        <div class="mt-3 grid gap-2"><div v-for="sku in row.skus.filter(item=>item.is_active)" :key="sku.id" class="flex flex-wrap gap-x-4 gap-y-1 text-xs"><span class="text-muted-foreground">{{sku.sku_code || '#'+sku.id}}</span><span>{{t('resellerUX.supply')}} {{sku.base_price_amount}}</span><span>{{t('resellerUX.retail')}} {{sku.effective_price_amount || sku.setting?.effective_price_amount || '—'}}</span><span>{{t('resellerUX.margin')}} {{estimatedMargin(sku.effective_price_amount || sku.setting?.effective_price_amount || '',sku.base_price_amount)}}</span></div></div>
         <div
           v-if="editing?.product.id === row.product.id"
           data-testid="reseller-product-editor"
@@ -148,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import { estimatedMargin } from '../../utils/resellerWorkspace'
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { resellerAPI } from '../../api/reseller'
@@ -198,6 +207,48 @@ type PreviewEntry = { effective: string; valid: boolean; errorCode: string }
 const previewByKey = reactive<Record<number, PreviewEntry>>({})
 let previewTimer: ReturnType<typeof setTimeout> | null = null
 let previewSeq = 0
+
+const selectedIDs = ref<number[]>([])
+const bulkMode = ref('markup')
+const bulkPercent = ref('10')
+const bulkBusy = ref(false)
+const bulkResult = ref('')
+const bulkDraft = ref<Array<{id:number; title:string; payload:ReturnType<typeof buildResellerProductSettingPayload>; preview:ResellerProductSettingPreviewData}>>([])
+watch([selectedIDs,bulkMode,bulkPercent],()=>{bulkDraft.value=[]}, {deep:true})
+async function prepareBulk() {
+  bulkBusy.value=true;bulkDraft.value=[];bulkResult.value=''
+  try {
+    if(bulkMode.value==='markup' && (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(bulkPercent.value) || Number(bulkPercent.value)>10000)) throw Error(t('resellerUX.invalidRule'))
+    const drafts:typeof bulkDraft.value=[]
+    for(const id of selectedIDs.value) {
+      const detail=(await resellerAPI.productSettingDetail(id)).data.data as ResellerProductSettingDetailData
+      const forms=[formFromSetting(detail.product_setting,0),...detail.skus.map(sku=>formFromSetting(sku.setting,sku.id))]
+      for(const form of forms) {
+        if(bulkMode.value==='markup') {form.pricing_mode='markup_percent';form.markup_percent=bulkPercent.value}
+        else form.is_listed=bulkMode.value==='list'
+      }
+      const payload=buildResellerProductSettingPayload(forms)
+      const preview=(await resellerAPI.previewProductSettings(id,payload)).data.data as ResellerProductSettingPreviewData
+      if(!preview?.items?.length) throw Error(t('resellerUX.invalidRule'))
+      drafts.push({id,title:getProductTitle(detail.product.title),payload,preview})
+    }
+    bulkDraft.value=drafts
+  } catch(e:any) {bulkResult.value=e?.message || t('resellerUX.failed')}
+  finally {bulkBusy.value=false}
+}
+async function applyBulk() {
+  const entries=bulkDraft.value
+  if(!entries.length || entries.some(entry=>entry.preview.items.some(item=>!item.valid))) return
+  bulkBusy.value=true;let completed=0;const failed:string[]=[]
+  try {
+    for(const entry of entries) {
+      try {await resellerAPI.updateProductSettings(entry.id,entry.payload);completed++}
+      catch {failed.push(entry.title)}
+    }
+    await loadRows(pagination.page);closeEditor();selectedIDs.value=[];bulkDraft.value=[]
+    bulkResult.value=t('resellerUX.bulkResult',{success:completed,failed:failed.length})+(failed.length?' · '+failed.join('、'):'')
+  } finally {bulkBusy.value=false}
+}
 
 const filters = reactive({
   keyword: '',
@@ -341,8 +392,8 @@ const loadRows = async (page = pagination.page) => {
   }
 }
 
-const searchRows = () => loadRows(1)
-const goPage = (page: number) => loadRows(page)
+const searchRows = () => {selectedIDs.value=[];bulkDraft.value=[];return loadRows(1)}
+const goPage = (page: number) => {selectedIDs.value=[];bulkDraft.value=[];return loadRows(page)}
 
 const closeEditor = () => {
   if (previewTimer) {

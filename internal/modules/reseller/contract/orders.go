@@ -29,8 +29,16 @@ type OrderListInput struct {
 	PaidTo      *time.Time
 }
 
+// RedemptionProgress contains display-only cached progress, never a code or account data.
+type RedemptionProgress struct {
+	OrderNo    string    `json:"order_no"`
+	Status     string    `json:"status"`
+	RecordedAt time.Time `json:"recorded_at"`
+}
+
 // OrderListItem 分销商视角订单列表项。
 type OrderListItem struct {
+	Redemption   []RedemptionProgress
 	OrderNo      string
 	Status       string
 	Currency     string

@@ -4,10 +4,12 @@
 
     <div v-if="stats" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <ResellerMetricCard :label="t('resellerConsole.dashboard.orderTotal')" :value="stats.total" :icon="ShoppingBag" tone="accent" />
-      <ResellerMetricCard :label="t('resellerConsole.orders.paidOrders')" :value="stats.by_status?.paid || 0" :icon="CheckCircle2" tone="success" />
+      <ResellerMetricCard :label="t('resellerConsole.orders.paidOrders')" :value="['paid','fulfilling','delivered','completed','partially_refunded','refunded'].reduce((sum,status)=>sum+(stats?.by_status?.[status]||0),0)" :icon="CheckCircle2" tone="success" />
       <ResellerMetricCard :label="t('resellerConsole.orders.currencyKinds')" :value="Object.keys(stats.by_currency || {}).length" :icon="Banknote" tone="info" />
     </div>
 
+    <div class="flex flex-wrap gap-2"><Button v-for="group in orderGroups" :key="group.key" :variant="filters.status === group.status ? 'default' : 'outline'" @click="filters.status=group.status;reload()">{{t('resellerUX.'+group.key)}}</Button><Button variant="outline" :disabled="loading" @click="reload">{{t('orders.filters.refresh')}}</Button></div>
+    <p class="text-xs text-muted-foreground">{{t('resellerUX.redemptionHint')}}</p>
     <ResellerFilterBar @search="reload" @reset="resetFilters">
       <template #fields>
         <Input v-model.trim="filters.order_no" :placeholder="t('resellerConsole.orders.search')" />
@@ -17,6 +19,7 @@
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{{ t('resellerConsole.orders.statusAll') }}</SelectItem>
+            <SelectItem v-for="group in orderGroups.filter(group=>group.status.includes(','))" :key="group.key" :value="group.status">{{t('resellerUX.'+group.key)}}</SelectItem>
             <SelectItem v-for="status in statusOptions" :key="status" :value="status">{{ statusLabel(status) }}</SelectItem>
           </SelectContent>
         </Select>
@@ -60,7 +63,7 @@
           <TableRow class="bg-muted/50">
             <TableHead class="px-4">{{ t('resellerConsole.orders.orderNo') }}</TableHead>
             <TableHead class="px-4">{{ t('resellerConsole.orders.status') }}</TableHead>
-            <TableHead class="px-4 text-right">{{ t('resellerConsole.orders.totalAmount') }}</TableHead>
+            <TableHead class="px-4">{{t('resellerUX.redemption')}}</TableHead><TableHead class="px-4 text-right">{{ t('resellerConsole.orders.totalAmount') }}</TableHead>
             <TableHead class="px-4 text-right">{{ t('resellerConsole.orders.profitAmount') }}</TableHead>
             <TableHead class="px-4">
               <span class="inline-flex items-center gap-1">
@@ -81,6 +84,7 @@
           >
             <TableCell class="px-4 py-3 font-mono text-xs text-foreground">{{ row.order_no }}</TableCell>
             <TableCell class="px-4 py-3"><ResellerStatusBadge :label="statusLabel(row.status)" :tone="statusTone(row.status)" /></TableCell>
+            <TableCell class="px-4 py-3"><ResellerRedemptionProgress :entries="row.redemption" /></TableCell>
             <TableCell class="px-4 py-3 text-right font-mono text-xs">{{ formatResellerConsoleAmount(row.total_amount, row.currency) }}</TableCell>
             <TableCell class="px-4 py-3 text-right font-mono text-xs">{{ formatResellerConsoleAmount(row.profit_amount, row.currency) }}</TableCell>
             <TableCell class="px-4 py-3"><ResellerStatusBadge :label="profitLabel(row.profit_status)" :tone="profitTone(row.profit_status)" /></TableCell>
@@ -100,6 +104,7 @@
               <span class="min-w-0 truncate font-mono text-xs font-semibold text-foreground">{{ row.order_no }}</span>
               <ResellerStatusBadge :label="statusLabel(row.status)" :tone="statusTone(row.status)" />
             </template>
+            <div><dt class="text-muted-foreground">{{t('resellerUX.redemption')}}</dt><dd class="mt-1"><ResellerRedemptionProgress :entries="row.redemption" /></dd></div>
             <div>
               <dt class="text-muted-foreground">{{ t('resellerConsole.orders.totalAmount') }}</dt>
               <dd class="mt-0.5 font-mono text-foreground">{{ formatResellerConsoleAmount(row.total_amount, row.currency) }}</dd>
@@ -136,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+import ResellerRedemptionProgress from '../../components/reseller-console/ResellerRedemptionProgress.vue'
 import { computed, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -166,7 +172,8 @@ const router = useRouter()
 const { loading, error, rows, stats, pagination, load, loadStats } = useResellerOrders()
 const filters = reactive({ order_no: '', status: 'all', created_from: '', created_to: '' })
 
-const statusOptions = ['pending_payment', 'paid', 'completed', 'partially_refunded', 'refunded', 'canceled']
+const orderGroups = [{key:'all',status:'all'},{key:'pending',status:'pending_payment'},{key:'processing',status:'paid,fulfilling'},{key:'done',status:'delivered,completed'},{key:'aftersales',status:'partially_refunded,refunded'}]
+const statusOptions = ['pending_payment', 'paid', 'fulfilling', 'delivered', 'completed', 'partially_refunded', 'refunded', 'canceled']
 
 const hasActiveFilter = computed(() =>
   Boolean(filters.order_no || (filters.status && filters.status !== 'all') || filters.created_from || filters.created_to),

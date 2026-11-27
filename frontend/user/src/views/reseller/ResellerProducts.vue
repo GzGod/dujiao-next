@@ -59,47 +59,25 @@
       </Card>
     </div>
 
-    <Card class="p-5">
-      <div class="grid gap-4 lg:grid-cols-3">
-        <div class="lg:col-span-1">
-          <h2 class="text-sm font-bold text-foreground">{{ t('resellerConsole.products.focusTitle') }}</h2>
-          <p class="mt-2 text-sm text-muted-foreground">{{ t('resellerConsole.products.focusDescription') }}</p>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-3 lg:col-span-2">
-          <div v-for="item in ruleHints" :key="item.title" class="rounded-xl border bg-muted/30 p-4">
-            <component :is="item.icon" class="h-5 w-5 text-primary" />
-            <div class="mt-3 text-sm font-semibold text-foreground">{{ item.title }}</div>
-            <p class="mt-1 text-xs text-muted-foreground">{{ item.description }}</p>
-          </div>
-        </div>
-      </div>
-    </Card>
-
     <ResellerProductSettingsPanel :embedded="true" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { isStorefrontReady } from '../../utils/resellerWorkspace'
 import { useI18n } from 'vue-i18n'
-import { ExternalLink, Gauge, Globe, Percent, ShoppingBag, SlidersHorizontal, Tag, ToggleLeft } from 'lucide-vue-next'
-import type { ResellerDomainData } from '../../api/types'
+import { ExternalLink, Gauge, Globe, Percent, ShoppingBag } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import ResellerSectionHeader from '../../components/reseller-console/ResellerSectionHeader.vue'
 import ResellerProductSettingsPanel from '../personal/ResellerProductSettingsPanel.vue'
 import { useResellerProfile } from '../../composables/reseller/useResellerProfile'
-import {
-  RESELLER_DOMAIN_STATUS_ACTIVE,
-  RESELLER_DOMAIN_VERIFICATION_VERIFIED,
-} from '../../constants/reseller'
 
 const { t } = useI18n()
 const { snapshot, load } = useResellerProfile()
 
-const isActiveVerifiedDomain = (domain: ResellerDomainData) =>
-  domain.status === RESELLER_DOMAIN_STATUS_ACTIVE &&
-  domain.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED
+const isActiveVerifiedDomain = isStorefrontReady
 
 const profile = computed(() => snapshot.value?.profile || null)
 const primaryDomain = computed(() => {
@@ -109,23 +87,6 @@ const primaryDomain = computed(() => {
 })
 const primaryDomainUrl = computed(() => (primaryDomain.value ? `https://${primaryDomain.value}` : ''))
 
-const ruleHints = computed(() => [
-  {
-    title: t('resellerConsole.products.hints.listing'),
-    description: t('resellerConsole.products.hints.listingDescription'),
-    icon: ToggleLeft,
-  },
-  {
-    title: t('resellerConsole.products.hints.pricing'),
-    description: t('resellerConsole.products.hints.pricingDescription'),
-    icon: SlidersHorizontal,
-  },
-  {
-    title: t('resellerConsole.products.hints.sku'),
-    description: t('resellerConsole.products.hints.skuDescription'),
-    icon: Tag,
-  },
-])
 
 onMounted(load)
 </script>

@@ -3,6 +3,7 @@ package integrationtest
 import (
 	"encoding/json"
 	"fmt"
+	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,6 +65,7 @@ func setupAdminResellerManagementHandlerTest(t *testing.T) (*adminResellerFixtur
 		&productdomain.ProductSKU{},
 		&orderdomain.Order{},
 		&orderdomain.OrderItem{},
+		&fulfillmentdomain.Fulfillment{},
 		&resellerdomain.Profile{},
 		&resellerdomain.Domain{},
 		&resellerdomain.SiteConfig{},

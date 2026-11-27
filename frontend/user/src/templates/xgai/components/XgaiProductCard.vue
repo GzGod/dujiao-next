@@ -1,5 +1,5 @@
 <template>
-  <article ref="card" class="xpc" :class="{ 'xpc--featured': featured, 'xpc--disabled': soldOut }" tabindex="0" :aria-label="title" @pointermove="moveLight" @pointerleave="glassActive=false; resetLight()" @mouseenter="glassActive=true; schedulePreview()" @mouseleave="leaveCard" @focusin="glassActive=true" @focusout="leaveFocus" @keydown.enter.self="openPreview" @click="onCardClick">
+  <article ref="card" class="xpc" :class="{ 'xpc--featured': featured, 'xpc--disabled': soldOut }" tabindex="0" :aria-label="title" @pointermove="moveLight" @pointerleave="glassActive=false; resetLight()" @mouseenter="glassActive=true" @focusin="glassActive=true" @focusout="leaveFocus" @keydown.enter.self="openPreview" @click="openPreview">
     <Transition name="glass-light"><GlassSurface v-if="glassActive" :radius="20" :intensity=".42" /></Transition>
     <span v-if="featured" class="xpc__badge">{{ t('xgai.card.popular') }}</span>
     <div class="xpc__brand">
@@ -22,7 +22,7 @@
     <p v-if="official" class="xpc__save">{{ t('xgai.card.save', { amount: official.savingCny }) }}</p>
     <p v-else class="xpc__save xpc__save--muted">{{ stockText }}</p>
 
-    <button type="button" class="xpc__cta" :disabled="soldOut" @click.stop="buy">
+    <button type="button" class="xpc__cta" :disabled="soldOut" @click.stop="openPreview">
       {{ soldOut ? t('xg.stock.out') : t('xgai.card.choose') }} <ArrowRight />
     </button>
   </article>
@@ -48,7 +48,7 @@ const card = ref<HTMLElement | null>(null)
 const glassActive=ref(false)
 const leaveFocus=(event:FocusEvent)=>{
  if(card.value?.contains(event.relatedTarget as Node))return
- glassActive.value=false;cancelPreview()
+ glassActive.value=false
 }
 let lightFrame=0
 const moveLight=(event:PointerEvent)=>{
@@ -58,23 +58,10 @@ const moveLight=(event:PointerEvent)=>{
 }
 const resetLight=()=>{cancelAnimationFrame(lightFrame);lightFrame=0;card.value?.style.removeProperty('--glass-x');card.value?.style.removeProperty('--glass-y')}
 onBeforeUnmount(()=>cancelAnimationFrame(lightFrame))
-let previewTimer: ReturnType<typeof setTimeout> | undefined
-let hoverReady = true
-const cancelPreview = () => { clearTimeout(previewTimer); previewTimer = undefined }
-const leaveCard = () => { cancelPreview(); hoverReady = true; if (card.value) delete card.value.dataset.revealCooldown }
 const openPreview = () => {
-  cancelPreview()
-  if (!hoverReady || document.querySelector('dialog[open], [aria-modal="true"]')) return
-  hoverReady = false
+  if (document.querySelector('dialog[open], [aria-modal="true"]')) return
   emit('buy', props.product, card.value || undefined)
 }
-const schedulePreview = () => {
-  cancelPreview()
-  if (hoverReady && !card.value?.dataset.revealCooldown && window.matchMedia('(hover: hover)').matches) previewTimer = setTimeout(openPreview, 1000)
-}
-const onCardClick = () => { hoverReady = true; openPreview() }
-const buy = () => { hoverReady = true; openPreview() }
-onBeforeUnmount(cancelPreview)
 const { t } = useI18n()
 const { getLocalizedText, siteCurrency } = useLocalized()
 

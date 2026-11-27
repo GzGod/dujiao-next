@@ -72,17 +72,23 @@
       </div>
     </Card>
 
-    <ResellerFrontendPanel :domain-url="primaryDomainUrl" />
-    <ResellerSiteConfigPanel :embedded="true" />
+    <ResellerSiteConfigPanel :embedded="true" @saved="loadSiteConfig" />
+    <Card class="p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">{{t('resellerUX.preview')}}</h2><div class="flex gap-2"><Button v-if="primaryDomainUrl" as-child variant="outline"><a :href="primaryDomainUrl" target="_blank" rel="noopener noreferrer">{{t('resellerConsole.site.previewStore')}}</a></Button><Button variant="outline" @click="previewMobile = !previewMobile">{{t(previewMobile ? 'resellerUX.desktop' : 'resellerUX.mobile')}}</Button><Button :disabled="!primaryDomainUrl" @click="previewVersion++">{{t('orders.filters.refresh')}}</Button></div></div>
+      <p class="text-sm text-muted-foreground">{{t(primaryDomainUrl ? 'resellerUX.savedPreview' : 'resellerFrontend.needDomain')}}</p>
+      <iframe v-if="primaryDomainUrl" :key="previewVersion" :src="primaryDomainUrl" :title="t('resellerUX.preview')" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer" class="pointer-events-none mx-auto h-[600px] max-w-full rounded-xl border bg-background transition-[width]" :style="{width: previewMobile ? '390px' : '100%'}" />
+    </Card>
+    <ResellerFrontendPanel :domain-url="primaryDomainUrl" custom-only />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { isStorefrontReady } from '../../utils/resellerWorkspace'
 import { useI18n } from 'vue-i18n'
 import { ExternalLink, Globe, LifeBuoy, Palette, RotateCw } from 'lucide-vue-next'
 import { resellerAPI } from '../../api'
-import type { ResellerDomainData, ResellerSiteConfigSnapshotData } from '../../api/types'
+import type { ResellerSiteConfigSnapshotData } from '../../api/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import ResellerSectionHeader from '../../components/reseller-console/ResellerSectionHeader.vue'
@@ -90,20 +96,16 @@ import ResellerStatusBadge from '../../components/reseller-console/ResellerStatu
 import ResellerFrontendPanel from '../../components/reseller/ResellerFrontendPanel.vue'
 import ResellerSiteConfigPanel from '../../components/reseller/ResellerSiteConfigPanel.vue'
 import { useResellerProfile } from '../../composables/reseller/useResellerProfile'
-import {
-  RESELLER_DOMAIN_STATUS_ACTIVE,
-  RESELLER_DOMAIN_VERIFICATION_VERIFIED,
-} from '../../constants/reseller'
 import { isResellerSiteSeoConfigured } from '../../utils/resellerSiteConfig'
 
 const { t } = useI18n()
 const { snapshot: profileSnapshot, load: loadProfile } = useResellerProfile()
+const previewMobile = ref(false)
+const previewVersion = ref(0)
 const loading = ref(false)
 const siteSnapshot = ref<ResellerSiteConfigSnapshotData | null>(null)
 
-const isActiveVerifiedDomain = (domain: ResellerDomainData) =>
-  domain.status === RESELLER_DOMAIN_STATUS_ACTIVE &&
-  domain.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED
+const isActiveVerifiedDomain = isStorefrontReady
 
 const primaryDomain = computed(() => {
   const domains = profileSnapshot.value?.domains || []

@@ -58,6 +58,14 @@
         </div>
 
         <div v-show="activeSection === 'brand'" class="mt-0">
+      <section v-if="form.theme" class="mb-5 rounded-2xl border bg-card p-4 space-y-4">
+        <h3 class="font-semibold">{{ t('resellerUX.appearance') }}</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="space-y-2"><span>{{t('resellerFrontend.template')}}</span><select v-model="form.theme.template" class="h-10 w-full rounded-lg border bg-background px-3"><option v-for="value in ['xgai','classic','vault','inherit']" :key="value" :value="value">{{t('resellerFrontend.'+value)}}</option></select></label>
+          <label class="space-y-2"><span>{{t('resellerFrontend.color')}}</span><div class="flex gap-2"><input v-model="form.theme.primary_color" type="color" class="h-10 w-16" /><Input v-model="form.theme.primary_color" maxlength="7" /></div></label>
+        </div>
+        <p class="text-xs text-muted-foreground">{{t('resellerUX.unifiedHint')}}</p>
+      </section>
       <RedemptionEditor v-if="form.theme" v-model="form.theme" />
       <!-- 基础品牌 -->
       <section class="rounded-2xl border bg-card p-4 sm:p-5">
@@ -354,8 +362,9 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeRouteLeave } from 'vue-router'
 import RedemptionEditor from './RedemptionEditor.vue'
-import { computed, defineAsyncComponent, onMounted, reactive, ref, type Component } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, reactive, ref, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
     Compass,
@@ -406,6 +415,7 @@ import {
 
 withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
+const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const appStore = useAppStore()
 
@@ -580,6 +590,7 @@ const assignForm = (config?: ResellerSiteConfigData) => {
 }
 
 const loadConfig = async () => {
+    if (dirtyHint.value && !window.confirm(t('resellerUX.leaveUnsaved'))) return
     loading.value = true
     alert.value = null
     try {
@@ -617,6 +628,7 @@ const handleSave = async () => {
             level: 'success',
             message: t('personalCenter.reseller.siteConfig.saveSuccess'),
         }
+        emit('saved')
         // 全局配置刷新仅为同步展示，属尽力而为：刷新失败不得让已成功的保存被误判为失败。
         await appStore.loadConfig(true).catch(() => {})
     } catch (err: any) {
@@ -629,5 +641,10 @@ const handleSave = async () => {
     }
 }
 
-onMounted(loadConfig)
+const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (dirtyHint.value) { event.preventDefault(); event.returnValue = '' }
+}
+onBeforeRouteLeave(() => !dirtyHint.value || window.confirm(t('resellerUX.leaveUnsaved')))
+onMounted(() => { window.addEventListener('beforeunload', warnBeforeUnload); void loadConfig() })
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 </script>

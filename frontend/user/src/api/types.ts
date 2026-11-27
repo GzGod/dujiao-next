@@ -418,6 +418,7 @@ export interface ResellerOrderListParams {
 export type ResellerOrderStatsParams = ResellerOrderListParams
 
 export interface ResellerOrderData {
+    redemption?: { order_no: string; status: string; recorded_at: string }[]
     order_no: string
     status: string
     currency: string

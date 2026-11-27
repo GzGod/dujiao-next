@@ -1,8 +1,11 @@
 package integrationtest
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +35,7 @@ func openResellerOrderServiceTestDB(t *testing.T) *gorm.DB {
 		&userdomain.User{},
 		&orderdomain.Order{},
 		&orderdomain.OrderItem{},
+		&fulfillmentdomain.Fulfillment{},
 		&resellerdomain.Profile{},
 		&resellerdomain.OrderSnapshot{},
 		&resellerdomain.LedgerEntry{},
@@ -427,5 +431,30 @@ func TestResellerOrderServiceRejectsInactiveProfile(t *testing.T) {
 	_, _, err := svc.ListUserOrders(profile.UserID, ResellerOrderListInput{Page: 1, PageSize: 20})
 	if !errors.Is(err, ErrResellerProfileInactive) {
 		t.Fatalf("expected ErrResellerProfileInactive, got %v", err)
+	}
+}
+
+func TestResellerCachedRedemptionAndGroupedStatusRemainScoped(t *testing.T) {
+	db := openResellerOrderServiceTestDB(t)
+	profile, order, _ := seedResellerOrderFixture(t, db, "progress-owner@example.test")
+	_, foreign, _ := seedResellerOrderFixture(t, db, "foreign-owner@example.test")
+	for _, id := range []uint{order.ID, foreign.ID} {
+		if err := db.Create(&fulfillmentdomain.Fulfillment{OrderID: id, Type: "upstream", Status: "delivered", Payload: "private-code-never-expose", RedemptionProgress: "unused"}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := resellergormstore.New(db)
+	service := NewResellerOrderService(store)
+	rows, total, err := service.ListUserOrders(profile.UserID, ResellerOrderListInput{Status: "paid,fulfilling", Page: 1, PageSize: 20})
+	if err != nil || total != 1 || len(rows) != 1 || len(rows[0].Redemption) != 1 || rows[0].Redemption[0].Status != "unused" {
+		t.Fatalf("unexpected scoped progress: total=%d rows=%+v err=%v", total, rows, err)
+	}
+	detail, err := service.GetUserOrderDetail(profile.UserID, order.OrderNo)
+	if err != nil || len(detail.Redemption) != 1 {
+		t.Fatalf("detail progress: %+v %v", detail, err)
+	}
+	b, _ := json.Marshal(detail)
+	if strings.Contains(string(b), "private-code") || strings.Contains(string(b), foreign.OrderNo) {
+		t.Fatal("sensitive or foreign data exposed")
 	}
 }

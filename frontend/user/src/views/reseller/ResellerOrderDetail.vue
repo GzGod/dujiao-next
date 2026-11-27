@@ -31,6 +31,7 @@
     <div v-else class="grid grid-cols-1 gap-5 lg:grid-cols-3">
       <!-- 左:订单信息 + 商品明细 -->
       <div class="space-y-5 lg:col-span-2">
+        <Card class="p-5 space-y-3"><div class="flex items-center justify-between"><h2 class="font-semibold">{{t('resellerUX.redemption')}}</h2><Button variant="outline" @click="reload">{{t('orders.filters.refresh')}}</Button></div><p class="text-xs text-muted-foreground">{{t('resellerUX.redemptionHint')}}</p><ResellerRedemptionProgress :entries="detail.redemption" /></Card>
         <Card class="p-5">
           <dl class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
             <div>
@@ -167,6 +168,7 @@
 </template>
 
 <script setup lang="ts">
+import ResellerRedemptionProgress from '../../components/reseller-console/ResellerRedemptionProgress.vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'

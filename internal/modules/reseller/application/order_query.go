@@ -138,6 +138,7 @@ func buildOrderListItem(row resellercontract.OrderSnapshotRow) resellercontract.
 	snapshot := row.Snapshot
 	return resellercontract.OrderListItem{
 		OrderNo:      order.OrderNo,
+		Redemption:   cachedOrderRedemptions(order),
 		Status:       order.Status,
 		Currency:     snapshot.Currency,
 		TotalAmount:  order.TotalAmount,
@@ -297,4 +298,23 @@ func orderSnapshotStringValue(value interface{}) string {
 		return decimal.NewFromInt(int64(v)).Round(2).StringFixed(2)
 	}
 	return ""
+}
+
+func cachedOrderRedemptions(order orderdomain.Order) []resellercontract.RedemptionProgress {
+	result := []resellercontract.RedemptionProgress{}
+	orders := append([]orderdomain.Order{order}, order.Children...)
+	for _, leaf := range orders {
+		delivery := leaf.Fulfillment
+		if delivery == nil || delivery.RedemptionProgress == "" {
+			continue
+		}
+		status := delivery.RedemptionProgress
+		switch status {
+		case "unused", "inactive", "submitted", "processing", "completed", "success", "succeeded", "destroyed", "failed", "needs_action":
+		default:
+			status = "unknown"
+		}
+		result = append(result, resellercontract.RedemptionProgress{OrderNo: leaf.OrderNo, Status: status, RecordedAt: delivery.UpdatedAt})
+	}
+	return result
 }
