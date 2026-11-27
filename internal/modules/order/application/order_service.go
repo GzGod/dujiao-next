@@ -138,6 +138,8 @@ func NewOrderService(opts OrderServiceOptions) *OrderService {
 
 // CreateOrderInput 创建订单输入
 type CreateOrderInput struct {
+	RiskDeviceHash      string
+	RiskUserAgent       string
 	UserID              uint
 	Tenant              resellercontract.TenantContext
 	Items               []CreateOrderItem
@@ -152,6 +154,8 @@ type CreateOrderInput struct {
 
 // CreateGuestOrderInput 游客创建订单输入
 type CreateGuestOrderInput struct {
+	RiskDeviceHash      string
+	RiskUserAgent       string
 	Email               string
 	OrderPassword       string
 	Locale              string
@@ -229,6 +233,8 @@ func (s *OrderService) CreateOrder(input CreateOrderInput) (*orderdomain.Order, 
 		return nil, ErrInvalidOrderItem
 	}
 	return s.createOrder(orderCreateParams{
+		RiskDeviceHash:      input.RiskDeviceHash,
+		RiskUserAgent:       input.RiskUserAgent,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               input.Items,
@@ -265,11 +271,15 @@ func (s *OrderService) CreateGuestOrder(input CreateGuestOrderInput) (*orderdoma
 		AffiliateVisitorKey: input.AffiliateVisitorKey,
 		ClientIP:            input.ClientIP,
 		IsGuest:             true,
+		RiskDeviceHash:      input.RiskDeviceHash,
+		RiskUserAgent:       input.RiskUserAgent,
 		ManualFormData:      input.ManualFormData,
 	})
 }
 
 type orderCreateParams struct {
+	RiskDeviceHash           string
+	RiskUserAgent            string
 	UserID                   uint
 	GuestEmail               string
 	GuestPassword            string
@@ -526,7 +536,11 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 		AffiliateCode:           affiliateCode,
 		ExpiresAt:               &expiresAt,
 		ClientIP:                strings.TrimSpace(input.ClientIP),
+		RiskDeviceHash:          input.RiskDeviceHash,
+		RiskContactHash:         orderriskcontract.GuestContactHash(input.GuestEmail),
 		RiskIP:                  input.RiskIP,
+		RiskSubnet:              orderriskcontract.SettlementSubnet(input.ClientIP),
+		RiskUserAgent:           orderriskcontract.SettlementUserAgent(input.RiskUserAgent),
 		CreatedAt:               now,
 		UpdatedAt:               now,
 	}
@@ -784,6 +798,8 @@ func buildRiskCheckInput(input orderCreateParams, consumeRateLimit bool) orderri
 		items = append(items, orderriskcontract.OrderItem{ProductID: item.ProductID, Quantity: item.Quantity})
 	}
 	return orderriskcontract.CheckInput{
+		RiskDeviceHash:   input.RiskDeviceHash,
+		GuestEmail:       input.GuestEmail,
 		UserID:           input.UserID,
 		ClientIP:         input.ClientIP,
 		RiskIP:           input.RiskIP,

@@ -124,6 +124,23 @@ func (s *Service) EnqueueCallback(orderID uint) {
 	}
 }
 
+// RecoverPendingCallback retries the first enqueue for a released root
+// order. It does not restart a sent callback or reset downstream retry state.
+func (s *Service) RecoverPendingCallback(orderID uint) error {
+	ref, err := s.references.GetByOrderID(orderID)
+	if err != nil {
+		return err
+	}
+	if ref == nil || strings.TrimSpace(ref.CallbackURL) == "" ||
+		ref.CallbackStatus != downstreamdomain.StatusPending || ref.CallbackRetryCount != 0 {
+		return nil
+	}
+	if s.queue == nil {
+		return fmt.Errorf("downstream callback queue unavailable")
+	}
+	return s.queue.EnqueueCallback(ref.ID, 0)
+}
+
 // SendCallback 读取最新订单状态并执行一次下游回调。
 func (s *Service) SendCallback(ctx context.Context, refID uint) error {
 	ref, err := s.references.GetByID(refID)
@@ -141,6 +158,9 @@ func (s *Service) SendCallback(ctx context.Context, refID uint) error {
 	if err != nil || order == nil {
 		logger.Warnw("downstream_callback_order_not_found", "ref_id", ref.ID, "order_id", ref.OrderID)
 		return err
+	}
+	if order.RiskBlocked {
+		return nil
 	}
 	credential, err := s.credentials.GetByID(ref.ApiCredentialID)
 	if err != nil || credential == nil {
@@ -194,14 +214,15 @@ func (s *Service) SendCallback(ctx context.Context, refID uint) error {
 }
 
 func deliveredFulfillment(order *downstreamcontract.OrderSnapshot) *downstreamcontract.Fulfillment {
-	if order == nil {
+	if order == nil || order.RiskBlocked {
 		return nil
 	}
 	source := order.Fulfillment
 	if source == nil {
 		for i := range order.Children {
-			if order.Children[i].Fulfillment != nil {
-				source = order.Children[i].Fulfillment
+			child := &order.Children[i]
+			if !child.RiskBlocked && child.Fulfillment != nil && child.Fulfillment.Status == constants.FulfillmentStatusDelivered {
+				source = child.Fulfillment
 				break
 			}
 		}

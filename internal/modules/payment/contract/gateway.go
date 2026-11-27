@@ -14,6 +14,7 @@ const GatewayPayloadFiatCurrencySent = "_dujiao_next_fiat_currency_sent"
 
 // GatewayCreateInput 是统一支付网关创建输入。
 type GatewayCreateInput struct {
+	ExpiresAt      *time.Time
 	PaymentID      uint
 	OrderID        uint
 	OrderNo        string

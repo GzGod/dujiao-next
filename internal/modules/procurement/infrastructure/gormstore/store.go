@@ -2,9 +2,11 @@ package gormstore
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	orderriskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
@@ -236,7 +238,7 @@ func (s *Store) CompleteReplacement(id uint, requestID, code string, revision in
 		if order.AfterSaleState != "processing" {
 			return errors.New("replacement state conflict")
 		}
-		result := tx.Model(&lifecycleFulfillmentRecord{}).Where("order_id = ?", order.LocalOrderID).Updates(map[string]interface{}{"payload": code, "updated_at": time.Now()})
+		result := updateArchivedDelivery(tx, order.LocalOrderID, map[string]interface{}{"payload": code, "redemption_progress": "unused", "updated_at": time.Now()})
 		if result.Error != nil {
 			return result.Error
 		}
@@ -268,9 +270,24 @@ func (s *Store) ReviewAfterSale(id uint, from, to string, adminID uint, remark s
 			if err := tx.First(&order, id).Error; err != nil {
 				return err
 			}
-			return tx.Model(&lifecycleFulfillmentRecord{}).Where("order_id = ?", order.LocalOrderID).Updates(map[string]interface{}{"status": "refunded", "payload": "", "updated_at": time.Now()}).Error
+			return updateArchivedDelivery(tx, order.LocalOrderID, map[string]interface{}{"status": "refunded", "payload": "", "redemption_progress": "no_longer_unused", "updated_at": time.Now()}).Error
 		}
 		return nil
 	})
 	return changed, err
+}
+
+func updateArchivedDelivery(tx *gorm.DB, orderID uint, updates map[string]interface{}) *gorm.DB {
+	query := tx.Where("order_id = ?", orderID)
+	var delivery lifecycleFulfillmentRecord
+	read := query.Select("id", "payload", "redemption_previous_hashes").Clauses(clause.Locking{Strength: "UPDATE"}).Find(&delivery)
+	if read.Error != nil || read.RowsAffected == 0 {
+		return read
+	}
+	hashes := orderriskdomain.RedemptionPayloadHashes(delivery.Payload)
+	if len(hashes) > 0 {
+		previous := strings.Fields(delivery.RedemptionPreviousHashes)
+		updates["redemption_previous_hashes"] = strings.Join(append(previous, hashes...), " ")
+	}
+	return tx.Model(&delivery).Updates(updates)
 }

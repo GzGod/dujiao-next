@@ -2,6 +2,7 @@ package application
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -418,6 +419,24 @@ func (s *OrderService) cancelSingleOrderInTx(tx ordercontract.Transaction, order
 		}
 	}
 	return nil
+}
+
+// RecoverExpiredOrders closes expired orders whose delayed cancellation was not delivered.
+func (s *OrderService) RecoverExpiredOrders(now time.Time) error {
+	orders, _, err := s.orderStore.ListAdmin(ordercontract.ListFilter{
+		PendingExpiredBefore: &now, Page: 1, PageSize: 100, SkipRelations: true,
+	})
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, order := range orders {
+		_, err := s.CancelExpiredOrder(order.ID)
+		if err != nil && !errors.Is(err, ErrOrderStatusInvalid) && !errors.Is(err, ErrOrderNotFound) {
+			failures = append(failures, fmt.Errorf("recover expired order %d: %w", order.ID, err))
+		}
+	}
+	return errors.Join(failures...)
 }
 
 // CancelExpiredOrder 超时取消订单

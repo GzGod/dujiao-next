@@ -158,3 +158,7 @@ func mapWalletTransportError(err error) error {
 	}
 	return err
 }
+
+func (a walletTransportAdapter) ApproveRecharge(paymentID uint) error {
+	return a.wallets.ApproveRecharge(paymentID)
+}

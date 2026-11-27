@@ -2,6 +2,9 @@ package settingsstore
 
 import (
 	"errors"
+	"github.com/dujiao-next/internal/constants"
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
+	"gorm.io/gorm/clause"
 
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"gorm.io/gorm"
@@ -61,4 +64,24 @@ func (store *Store) Upsert(key string, value jsonmap.JSON) (jsonmap.JSON, error)
 		return nil, err
 	}
 	return record.ValueJSON, nil
+}
+
+// AppendOrderRiskReviewEntries must be called in the order review transaction.
+func (store *Store) AppendOrderRiskReviewEntries(entries []settingssecurity.SettlementListEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	defaults := settingssecurity.DefaultOrderRiskControlConfig()
+	key := constants.SettingKeyOrderRiskControlConfig
+	initial := SettingRecord{Key: key, ValueJSON: settingssecurity.EncodeOrderRiskControlConfig(defaults)}
+	if err := store.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&initial).Error; err != nil {
+		return err
+	}
+	var record SettingRecord
+	if err := store.db.Clauses(clause.Locking{Strength: "UPDATE"}).Where("key = ?", key).First(&record).Error; err != nil {
+		return err
+	}
+	cfg := settingssecurity.DecodeOrderRiskControlConfig(record.ValueJSON, defaults)
+	cfg.Common.SettlementList = append(cfg.Common.SettlementList, entries...)
+	return store.db.Model(&record).Update("value_json", settingssecurity.EncodeOrderRiskControlConfig(cfg)).Error
 }

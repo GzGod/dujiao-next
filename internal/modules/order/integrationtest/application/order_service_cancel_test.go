@@ -116,12 +116,19 @@ func TestCancelExpiredOrderExpiresPendingPayments(t *testing.T) {
 		CouponStore:      coupongormstore.New(db),
 		CouponUsageStore: coupongormstore.NewUsageStore(db),
 	})
-	updated, err := svc.CancelExpiredOrder(order.ID)
-	if err != nil {
-		t.Fatalf("cancel expired order failed: %v", err)
+	future := now.Add(time.Hour)
+	active := orderdomain.Order{OrderNo: "RECOVERY-NOT-DUE", Status: constants.OrderStatusPendingPayment, ExpiresAt: &future}
+	if err := db.Create(&active).Error; err != nil {
+		t.Fatal(err)
 	}
-	if updated == nil || updated.Status != constants.OrderStatusCanceled {
-		t.Fatalf("expected canceled order, got: %+v", updated)
+	if err := svc.RecoverExpiredOrders(now); err != nil {
+		t.Fatalf("recover expired orders failed: %v", err)
+	}
+	if err := db.First(&order, order.ID).Error; err != nil || order.Status != constants.OrderStatusCanceled {
+		t.Fatalf("expected canceled order, got %s / %v", order.Status, err)
+	}
+	if err := db.First(&active, active.ID).Error; err != nil || active.Status != constants.OrderStatusPendingPayment {
+		t.Fatalf("expected future order to remain pending, got %s / %v", active.Status, err)
 	}
 
 	var reloaded []paymentdomain.Payment

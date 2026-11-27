@@ -374,3 +374,28 @@ func TestBuildOrderFulfillmentEmailPayloadFromChildren(t *testing.T) {
 		t.Fatalf("unexpected payload, want %q, got %q", want, got)
 	}
 }
+
+func TestHeldOrderSkipsQueuedDeliveryNotifications(t *testing.T) {
+	consumer := &Consumer{
+		Container: &container.Container{},
+		orderReader: orderStatusEmailWorkerOrderRepoStub{order: &orderdomain.Order{
+			ID: 110, UserID: 42, Status: constants.OrderStatusDelivered, RiskHoldStatus: "pending_review",
+		}},
+	}
+	email, err := queue.NewOrderStatusEmailTask(queue.OrderStatusEmailPayload{OrderID: 110, Status: constants.OrderStatusDelivered})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := consumer.handleOrderStatusEmail(context.Background(), email); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := queue.NewBotNotifyTask(queue.BotNotifyPayload{
+		OrderID: 110, TelegramUserID: "42", EventType: queue.BotNotifyEventOrderFulfilled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := consumer.handleBotNotify(context.Background(), bot); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -418,6 +418,18 @@ func TestWalletServiceAdminRefundToWallet(t *testing.T) {
 		t.Fatalf("create affiliate commission failed: %v", err)
 	}
 
+	if err := db.Model(&order).Update("risk_hold_status", "pending_review").Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := svc.AdminRefundToWallet(AdminRefundToWalletInput{
+		OrderID: order.ID, Amount: money.FromDecimal(decimal.NewFromInt(15)),
+	}); !errors.Is(err, ErrOrderStatusInvalid) {
+		t.Fatalf("held order must not refund to spendable balance: %v", err)
+	}
+	if err := db.Model(&order).Update("risk_hold_status", "released").Error; err != nil {
+		t.Fatal(err)
+	}
+
 	updatedOrder, txn, createdRecord, err := svc.AdminRefundToWallet(AdminRefundToWalletInput{
 		OrderID: order.ID,
 		Amount:  money.FromDecimal(decimal.NewFromInt(15)),

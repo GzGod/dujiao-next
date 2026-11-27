@@ -1,6 +1,7 @@
 package contract
 
 import (
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
 	"time"
 
 	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
@@ -41,4 +42,5 @@ type Transaction interface {
 	ordercontract.Transaction
 	Payments() Store
 	PaymentChannels() ChannelStore
+	AppendOrderRiskReviewEntries([]settingssecurity.SettlementListEntry) error
 }

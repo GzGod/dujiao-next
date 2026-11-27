@@ -1,6 +1,7 @@
 package paymenthttp
 
 import (
+	"context"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -105,11 +106,12 @@ type AdminPaymentConfirmer interface {
 
 // AdminHandler 处理后台支付 HTTP。
 type AdminHandler struct {
-	payments  AdminPaymentQuery
-	channels  AdminChannelLookup
-	orders    AdminOrderLookup
-	recharge  AdminRechargeLookup
-	confirmer AdminPaymentConfirmer
+	RiskUpstream func(context.Context, uint, string, uint) (any, error)
+	payments     AdminPaymentQuery
+	channels     AdminChannelLookup
+	orders       AdminOrderLookup
+	recharge     AdminRechargeLookup
+	confirmer    AdminPaymentConfirmer
 }
 
 // AdminManualConfirmPaymentRequest 人工确认支付请求。
@@ -147,6 +149,61 @@ func (h *AdminHandler) AdminManualConfirmPayment(c *gin.Context) {
 		return
 	}
 	response.Success(c, redactAdminPayment(*payment))
+}
+
+func (h *AdminHandler) AdminReviewOrderRisk(c *gin.Context) {
+	if !ginutil.IsSuperAdmin(c) {
+		ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+		return
+	}
+	adminID, ok := ginutil.GetAdminID(c)
+	if !ok {
+		return
+	}
+	orderID, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.order_item_invalid", nil)
+		return
+	}
+	var req struct {
+		Action        string   `json:"action" binding:"required,oneof=release reject upstream_status upstream_pause upstream_refund"`
+		ProcurementID uint     `json:"procurement_id"`
+		ListKinds     []string `json:"list_kinds" binding:"max=4,dive,oneof=ip cidr device_token user_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	if req.Action != "release" && req.Action != "reject" {
+		if h.RiskUpstream == nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.internal_error", nil)
+			return
+		}
+		result, err := h.RiskUpstream(c.Request.Context(), orderID, req.Action, req.ProcurementID)
+		if err != nil {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.risk_upstream_operation", nil)
+			return
+		}
+		response.Success(c, result)
+		return
+	}
+	reviewer, ok := h.confirmer.(interface {
+		ReviewOrderRiskWithList(uint, uint, bool, []string) error
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeInternal, "error.internal_error", nil)
+		return
+	}
+	if err := reviewer.ReviewOrderRiskWithList(orderID, adminID, req.Action == "release", req.ListKinds); err != nil {
+		respondWithMappedError(c, err, adminManualConfirmErrorRules, response.CodeInternal, "error.payment_callback_failed")
+		return
+	}
+	if req.Action == "reject" && h.RiskUpstream != nil {
+		result, err := h.RiskUpstream(c.Request.Context(), orderID, "upstream_pause", 0)
+		response.Success(c, gin.H{"action": req.Action, "upstream": result, "upstream_error": err != nil})
+		return
+	}
+	response.Success(c, gin.H{"action": req.Action})
 }
 
 var adminManualConfirmErrorRules = []mappedError{

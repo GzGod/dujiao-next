@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"errors"
 	"time"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
@@ -102,3 +103,5 @@ type Store interface {
 	ListWithdraws(filter WithdrawListFilter) ([]domain.WithdrawRequest, int64, error)
 	GetProfileStatsBatch(profileIDs []uint) (map[uint]ProfileStatsAggregate, error)
 }
+
+var ErrCommissionRiskHeld = errors.New("commission is held for risk review")

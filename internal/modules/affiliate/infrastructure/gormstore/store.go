@@ -340,11 +340,19 @@ func (r *Store) ListCommissionsByWithdrawIDForUpdate(withdrawID uint) ([]affilia
 	return rows, nil
 }
 
+const commissionRiskFilter = `NOT EXISTS (
+	SELECT 1 FROM orders AS source
+	LEFT JOIN orders AS parent ON parent.id = source.parent_id
+	WHERE source.id = affiliate_commissions.order_id
+		AND (source.risk_hold_status NOT IN ('', 'released') OR parent.risk_hold_status NOT IN ('', 'released'))
+)`
+
 // MarkPendingCommissionsAvailable 批量将待确认佣金转可提现
 func (r *Store) MarkPendingCommissionsAvailable(before, now time.Time) (int64, error) {
 	result := r.db.Model(&affiliatedomain.Commission{}).
 		Where("status = ? AND confirm_at IS NOT NULL AND confirm_at <= ? AND withdraw_request_id IS NULL AND deleted_at IS NULL",
 			constants.AffiliateCommissionStatusPendingConfirm, before).
+		Where(commissionRiskFilter).
 		Updates(map[string]interface{}{
 			"status":       constants.AffiliateCommissionStatusAvailable,
 			"available_at": now,
@@ -400,6 +408,7 @@ func (r *Store) ListAvailableCommissionsForUpdate(profileID uint) ([]affiliatedo
 	if err := r.db.Model(&affiliatedomain.Commission{}).Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("affiliate_profile_id = ? AND status = ? AND withdraw_request_id IS NULL AND deleted_at IS NULL",
 			profileID, constants.AffiliateCommissionStatusAvailable).
+		Where(commissionRiskFilter).
 		Order("id asc").
 		Find(&rows).Error; err != nil {
 		return nil, err
@@ -412,7 +421,17 @@ func (r *Store) BatchUpdateCommissions(ids []uint, updates map[string]interface{
 	if len(ids) == 0 {
 		return nil
 	}
-	return r.db.Model(&affiliatedomain.Commission{}).Where("id IN ? AND deleted_at IS NULL", ids).Updates(updates).Error
+	query := r.db.Model(&affiliatedomain.Commission{}).Where("id IN ? AND deleted_at IS NULL", ids)
+	if status, _ := updates["status"].(string); status == constants.AffiliateCommissionStatusWithdrawn {
+		var held int64
+		if err := query.Session(&gorm.Session{}).Where("NOT (" + commissionRiskFilter + ")").Count(&held).Error; err != nil {
+			return err
+		}
+		if held > 0 {
+			return affiliatecontract.ErrCommissionRiskHeld
+		}
+	}
+	return query.Updates(updates).Error
 }
 
 // CreateWithdraw 创建提现申请

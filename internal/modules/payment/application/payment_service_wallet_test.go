@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	notificationcontract "github.com/dujiao-next/internal/modules/notification/contract"
+	riskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,6 +31,8 @@ import (
 
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
+	cardsecretdomain "github.com/dujiao-next/internal/modules/cardsecret/domain"
+	cardsecretstore "github.com/dujiao-next/internal/modules/cardsecret/infrastructure/gormstore"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	ordergormstore "github.com/dujiao-next/internal/modules/order/infrastructure/gormstore"
@@ -68,8 +73,10 @@ func setupPaymentServiceWalletTest(t *testing.T) (*PaymentService, *gorm.DB) {
 	if err := db.AutoMigrate(
 		&userdomain.User{},
 		&orderdomain.Order{},
+		&riskdomain.LockKey{},
 		&orderdomain.OrderItem{},
 		&fulfillmentdomain.Fulfillment{},
+		&cardsecretdomain.Secret{},
 		&productdomain.Product{},
 		&productdomain.ProductSKU{},
 		&walletdomain.Account{},
@@ -1097,41 +1104,18 @@ func TestSupersededPaymentUnderpaidDoesNotFulfillOrder(t *testing.T) {
 		t.Fatalf("underpaid callback must not fulfill the order: %+v", reloadedOrder)
 	}
 
-	// 用户实付的 10 元转入余额，加上退回的 5 元刚好可以补齐这一单。
-	if got := walletBalance(t, db, user.ID); got != "15.00" {
-		t.Fatalf("balance want 15.00 after underpaid credit got %s", got)
+	if got := walletBalance(t, db, user.ID); got != "5.00" {
+		t.Fatalf("CNY underpayment must not increase available balance, got %s", got)
 	}
-	var credits []walletdomain.Transaction
-	if err := db.Where("user_id = ? AND type = ?", user.ID, constants.WalletTxnTypeOrderUnderpaidCredit).Find(&credits).Error; err != nil {
-		t.Fatalf("load underpaid credit transactions failed: %v", err)
-	}
-	if len(credits) != 1 || credits[0].Amount.StringFixed(2) != "10.00" {
-		t.Fatalf("underpaid credit transactions unexpected: %+v", credits)
-	}
-
-	// 重复回调不得重复入账。
 	if _, err := svc.HandleCallback(PaymentCallbackInput{
 		PaymentID: supersededA.ID, OrderNo: order.OrderNo, ChannelID: channelA.ID,
 		Status: constants.PaymentStatusSuccess, Amount: supersededA.Amount, Currency: "CNY", ProviderRef: "underpaid-ref",
 	}); err != nil {
 		t.Fatalf("replay underpaid callback failed: %v", err)
 	}
-	if got := walletBalance(t, db, user.ID); got != "15.00" {
-		t.Fatalf("balance want 15.00 after replayed callback got %s", got)
-	}
-
-	// 余额补齐后用户可以正常完成订单。
-	settled, err := svc.CreatePayment(CreatePaymentInput{
-		OrderID: order.ID, UseBalance: true, Context: context.Background(),
-	})
-	if err != nil {
-		t.Fatalf("settle order with wallet balance failed: %v", err)
-	}
-	if !settled.OrderPaid {
-		t.Fatalf("order should be paid by wallet balance: %+v", settled)
-	}
-	if got := walletBalance(t, db, user.ID); got != "0.00" {
-		t.Fatalf("balance want 0.00 after settling the order got %s", got)
+	var credits int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("user_id = ? AND type = ?", user.ID, constants.WalletTxnTypeOrderUnderpaidCredit).Count(&credits).Error; err != nil || credits != 0 {
+		t.Fatalf("expected no underpayment wallet credits, got %d (%v)", credits, err)
 	}
 }
 
@@ -1185,9 +1169,17 @@ func TestFullyPaidCallbackStillFulfillsOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create payment failed: %v", err)
 	}
+	var stored paymentdomain.Payment
+	if err := db.First(&stored, created.Payment.ID).Error; err != nil || stored.CheckoutReadyAt == nil {
+		t.Fatalf("checkout readiness was not stored: %v", err)
+	}
+	if err := db.Model(&stored).Update("created_at", stored.CheckoutReadyAt.Add(-3*time.Minute)).Error; err != nil {
+		t.Fatal(err)
+	}
+	paidAt := stored.CheckoutReadyAt.Add(30 * time.Second)
 	paid, err := svc.HandleCallback(PaymentCallbackInput{
 		PaymentID: created.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
-		Status: constants.PaymentStatusSuccess, Amount: created.Payment.Amount, Currency: "CNY", ProviderRef: "full-ref",
+		Status: constants.PaymentStatusSuccess, Amount: created.Payment.Amount, Currency: "CNY", ProviderRef: "full-ref", PaidAt: &paidAt,
 	})
 	if err != nil {
 		t.Fatalf("handle full amount callback failed: %v", err)
@@ -1202,6 +1194,9 @@ func TestFullyPaidCallbackStillFulfillsOrder(t *testing.T) {
 	}
 	if reloadedOrder.Status != constants.OrderStatusPaid || reloadedOrder.PaidAt == nil {
 		t.Fatalf("full amount payment should fulfill the order: %+v", reloadedOrder)
+	}
+	if reloadedOrder.PaymentRiskEvaluatedAt == nil || reloadedOrder.PaymentRiskCandidate || reloadedOrder.PaymentRiskDecision["mode"] != "shadow" || reloadedOrder.PaymentRiskDecision["score"] != float64(0) {
+		t.Fatalf("expected persisted shadow decision for normal settlement: %+v", reloadedOrder.PaymentRiskDecision)
 	}
 }
 
@@ -1488,5 +1483,801 @@ func TestEnqueueOrderPaidAsyncRetriesFailedAffiliateCommission(t *testing.T) {
 	svc.enqueueOrderPaidAsync(order, nil, zap.NewNop().Sugar())
 	if len(queue.retried) != 1 || queue.retried[0] != 42 {
 		t.Fatalf("expected affiliate retry enqueued for order 42, got %v", queue.retried)
+	}
+}
+
+func TestAlipayRechargeWaitsForReviewAndCreditsOnce(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	newRecharge := func() (*paymentdomain.Payment, *walletdomain.RechargeOrder) {
+		payment, recharge := createWalletRechargeFixture(t, db, constants.PaymentStatusPending, constants.WalletRechargeStatusPending)
+		for _, row := range []any{payment, recharge} {
+			if err := db.Model(row).Update("channel_type", constants.PaymentChannelTypeAlipay).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+		return payment, recharge
+	}
+	firstPayment, firstRecharge := newRecharge()
+	if _, err := svc.HandleCallback(buildWalletRechargeCallbackInput(firstPayment, firstRecharge, constants.PaymentStatusSuccess, "REVIEW-FIRST")); err != nil {
+		t.Fatal(err)
+	}
+	assertWalletRechargeSuccessState(t, db, firstPayment.ID, firstRecharge.ID, firstRecharge.UserID, firstRecharge.Amount.Decimal)
+
+	payment, recharge := newRecharge()
+	input := buildWalletRechargeCallbackInput(payment, recharge, constants.PaymentStatusSuccess, "REVIEW-ALIPAY")
+	latePaidAt := time.Now().Add(-48 * time.Hour)
+	input.PaidAt = &latePaidAt
+	for i := 0; i < 2; i++ {
+		if _, err := svc.HandleCallback(input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var held walletdomain.RechargeOrder
+	if err := db.First(&held, recharge.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if held.Status != constants.WalletRechargeStatusPendingReview || held.PaidAt == nil {
+		t.Fatalf("expected paid recharge awaiting review, got %s", held.Status)
+	}
+	ref := fmt.Sprintf("recharge:%d:success", recharge.ID)
+	var count int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("reference = ?", ref).Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("held recharge credited: count=%d err=%v", count, err)
+	}
+	repo := walletgormstore.New(db)
+	wallet := walletapp.NewService(walletapp.Options{Repository: repo, Transactions: repo})
+	for i := 0; i < 2; i++ {
+		if err := wallet.ApproveRecharge(payment.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	assertWalletRechargeSuccessState(t, db, payment.ID, recharge.ID, recharge.UserID, recharge.Amount.Decimal.Add(firstRecharge.Amount.Decimal))
+	if err := db.Model(&walletdomain.Transaction{}).Where("reference = ?", ref).Count(&count).Error; err != nil || count != 1 {
+		t.Fatalf("expected one credit: count=%d err=%v", count, err)
+	}
+	since := time.Now().Add(-24 * time.Hour)
+	rows, total, err := repo.ListRechargeOrdersAdmin(walletcontract.RechargeListFilter{
+		UserID: recharge.UserID, PaymentID: payment.ID, CreditedFrom: &since, Page: 1, PageSize: 1,
+	})
+	if err != nil || total != 1 || len(rows) != 1 {
+		t.Fatalf("recent approval of old receipt was not found: total=%d err=%v", total, err)
+	}
+}
+
+func TestConcurrentAlipayRechargesHoldOneOfTwoPayments(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	conn, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.SetMaxOpenConns(1)
+	inputs := make([]PaymentCallbackInput, 0, 2)
+	for i := 0; i < 2; i++ {
+		payment, recharge := createWalletRechargeFixture(t, db, constants.PaymentStatusPending, constants.WalletRechargeStatusPending)
+		for _, row := range []any{payment, recharge} {
+			if err := db.Model(row).Update("channel_type", constants.PaymentChannelTypeAlipay).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+		inputs = append(inputs, buildWalletRechargeCallbackInput(payment, recharge, constants.PaymentStatusSuccess, fmt.Sprintf("ALIPAY-CONCURRENT-%d", i)))
+	}
+	results := make(chan error, len(inputs))
+	for _, input := range inputs {
+		go func(in PaymentCallbackInput) {
+			_, err := svc.HandleCallback(in)
+			results <- err
+		}(input)
+	}
+	for range inputs {
+		if err := <-results; err != nil {
+			t.Error(err)
+		}
+	}
+	var held int64
+	if err := db.Model(&walletdomain.RechargeOrder{}).Where("status = ?", constants.WalletRechargeStatusPendingReview).Count(&held).Error; err != nil || held != 1 {
+		t.Fatalf("expected one held recharge, got %d (%v)", held, err)
+	}
+	if got := walletBalance(t, db, 1); got != "88.00" {
+		t.Fatalf("expected only one credited recharge, got %s", got)
+	}
+}
+
+type riskNotificationRecorder struct {
+	inputs []notificationcontract.EnqueueInput
+	err    error
+}
+
+func (r *riskNotificationRecorder) Enqueue(input notificationcontract.EnqueueInput) error {
+	r.inputs = append(r.inputs, input)
+	return r.err
+}
+
+func TestSettlementHoldPreservesPaymentAndBlocksOrder(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	notifications := &riskNotificationRecorder{}
+	svc.notificationSvc = notifications
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "settlement_mode": "hold_notice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Risk Test", constants.PaymentChannelTypeWechat)
+	previous := createUnderpaidOrder(t, db, "RISK-PREVIOUS", 0, 150)
+	now := time.Now()
+	if err := db.Model(previous).Updates(map[string]interface{}{
+		"guest_email": "risk@example.com", "risk_device_hash": strings.Repeat("a", 64), "risk_ip": "192.0.2.9", "created_at": now.Add(-48 * time.Hour), "paid_at": now, "status": constants.OrderStatusPaid,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "RISK-CURRENT", 0, 150)
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"guest_email": "different@example.com", "risk_device_hash": strings.Repeat("a", 64), "risk_ip": "192.0.2.16",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payment, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: result.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+		Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if payment.Status != constants.PaymentStatusSuccess || order.PaidAt == nil || order.RiskHoldStatus != "pending_review" {
+		t.Fatalf("expected successful receipt with held order, got %s / %s", payment.Status, order.RiskHoldStatus)
+	}
+	if len(notifications.inputs) != 1 || notifications.inputs[0].EventType != constants.NotificationEventExceptionAlert ||
+		notifications.inputs[0].BizID != order.ID {
+		t.Fatalf("expected exactly one administrator risk alert, got %+v", notifications.inputs)
+	}
+	hardRules, ok := order.PaymentRiskDecision["hard_rules"].([]interface{})
+	if !ok || len(hardRules) != 1 || hardRules[0] != "multi_paid_strong_identity" {
+		t.Fatalf("older order paid recently must count for the repeat-payment rule: %v", hardRules)
+	}
+	signals, ok := order.PaymentRiskDecision["signals"].(map[string]interface{})
+	if !ok || signals["same_device_contact_switch"] != float64(40) || signals["subnet_burst_high_amount"] != float64(30) {
+		t.Fatalf("expected device contact-switch and subnet burst signals: %+v", order.PaymentRiskDecision)
+	}
+	// SQLite needs one connection to serialize concurrent writers. The normal
+	// service transaction must still only post profit and dispatch once.
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	if err := db.Create(&orderdomain.OrderItem{
+		OrderID: order.ID, ProductID: 1, SKUID: 1, Quantity: 1,
+		FulfillmentType: constants.FulfillmentTypeAuto, TitleJSON: jsonmap.JSON{"zh-CN": "test"},
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	accounting := &recordingResellerAccounting{}
+	fulfillment := &releasedFulfillmentQueue{}
+	svc.resellerAccounting = accounting
+	svc.queue = fulfillment
+	start := make(chan struct{})
+	reviews := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			<-start
+			reviews <- svc.ReviewOrderRiskWithList(order.ID, 1, true, []string{"device_token"})
+		}()
+	}
+	close(start)
+	for i := 0; i < 2; i++ {
+		if err := <-reviews; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(accounting.orderIDs) != 1 || accounting.orderIDs[0] != order.ID || fulfillment.calls != 1 {
+		t.Fatalf("concurrent reviews posted %v and queued %d deliveries", accounting.orderIDs, fulfillment.calls)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if order.RiskHoldStatus != "released" || order.PaymentRiskDecision["review_status"] != "released" {
+		t.Fatal("expected a released order and durable review decision")
+	}
+	if err := svc.ReviewOrderRisk(order.ID, 1, false); err == nil {
+		t.Fatal("a completed review must not be reversed")
+	}
+	cfg, err := svc.settingService.GetOrderRiskControlConfig()
+	if err != nil || cfg.SettlementMode != "hold_notice" || len(cfg.Common.SettlementList) != 1 {
+		t.Fatalf("expected one durable allow rule and the original mode: %+v / %v", cfg, err)
+	}
+	entry := cfg.Common.SettlementList[0]
+	if !entry.Allow || entry.Kind != "device_token" || entry.Value != strings.Repeat("a", 64) {
+		t.Fatal("review did not save the verified device allow rule")
+	}
+}
+
+func TestAlipayRiskSubjectUsesOrderNumberAndPayableAmount(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "alipay_risk_subject": "本人确认 {order_no} / {amount}",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Risk Subject Test", constants.PaymentChannelTypeAlipay)
+	order := createUnderpaidOrder(t, db, "RISK-TITLE-TEST", 0, 15)
+	var subject string
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{
+		onCreate: func(input paymentcontract.GatewayCreateInput) { subject = input.Subject },
+	})
+	if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()}); err != nil {
+		t.Fatal(err)
+	}
+	if subject != "本人确认 RISK-TITLE-TEST / 15.00" {
+		t.Fatalf("unexpected checkout subject: %q", subject)
+	}
+}
+
+func TestConvertedAlipayUnderpaymentDoesNotCreditWallet(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	now := time.Now()
+	user := userdomain.User{Email: "converted-underpaid@example.com", PasswordHash: "hash", Status: constants.UserStatusActive}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&walletdomain.Account{UserID: user.ID, Balance: money.FromDecimal(decimal.NewFromInt(5))}).Error; err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "DJ-FX-UNDERPAID", user.ID, 15)
+	if err := db.Model(order).Update("currency", "USD").Error; err != nil {
+		t.Fatal(err)
+	}
+	payment := paymentdomain.Payment{
+		OrderID: order.ID, ChannelID: 1, ProviderType: constants.PaymentProviderOfficial,
+		ChannelType: constants.PaymentChannelTypeAlipay, Status: constants.PaymentStatusPending,
+		Currency: "CNY", Amount: money.FromDecimal(decimal.NewFromInt(70)), CreatedAt: now, UpdatedAt: now,
+		ProviderPayload: jsonmap.JSON{"exchange_rate": "7", "original_amount": "10.00"},
+	}
+	if err := db.Create(&payment).Error; err != nil {
+		t.Fatal(err)
+	}
+	received, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: payment.ID, OrderNo: order.OrderNo, ChannelID: payment.ChannelID,
+		Status: constants.PaymentStatusSuccess, Currency: payment.Currency, Amount: payment.Amount,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if received == nil || received.ExceptionCode != constants.PaymentExceptionUnderpaidSucceeded {
+		t.Fatalf("expected a reconciliable underpayment, got %+v", received)
+	}
+	if got := walletBalance(t, db, user.ID); got != "5.00" {
+		t.Fatalf("converted underpayment modified wallet, got %s", got)
+	}
+
+	fullOrder := createUnderpaidOrder(t, db, "DJ-FX-FULL", user.ID, 10)
+	if err := db.Model(fullOrder).Update("currency", "USD").Error; err != nil {
+		t.Fatal(err)
+	}
+	payment.ID, payment.OrderID = 0, fullOrder.ID
+	if err := db.Create(&payment).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: payment.ID, OrderNo: fullOrder.OrderNo, ChannelID: payment.ChannelID,
+		Status: constants.PaymentStatusSuccess, Currency: payment.Currency, Amount: payment.Amount,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(fullOrder, fullOrder.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if fullOrder.PaymentRiskEvaluatedAt == nil || fullOrder.PaymentRiskAmountFen != 7000 {
+		t.Fatalf("expected converted CNY risk amount of 7000 fen, got %d", fullOrder.PaymentRiskAmountFen)
+	}
+}
+
+func TestRecentAlipayRechargePreventsCreatingAnotherQR(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	user := userdomain.User{ID: 1, Email: "recharge-window@example.com", PasswordHash: "test", Status: constants.UserStatusActive}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	_, recharge := createWalletRechargeFixture(t, db, constants.PaymentStatusSuccess, constants.WalletRechargeStatusSuccess)
+	if err := db.Model(recharge).Update("channel_type", constants.PaymentChannelTypeAlipay).Error; err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Recharge window", constants.PaymentChannelTypeAlipay)
+	gatewayCalled := false
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{
+		onCreate: func(paymentcontract.GatewayCreateInput) { gatewayCalled = true },
+	})
+	_, err := svc.CreateWalletRechargePayment(CreateWalletRechargePaymentInput{
+		UserID: user.ID, ChannelID: channel.ID, Amount: money.FromDecimal(decimal.NewFromInt(20)), Currency: "CNY",
+	})
+	if !errors.Is(err, walletcontract.ErrRechargeRecentPayment) || gatewayCalled {
+		t.Fatalf("expected local recharge limit before gateway: called=%v err=%v", gatewayCalled, err)
+	}
+}
+
+type releasedFulfillmentQueue struct {
+	affiliateRetryQueue
+	calls int
+	err   error
+}
+
+func (q *releasedFulfillmentQueue) EnqueueOrderAutoFulfill(uint) error {
+	q.calls++
+	return q.err
+}
+
+func TestReleasedFulfillmentRecoveryKeepsFailedAttempt(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	order := createUnderpaidOrder(t, db, "DJ-RELEASE-RECOVERY", 0, 10)
+	now := time.Now()
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"status": constants.OrderStatusPaid, "risk_hold_status": "released", "risk_release_recovery_at": now.Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&orderdomain.OrderItem{
+		OrderID: order.ID, ProductID: 1, SKUID: 1, Quantity: 1, FulfillmentType: constants.FulfillmentTypeAuto,
+		TitleJSON: jsonmap.JSON{"zh-CN": "test"},
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	queue := &releasedFulfillmentQueue{err: errors.New("queue unavailable")}
+	svc.queue = queue
+	if err := svc.RecoverReleasedFulfillment(now); err == nil || queue.calls != 1 {
+		t.Fatalf("expected one reported queue failure: %v (%d)", err, queue.calls)
+	}
+	if err := svc.RecoverReleasedFulfillment(now.Add(time.Minute)); err != nil || queue.calls != 1 {
+		t.Fatalf("retry should wait until due: %v (%d)", err, queue.calls)
+	}
+	queue.err = nil
+	if err := svc.RecoverReleasedFulfillment(now.Add(6 * time.Minute)); err != nil || queue.calls != 2 {
+		t.Fatalf("expected one retry after recovery: %v (%d)", err, queue.calls)
+	}
+	if err := svc.RecoverReleasedFulfillment(now.Add(10 * time.Minute)); err != nil || queue.calls != 2 {
+		t.Fatalf("successful dispatch should clear pending marker: %v (%d)", err, queue.calls)
+	}
+}
+
+func TestRiskAlertRecoveryRetriesQueueFailure(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	now := time.Now()
+	order := createUnderpaidOrder(t, db, "DJ-HELD-ALERT", 0, 10)
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"risk_hold_status": "pending_review", "risk_alert_retry_at": now.Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	recorder := &riskNotificationRecorder{err: errors.New("queue unavailable")}
+	svc.notificationSvc = recorder
+	svc.queue = &affiliateRetryQueue{}
+	if err := svc.RecoverRiskAlerts(now); err == nil || len(recorder.inputs) != 1 {
+		t.Fatalf("expected initial recovery failure: %v", err)
+	}
+	recorder.err = nil
+	if err := svc.RecoverRiskAlerts(now.Add(6 * time.Minute)); err != nil || len(recorder.inputs) != 2 {
+		t.Fatalf("expected recovery retry: %v", err)
+	}
+	if err := svc.RecoverRiskAlerts(now.Add(12 * time.Minute)); err != nil || len(recorder.inputs) != 2 {
+		t.Fatalf("enqueued alert must not keep retrying: %v", err)
+	}
+}
+
+func TestPaidForeignOrderWithoutRateStillChecksBlacklist(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "settlement_mode": "hold_notice", "enabled": true,
+		"common": jsonmap.JSON{"ip_blacklist": []string{"192.0.2.0/24"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "DJ-FOREIGN-RISK", 0, 15)
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"currency": "USD", "client_ip": "192.0.2.8",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	payment := paymentdomain.Payment{
+		OrderID: order.ID, ChannelID: 1, ProviderType: constants.PaymentProviderOfficial,
+		ChannelType: constants.PaymentChannelTypeStripe, Status: constants.PaymentStatusPending,
+		Currency: "USD", Amount: money.FromDecimal(decimal.NewFromInt(15)),
+	}
+	if err := db.Create(&payment).Error; err != nil {
+		t.Fatal(err)
+	}
+	received, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: payment.ID, OrderNo: order.OrderNo, ChannelID: payment.ChannelID,
+		Status: constants.PaymentStatusSuccess, Currency: payment.Currency, Amount: payment.Amount,
+	})
+	if err != nil || received == nil || received.Status != constants.PaymentStatusSuccess {
+		t.Fatalf("expected received payment: %v", err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if order.RiskHoldStatus != "pending_review" || order.PaymentRiskAmountFen != 0 || order.PaymentRiskDecision["cny_amount_known"] != false {
+		t.Fatalf("expected an identity hold without a fabricated amount: %+v", order.PaymentRiskDecision)
+	}
+}
+
+func TestSettlementCountsGuestHistoryForMemberOnSameDevice(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "settlement_mode": "hold_notice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Device Risk Test", constants.PaymentChannelTypeWechat)
+	device := strings.Repeat("a", 64)
+	previous := createUnderpaidOrder(t, db, "RISK-DEVICE-GUEST", 0, 150)
+	if err := db.Model(previous).Updates(map[string]interface{}{
+		"guest_email": "guest@example.com", "risk_device_hash": device,
+		"paid_at": time.Now(), "status": constants.OrderStatusPaid,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&fulfillmentdomain.Fulfillment{
+		OrderID: previous.ID, Type: "upstream", Status: "delivered", RedemptionProgress: "unused",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	order := createUnderpaidOrder(t, db, "RISK-DEVICE-MEMBER", 1, 150)
+	if err := db.Model(order).Update("risk_device_hash", device).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: t.Context()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: result.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+		Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	signals, _ := order.PaymentRiskDecision["signals"].(map[string]interface{})
+	if signals["unredeemed_high_reorder"] != float64(35) {
+		t.Fatalf("expected confirmed unused large order signal, got %v", signals)
+	}
+	rules, _ := order.PaymentRiskDecision["hard_rules"].([]interface{})
+	if order.RiskHoldStatus != "pending_review" || len(rules) != 1 || rules[0] != "multi_paid_strong_identity" {
+		t.Fatalf("expected a hold from device history, got %q / %v", order.RiskHoldStatus, rules)
+	}
+}
+
+func TestSettlementAppliesUnpaidBurstWithoutCNYConversion(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if _, err := settingsstore.New(db).Upsert(constants.SettingKeyOrderRiskControlConfig, jsonmap.JSON{
+		"guest": jsonmap.JSON{}, "settlement_mode": "hold_notice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	channel := createUnderpaidChannel(t, db, svc, "Stripe GBP", constants.PaymentChannelTypeStripe)
+	for _, no := range []string{"GBP-PROBE-1", "GBP-PROBE-2", "GBP-PROBE-3"} {
+		createUnderpaidOrder(t, db, no, 1, 10)
+	}
+	order := createUnderpaidOrder(t, db, "GBP-RISK-SETTLE", 1, 10)
+	if err := db.Model(order).UpdateColumn("currency", "GBP").Error; err != nil {
+		t.Fatal(err)
+	}
+	payment := &paymentdomain.Payment{
+		OrderID: order.ID, ChannelID: channel.ID, ProviderType: channel.ProviderType, ChannelType: channel.ChannelType,
+		InteractionMode: channel.InteractionMode, Amount: order.TotalAmount, Currency: "GBP", Status: constants.PaymentStatusPending,
+	}
+	if err := db.Create(payment).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+		Status: constants.PaymentStatusSuccess, Amount: payment.Amount, Currency: "GBP",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	features, _ := order.PaymentRiskDecision["features"].(map[string]interface{})
+	if features["unpaid_count_30m"] != float64(3) || order.PaymentRiskDecision["threshold"] != float64(60) {
+		t.Fatalf("missing audited settlement aggregates: %+v", order.PaymentRiskDecision)
+	}
+	rules, _ := order.PaymentRiskDecision["hard_rules"].([]interface{})
+	if order.RiskHoldStatus != "pending_review" || order.PaymentRiskDecision["cny_amount_known"] != false ||
+		len(rules) != 1 || rules[0] != "unpaid_probe_burst" {
+		t.Fatalf("unpaid probe rule did not hold settlement: %q / %+v", order.RiskHoldStatus, order.PaymentRiskDecision)
+	}
+}
+
+func TestRecentAlipayFundingDisablesEstablishedCustomerExemptionForWalletSpend(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		balance int64
+	}{
+		{name: "wallet only", balance: 50},
+		{name: "wallet and one yuan online", balance: 49},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			user := userdomain.User{ID: 1, Email: "old-wallet@example.com", PasswordHash: "test", Status: constants.UserStatusActive}
+			if err := db.Create(&user).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Create(&walletdomain.Account{UserID: user.ID, Balance: money.FromDecimal(decimal.NewFromInt(tc.balance))}).Error; err != nil {
+				t.Fatal(err)
+			}
+			_, recharge := createWalletRechargeFixture(t, db, constants.PaymentStatusSuccess, constants.WalletRechargeStatusSuccess)
+			if err := db.Model(recharge).UpdateColumn("channel_type", constants.PaymentChannelTypeAlipay).Error; err != nil {
+				t.Fatal(err)
+			}
+			old := time.Now().Add(-8 * 24 * time.Hour)
+			for _, no := range []string{"WALLET-HISTORY-1", "WALLET-HISTORY-2"} {
+				order := createUnderpaidOrder(t, db, no, user.ID, 50)
+				if err := db.Model(order).Updates(map[string]interface{}{
+					"created_at": old, "paid_at": old, "status": constants.OrderStatusCompleted,
+				}).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			channel := createUnderpaidChannel(t, db, svc, "Test non-monitored payment", constants.PaymentChannelTypeWechat)
+			order := createUnderpaidOrder(t, db, "WALLET-SPEND", user.ID, 50)
+			result, err := svc.CreatePayment(CreatePaymentInput{
+				OrderID: order.ID, ChannelID: channel.ID, UseBalance: true, Context: t.Context(),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.balance == 49 {
+				if result.Payment.Amount.StringFixed(2) != "1.00" {
+					t.Fatalf("expected exactly one yuan online, got %s", result.Payment.Amount.StringFixed(2))
+				}
+				if _, err := svc.HandleCallback(PaymentCallbackInput{
+					PaymentID: result.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+					Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY",
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := db.First(order, order.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if order.PaidAt == nil || order.PaymentRiskDecision["recent_wallet_funding"] != true || order.PaymentRiskDecision["exempt"] != false {
+				t.Fatalf("recent wallet funding did not force evaluation: %+v", order.PaymentRiskDecision)
+			}
+		})
+	}
+}
+
+func TestSettlementScoresSlowPaymentOnlyFromGatewayPaidTime(t *testing.T) {
+	for _, known := range []bool{false, true} {
+		t.Run(fmt.Sprintf("gateway paid time present=%v", known), func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			channel := createUnderpaidChannel(t, db, svc, "Risk timing test", constants.PaymentChannelTypeWechat)
+			order := createUnderpaidOrder(t, db, "QR-TIMING", 0, 250)
+			if err := db.Model(order).Updates(map[string]interface{}{
+				"guest_email": "first-buyer@example.com", "risk_ip": "192.0.2.24",
+			}).Error; err != nil {
+				t.Fatal(err)
+			}
+			result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: t.Context()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ready := time.Now().Add(-4 * time.Minute)
+			if err := db.Model(result.Payment).UpdateColumn("checkout_ready_at", ready).Error; err != nil {
+				t.Fatal(err)
+			}
+			var paidAt *time.Time
+			if known {
+				value := ready.Add(3 * time.Minute)
+				paidAt = &value
+			}
+			if _, err := svc.HandleCallback(PaymentCallbackInput{
+				PaymentID: result.Payment.ID, OrderNo: order.OrderNo, ChannelID: channel.ID,
+				Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY", PaidAt: paidAt,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.First(order, order.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if order.PaymentRiskCandidate != known || order.PaymentRiskDecision["pay_delay_known"] != known {
+				t.Fatalf("unexpected risk timing decision: %+v", order.PaymentRiskDecision)
+			}
+		})
+	}
+}
+
+func TestExpiredOrderDoesNotFulfillWhileCloseTaskIsPending(t *testing.T) {
+	for _, paidBeforeExpiry := range []bool{false, true} {
+		t.Run(fmt.Sprintf("provider confirms on-time receipt=%v", paidBeforeExpiry), func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			channel := createUnderpaidChannel(t, db, svc, "Expiry window", constants.PaymentChannelTypeWechat)
+			order := createUnderpaidOrder(t, db, "CLOSE-WORKER-PENDING", 0, 15)
+			result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: t.Context()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(-time.Minute)
+			if err := db.Model(order).Updates(map[string]interface{}{
+				"created_at": deadline.Add(-5 * time.Minute), "expires_at": deadline,
+			}).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Model(result.Payment).UpdateColumn("created_at", deadline.Add(-4*time.Minute)).Error; err != nil {
+				t.Fatal(err)
+			}
+			var paidAt *time.Time
+			if paidBeforeExpiry {
+				stamp := deadline.Add(-time.Second)
+				paidAt = &stamp
+			}
+			payment, err := svc.HandleCallback(PaymentCallbackInput{
+				PaymentID: result.Payment.ID, ChannelID: channel.ID, OrderNo: order.OrderNo,
+				Status: constants.PaymentStatusSuccess, Amount: result.Payment.Amount, Currency: "CNY", PaidAt: paidAt,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := db.First(order, order.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if payment.Status != constants.PaymentStatusSuccess || (order.PaidAt != nil) != paidBeforeExpiry ||
+				(payment.ExceptionCode == constants.PaymentExceptionClosedOrderSucceeded) == paidBeforeExpiry {
+				t.Fatalf("unexpected order/receipt: status=%s exception=%s", order.Status, payment.ExceptionCode)
+			}
+		})
+	}
+}
+
+func TestFiatQRShortensMemberOrderWithoutRenewingOnChannelChange(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	original := time.Now().Add(15 * time.Minute)
+	order := createUnderpaidOrder(t, db, "MEMBER-QR-SHORT-WINDOW", 1, 50)
+	if err := db.Model(order).UpdateColumn("expires_at", original).Error; err != nil {
+		t.Fatal(err)
+	}
+	child := createUnderpaidOrder(t, db, "MEMBER-QR-SHORT-WINDOW-CHILD", 1, 50)
+	if err := db.Model(child).Updates(map[string]interface{}{"expires_at": original, "parent_id": order.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
+	first := createUnderpaidChannel(t, db, svc, "Alipay QR test", constants.PaymentChannelTypeAlipay)
+	second := createUnderpaidChannel(t, db, svc, "Wechat QR test", constants.PaymentChannelTypeWechat)
+	before := time.Now()
+	started, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: first.ID, Context: t.Context()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(order, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(child, child.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if order.ExpiresAt == nil || order.ExpiresAt.Before(before.Add(5*time.Minute)) ||
+		order.ExpiresAt.After(time.Now().Add(5*time.Minute)) || child.ExpiresAt == nil || !order.ExpiresAt.Equal(*child.ExpiresAt) {
+		t.Fatalf("expected an aligned five-minute deadline, got order=%v child=%v", order.ExpiresAt, child.ExpiresAt)
+	}
+	if started.Payment.ExpiredAt == nil || !started.Payment.ExpiredAt.Equal(*order.ExpiresAt) {
+		t.Fatal("payment uses a different deadline from the order")
+	}
+	changed, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: second.ID, Context: t.Context()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.Payment.ExpiredAt == nil || !changed.Payment.ExpiredAt.Equal(*order.ExpiresAt) {
+		t.Fatal("switching QR providers extended the deadline")
+	}
+}
+
+func TestRiskReviewCanRejectAfterManualRefundWithoutReleasingOrder(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	order := createUnderpaidOrder(t, db, "RISK-MANUAL-REFUND", 0, 50)
+	now := time.Now()
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"client_ip": "192.0.2.9",
+		"status":    constants.OrderStatusRefunded, "paid_at": now, "risk_hold_status": "pending_review",
+		"refunded_amount": order.TotalAmount, "risk_alert_retry_at": now, "risk_release_recovery_at": now,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	card := cardsecretdomain.Secret{OrderID: &order.ID, ProductID: 1, Secret: "fixture-only", Status: cardsecretdomain.StatusReserved}
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	duplicate := cardsecretdomain.Secret{ProductID: 2, Secret: card.Secret, Status: cardsecretdomain.StatusAvailable}
+	if err := db.Create(&duplicate).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ReviewOrderRisk(order.ID, 1, true); err == nil {
+		t.Fatal("a refunded order cannot be released for delivery")
+	}
+	if err := svc.ReviewOrderRiskWithList(order.ID, 1, false, []string{"user_id"}); !errors.Is(err, ErrPaymentInvalid) {
+		t.Fatalf("guest review must not write an account rule: %v", err)
+	}
+	for _, admin := range []uint{1, 2} {
+		if err := svc.ReviewOrderRiskWithList(order.ID, admin, false, []string{"ip", "cidr"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.First(&card, card.ID).Error; err != nil || card.Status != cardsecretdomain.StatusRiskVoided {
+		t.Fatalf("rejected card was not voided: %s / %v", card.Status, err)
+	}
+	cards := cardsecretstore.New(db)
+	if changed, err := cards.BatchUpdateStatus([]uint{card.ID}, cardsecretdomain.StatusAvailable, now); err != nil || changed != 0 {
+		t.Fatalf("bulk edit must not restore a voided card: %d / %v", changed, err)
+	}
+	card.Status = cardsecretdomain.StatusAvailable
+	if err := cards.Update(&card); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("single edit must not restore a voided card: %v", err)
+	}
+	if err := db.First(&duplicate, duplicate.ID).Error; err != nil || duplicate.Status != cardsecretdomain.StatusRiskVoided {
+		t.Fatalf("existing copy was not voided: %s / %v", duplicate.Status, err)
+	}
+	if err := cards.CreateBatch([]cardsecretdomain.Secret{
+		{ProductID: 3, Secret: "fresh-test-code", Status: cardsecretdomain.StatusAvailable},
+		{ProductID: 3, Secret: card.Secret, Status: cardsecretdomain.StatusAvailable},
+	}); err == nil {
+		t.Fatal("import accepted a voided code")
+	}
+	if remaining, err := cards.CountAvailable(3, 0); err != nil || remaining != 0 {
+		t.Fatalf("mixed import must not insert any cards: %d / %v", remaining, err)
+	}
+	var reloaded orderdomain.Order
+	if err := db.First(&reloaded, order.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Status != constants.OrderStatusRefunded || reloaded.RiskHoldStatus != "rejected" ||
+		reloaded.PaymentRiskDecision["review_admin_id"] != float64(1) ||
+		reloaded.RiskAlertRetryAt != nil || reloaded.RiskReleaseRecoveryAt != nil {
+		t.Fatalf("unexpected final status or review metadata: %s / %s / %+v", reloaded.Status, reloaded.RiskHoldStatus, reloaded.PaymentRiskDecision)
+	}
+	cfg, err := svc.settingService.GetOrderRiskControlConfig()
+	if err != nil || len(cfg.Common.SettlementList) != 2 {
+		t.Fatalf("expected two durable list rules: %+v / %v", cfg.Common.SettlementList, err)
+	}
+	if cfg.Common.SettlementList[0].Allow || cfg.Common.SettlementList[0].Value != "192.0.2.9" ||
+		cfg.Common.SettlementList[1].Allow || cfg.Common.SettlementList[1].Value != "192.0.2.0/24" {
+		t.Fatalf("unexpected review rules: %+v", cfg.Common.SettlementList)
+	}
+}
+
+type releasedAffiliateRecorder struct {
+	calls int
+	err   error
+}
+
+func (r *releasedAffiliateRecorder) HandleOrderPaid(uint) error {
+	r.calls++
+	return r.err
+}
+
+func TestReleasedAffiliateRecoveryContinuesAfterDelivery(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	now := time.Now()
+	order := createUnderpaidOrder(t, db, "RELEASE-COMMISSION-RECOVERY", 1, 50)
+	if err := db.Model(order).Updates(map[string]interface{}{
+		"status": constants.OrderStatusCompleted, "risk_hold_status": "released",
+		"risk_release_recovery_at": now.Add(-time.Minute),
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	affiliate := &releasedAffiliateRecorder{err: errors.New("temporary commission write failure")}
+	svc.affiliateSvc = affiliate
+	svc.queue = &affiliateRetryQueue{}
+	if err := svc.RecoverReleasedFulfillment(now); err == nil || affiliate.calls != 1 {
+		t.Fatalf("expected initial commission recovery error: %v / %d", err, affiliate.calls)
+	}
+	affiliate.err = nil
+	if err := svc.RecoverReleasedFulfillment(now.Add(6 * time.Minute)); err != nil || affiliate.calls != 2 {
+		t.Fatalf("expected successful commission retry: %v / %d", err, affiliate.calls)
+	}
+	if err := svc.RecoverReleasedFulfillment(now.Add(12 * time.Minute)); err != nil || affiliate.calls != 2 {
+		t.Fatalf("successful commission must not be retried again: %v / %d", err, affiliate.calls)
 	}
 }

@@ -18,6 +18,8 @@ var ErrUnsupported = errors.New("aftersale operation unsupported")
 // the persisted delivery only after the remote operation has been confirmed.
 type Repository interface {
 	GetByID(uint) (*procurementdomain.Order, error)
+	CheckRedemptionAccess(context.Context, uint) error
+	ObserveRedemptionProgress(context.Context, uint, string, string) error
 	BeginAfterSale(uint, string, string, string, int) (bool, error)
 	CompleteReplacement(uint, string, string, int) error
 }
@@ -34,6 +36,16 @@ type Service struct {
 }
 
 func (s *Service) Inspect(ctx context.Context, id uint) (*procurementcontract.RedemptionState, error) {
+	return s.inspect(ctx, id, false)
+}
+
+// InspectForAudit lets administrators verify upstream state for held orders
+// without releasing the code or mutating the upstream order.
+func (s *Service) InspectForAudit(ctx context.Context, id uint) (*procurementcontract.RedemptionState, error) {
+	return s.inspect(ctx, id, true)
+}
+
+func (s *Service) inspect(ctx context.Context, id uint, audit bool) (*procurementcontract.RedemptionState, error) {
 	o, err := s.Store.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -41,11 +53,39 @@ func (s *Service) Inspect(ctx context.Context, id uint) (*procurementcontract.Re
 	if o == nil {
 		return nil, ErrConflict
 	}
+	checkAccess := func() error {
+		err := s.Store.CheckRedemptionAccess(ctx, o.LocalOrderID)
+		if audit && errors.Is(err, procurementcontract.ErrOrderRiskHeld) {
+			return nil
+		}
+		return err
+	}
+	if err := checkAccess(); err != nil {
+		return nil, err
+	}
 	remote, err := s.Connections.OpenAfterSale(o.ConnectionID)
 	if err != nil {
 		return nil, err
 	}
-	return remote.Inspect(ctx, o.UpstreamOrderNo)
+	result, err := remote.Inspect(ctx, o.UpstreamOrderNo)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, ErrConflict
+	}
+	if err := checkAccess(); err != nil {
+		return nil, err
+	}
+	if err := s.Store.ObserveRedemptionProgress(ctx, o.LocalOrderID, result.Code, result.Progress); err != nil {
+		return nil, err
+	}
+	if audit {
+		state := *result
+		state.Code = ""
+		return &state, nil
+	}
+	return result, nil
 }
 
 func (s *Service) Replace(ctx context.Context, id uint, requestID string, revision int) (*procurementcontract.RedemptionState, error) {
@@ -59,6 +99,9 @@ func (s *Service) Replace(ctx context.Context, id uint, requestID string, revisi
 	if o == nil {
 		return nil, ErrConflict
 	}
+	if err := s.Store.CheckRedemptionAccess(ctx, o.LocalOrderID); err != nil {
+		return nil, err
+	}
 	remote, err := s.Connections.OpenAfterSale(o.ConnectionID)
 	if err != nil {
 		return nil, err
@@ -71,6 +114,9 @@ func (s *Service) Replace(ctx context.Context, id uint, requestID string, revisi
 	if o.AfterSaleKind == "replace" && o.AfterSaleRequestID == requestID && o.AfterSaleState == "completed" {
 		if o.AfterSaleExpectedRevision != revision {
 			return nil, ErrConflict
+		}
+		if err := s.Store.CheckRedemptionAccess(ctx, o.LocalOrderID); err != nil {
+			return nil, err
 		}
 		return current, nil
 	}
@@ -90,6 +136,9 @@ func (s *Service) Replace(ctx context.Context, id uint, requestID string, revisi
 	}
 	// Fixed remote request ID survives timeouts and process restarts. An unknown
 	// outcome may only replay this operation, never start a second replacement.
+	if err := s.Store.CheckRedemptionAccess(ctx, o.LocalOrderID); err != nil {
+		return nil, err
+	}
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", id, requestID)))
 	result, err := remote.Replace(ctx, o.UpstreamOrderNo, fmt.Sprintf("xgai-replace-%x", sum[:20]), revision)
 	if err != nil {
@@ -99,6 +148,9 @@ func (s *Service) Replace(ctx context.Context, id uint, requestID string, revisi
 		return nil, ErrConflict
 	}
 	if err = s.Store.CompleteReplacement(id, requestID, result.Code, result.Revision); err != nil {
+		return nil, err
+	}
+	if err := s.Store.CheckRedemptionAccess(ctx, o.LocalOrderID); err != nil {
 		return nil, err
 	}
 	if s.Notify != nil {

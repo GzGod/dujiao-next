@@ -441,17 +441,21 @@ func respondFulfillmentDownload(c *gin.Context, order *orderdomain.Order) {
 	}
 	filename := "fulfillment-" + order.OrderNo + ".txt"
 	c.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Header("Cache-Control", "no-store")
 	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	c.Data(200, "text/plain; charset=utf-8", []byte(payload))
 }
 
 func collectFulfillmentPayload(order *orderdomain.Order) string {
+	if order == nil || order.RiskBlocksFulfillment() {
+		return ""
+	}
 	if order.Fulfillment != nil && order.Fulfillment.Payload != "" {
 		return order.Fulfillment.Payload
 	}
 	var parts []string
 	for _, child := range order.Children {
-		if child.Fulfillment != nil && child.Fulfillment.Payload != "" {
+		if !child.RiskBlocksFulfillment() && child.Fulfillment != nil && child.Fulfillment.Payload != "" {
 			parts = append(parts, child.Fulfillment.Payload)
 		}
 	}

@@ -77,7 +77,7 @@ const routes = [
         path: 'order-risk-control',
         name: 'order-risk-control',
         component: () => import('@/views/admin/OrderRiskControl.vue'),
-        meta: { permission: 'GET:/admin/settings' },
+        meta: { permission: 'GET:/admin/settings', superOnly: true },
       },
       {
         path: 'order-refunds',
@@ -427,7 +427,7 @@ router.beforeEach(async (to) => {
   }
 
   const requiredPermission = typeof to.meta.permission === 'string' ? to.meta.permission : ''
-  if (requiredPermission && !authStore.hasPermission(requiredPermission)) {
+  if ((to.meta.superOnly && !authStore.isSuper) || (requiredPermission && !authStore.hasPermission(requiredPermission))) {
     if (to.path !== '/forbidden') {
       return {
         path: '/forbidden',

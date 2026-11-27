@@ -36,7 +36,13 @@ func (s *Service) HandleOrderPaid(orderID uint) error {
 		return err
 	}
 	// 重试任务可能晚于退款/取消执行，此时退款流程已找不到佣金可冲销，不能再生成
-	if order == nil || order.Status == constants.OrderStatusRefunded || order.Status == constants.OrderStatusCanceled {
+	if order == nil || order.ParentID != nil || order.RiskBlocksFulfillment() {
+		return nil
+	}
+	switch order.Status {
+	case constants.OrderStatusPaid, constants.OrderStatusFulfilling, constants.OrderStatusPartiallyDelivered,
+		constants.OrderStatusDelivered, constants.OrderStatusCompleted, constants.OrderStatusPartiallyRefunded:
+	default:
 		return nil
 	}
 	profile, err := s.resolveAffiliateProfileForOrder(order)

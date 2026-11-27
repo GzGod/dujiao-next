@@ -66,7 +66,31 @@ func (s *Service) AdminRefundToWallet(
 
 	err := s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
 		orderRepository := tx.Orders()
-		locked, err := orderRepository.GetByIDForUpdate(input.OrderID)
+		initial, err := orderRepository.GetByID(input.OrderID)
+		if err != nil {
+			return err
+		}
+		if initial == nil {
+			return ErrOrderNotFound
+		}
+		rootID := initial.ID
+		if initial.ParentID != nil && *initial.ParentID != 0 {
+			rootID = *initial.ParentID
+		}
+		root, err := orderRepository.GetByIDForUpdate(rootID)
+		if err != nil {
+			return err
+		}
+		if root == nil {
+			return ErrOrderNotFound
+		}
+		if root.RiskBlocksFulfillment() {
+			return ErrOrderStatusInvalid
+		}
+		locked := root
+		if rootID != input.OrderID {
+			locked, err = orderRepository.GetByIDForUpdate(input.OrderID)
+		}
 		if err != nil {
 			return err
 		}
@@ -77,7 +101,7 @@ func (s *Service) AdminRefundToWallet(
 		if order.UserID == 0 {
 			return walletcontract.ErrNotSupportedForGuest
 		}
-		if order.PaidAt == nil {
+		if order.PaidAt == nil || order.RiskBlocksFulfillment() {
 			return ErrOrderStatusInvalid
 		}
 		now := time.Now()

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	riskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,6 +82,7 @@ func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
 		&productdomain.Product{},
 		&productdomain.ProductSKU{},
 		&orderdomain.Order{},
+		&riskdomain.LockKey{},
 		&orderdomain.OrderItem{},
 		&fulfillmentdomain.Fulfillment{},
 		&paymentdomain.PaymentChannel{},

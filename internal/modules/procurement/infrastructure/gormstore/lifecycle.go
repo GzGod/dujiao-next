@@ -1,7 +1,9 @@
 package gormstore
 
 import (
+	"context"
 	"errors"
+	"gorm.io/gorm/logger"
 	"strings"
 	"time"
 
@@ -35,13 +37,14 @@ type StatusEmailQueue interface {
 }
 
 type lifecycleOrderRecord struct {
-	ID         uint                   `gorm:"primarykey"`
-	ParentID   *uint                  `gorm:"index"`
-	UserID     uint                   `gorm:"index;not null"`
-	GuestEmail string                 `gorm:"index"`
-	Status     string                 `gorm:"index;not null"`
-	DeletedAt  gorm.DeletedAt         `gorm:"index"`
-	Children   []lifecycleOrderRecord `gorm:"foreignKey:ParentID"`
+	RiskHoldStatus string
+	ID             uint                   `gorm:"primarykey"`
+	ParentID       *uint                  `gorm:"index"`
+	UserID         uint                   `gorm:"index;not null"`
+	GuestEmail     string                 `gorm:"index"`
+	Status         string                 `gorm:"index;not null"`
+	DeletedAt      gorm.DeletedAt         `gorm:"index"`
+	Children       []lifecycleOrderRecord `gorm:"foreignKey:ParentID"`
 }
 
 func (lifecycleOrderRecord) TableName() string { return "orders" }
@@ -55,16 +58,18 @@ type lifecycleUserRecord struct {
 func (lifecycleUserRecord) TableName() string { return "users" }
 
 type lifecycleFulfillmentRecord struct {
-	ID            uint           `gorm:"primarykey"`
-	OrderID       uint           `gorm:"uniqueIndex;not null"`
-	Type          string         `gorm:"not null"`
-	Status        string         `gorm:"not null"`
-	Payload       string         `gorm:"type:text"`
-	LogisticsJSON jsonmap.JSON   `gorm:"type:json"`
-	DeliveredAt   *time.Time     `gorm:"index"`
-	CreatedAt     time.Time      `gorm:"index"`
-	UpdatedAt     time.Time      `gorm:"index"`
-	DeletedAt     gorm.DeletedAt `gorm:"index"`
+	RedemptionPreviousHashes string         `gorm:"type:text"`
+	RedemptionProgress       string         `gorm:"type:varchar(24)"`
+	ID                       uint           `gorm:"primarykey"`
+	OrderID                  uint           `gorm:"uniqueIndex;not null"`
+	Type                     string         `gorm:"not null"`
+	Status                   string         `gorm:"not null"`
+	Payload                  string         `gorm:"type:text"`
+	LogisticsJSON            jsonmap.JSON   `gorm:"type:json"`
+	DeliveredAt              *time.Time     `gorm:"index"`
+	CreatedAt                time.Time      `gorm:"index"`
+	UpdatedAt                time.Time      `gorm:"index"`
+	DeletedAt                gorm.DeletedAt `gorm:"index"`
 }
 
 func (lifecycleFulfillmentRecord) TableName() string { return "fulfillments" }
@@ -94,6 +99,28 @@ func (l *Lifecycle) CreateUpstreamFulfillment(orderID uint, fulfillment *procure
 		deliveredAt = &now
 	}
 	return l.db.Transaction(func(tx *gorm.DB) error {
+		var initial lifecycleOrderRecord
+		if err := tx.First(&initial, orderID).Error; err != nil {
+			return err
+		}
+		rootID := orderID
+		if initial.ParentID != nil {
+			rootID = *initial.ParentID
+		}
+		var root lifecycleOrderRecord
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&root, rootID).Error; err != nil {
+			return err
+		}
+		locked := root
+		if rootID != orderID {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&locked, orderID).Error; err != nil {
+				return err
+			}
+		}
+		if (root.RiskHoldStatus != "" && root.RiskHoldStatus != "released") ||
+			(locked.RiskHoldStatus != "" && locked.RiskHoldStatus != "released") {
+			return procurementcontract.ErrOrderRiskHeld
+		}
 		var existing lifecycleFulfillmentRecord
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("order_id = ?", orderID).
@@ -104,8 +131,13 @@ func (l *Lifecycle) CreateUpstreamFulfillment(orderID uint, fulfillment *procure
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		progress := ""
+		if fulfillment.Status == "unused" {
+			progress = fulfillment.Status
+		}
 		return tx.Create(&lifecycleFulfillmentRecord{
-			OrderID: orderID, Type: constants.FulfillmentTypeUpstream,
+			RedemptionProgress: progress,
+			OrderID:            orderID, Type: constants.FulfillmentTypeUpstream,
 			Status: constants.FulfillmentStatusDelivered, Payload: fulfillment.Payload,
 			LogisticsJSON: fulfillment.DeliveryData, DeliveredAt: deliveredAt,
 			CreatedAt: now, UpdatedAt: now,
@@ -229,4 +261,43 @@ func calculateParentStatus(children []lifecycleOrderRecord, currentStatus string
 		return constants.OrderStatusPendingPayment
 	}
 	return currentStatus
+}
+
+// CheckRedemptionAccess gates operations that can expose a current code.
+func (s *Store) CheckRedemptionAccess(ctx context.Context, orderID uint) error {
+	var order lifecycleOrderRecord
+	db := s.db.WithContext(ctx)
+	if err := db.Select("id", "parent_id", "risk_hold_status").First(&order, orderID).Error; err != nil {
+		return err
+	}
+	if heldForRedemption(order.RiskHoldStatus) {
+		return procurementcontract.ErrOrderRiskHeld
+	}
+	if order.ParentID == nil {
+		return nil
+	}
+	var parent lifecycleOrderRecord
+	if err := db.Select("id", "risk_hold_status").First(&parent, *order.ParentID).Error; err != nil {
+		return err
+	}
+	if heldForRedemption(parent.RiskHoldStatus) {
+		return procurementcontract.ErrOrderRiskHeld
+	}
+	return nil
+}
+
+func heldForRedemption(status string) bool {
+	return status != "" && status != "released"
+}
+
+// ObserveRedemptionProgress retires an unused observation only for the same
+// code, so a delayed check cannot change the status of a replacement code.
+func (s *Store) ObserveRedemptionProgress(ctx context.Context, orderID uint, code, progress string) error {
+	if code == "" || progress == "" || progress == "unused" {
+		return nil
+	}
+	return s.db.WithContext(ctx).Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).
+		Model(&lifecycleFulfillmentRecord{}).
+		Where("order_id = ? AND payload = ? AND redemption_progress = ?", orderID, code, "unused").
+		UpdateColumn("redemption_progress", "no_longer_unused").Error
 }

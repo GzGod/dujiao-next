@@ -27,12 +27,16 @@ type Document struct {
 var content = func() struct {
 	Pages  map[string]map[string]Document `json:"pages"`
 	Labels map[string]map[string]string   `json:"labels"`
-} { var c struct {
-	Pages  map[string]map[string]Document `json:"pages"`
-	Labels map[string]map[string]string   `json:"labels"`
-}; if err := json.Unmarshal(raw, &c); err != nil {
-	panic(err)
-}; return c }()
+} {
+	var c struct {
+		Pages  map[string]map[string]Document `json:"pages"`
+		Labels map[string]map[string]string   `json:"labels"`
+	}
+	if err := json.Unmarshal(raw, &c); err != nil {
+		panic(err)
+	}
+	return c
+}()
 
 func Paths() []string {
 	paths := []string{"/guides"}

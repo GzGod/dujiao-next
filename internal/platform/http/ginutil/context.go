@@ -6,6 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// PaymentDeviceContextKey identifies a verified, hashed payment device.
+const PaymentDeviceContextKey = "verified_payment_device_hash"
+
 // GetAdminID 从上下文读取管理员 ID。
 func GetAdminID(c *gin.Context) (uint, bool) {
 	return GetContextUintWithKeys(c, "admin_id", "error.admin_id_invalid", "error.admin_id_type_invalid")

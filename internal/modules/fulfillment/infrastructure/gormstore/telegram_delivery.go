@@ -189,7 +189,7 @@ func (r *Store) ReserveTelegramDelivery(id, admin uint, hash string) (bool, erro
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Items", "deleted_at IS NULL").First(&order, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 			return err
 		}
-		if (parent.Status != "paid" && parent.Status != "fulfilling") || (order.Status != "paid" && order.Status != "fulfilling") || order.RefundedAmount.Decimal.IsPositive() || parent.RefundedAmount.Decimal.IsPositive() || order.ResellerID != nil {
+		if parent.RiskBlocksFulfillment() || order.RiskBlocksFulfillment() || (parent.Status != "paid" && parent.Status != "fulfilling") || (order.Status != "paid" && order.Status != "fulfilling") || order.RefundedAmount.Decimal.IsPositive() || parent.RefundedAmount.Decimal.IsPositive() || order.ResellerID != nil {
 			return errors.New("order unavailable")
 		}
 		if len(order.Items) == 0 {

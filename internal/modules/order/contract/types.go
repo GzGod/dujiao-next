@@ -4,19 +4,35 @@ import "time"
 
 // ListFilter 查询订单列表的过滤条件。
 type ListFilter struct {
-	IssuedOnly     bool
-	Page           int
-	PageSize       int
-	UserID         uint
-	UserKeyword    string
-	Status         string
-	OrderNo        string
-	GuestEmail     string
-	ProductKeyword string
-	CreatedFrom    *time.Time
-	CreatedTo      *time.Time
-	SortBy         string
-	SortOrder      string
+	RiskAlertDue           *time.Time
+	RiskReleaseRecoveryDue *time.Time
+	RiskActivityFrom       *time.Time
+	RiskContactHash        string
+	RiskIPv4Prefix         string
+	PaidFrom               *time.Time
+	RiskDeviceHash         string
+	RiskHoldStatus         string
+	RiskShadowCandidate    bool
+	PendingExpiredBefore   *time.Time
+	RiskEvaluatedOnly      bool
+	IssuedOnly             bool
+	SkipRelations          bool
+	ExcludeID              uint
+	RiskIP                 string
+	PaidOnly               bool
+	RiskSuccessfulOnly     bool
+	Page                   int
+	PageSize               int
+	UserID                 uint
+	UserKeyword            string
+	Status                 string
+	OrderNo                string
+	GuestEmail             string
+	ProductKeyword         string
+	CreatedFrom            *time.Time
+	CreatedTo              *time.Time
+	SortBy                 string
+	SortOrder              string
 }
 
 // TenantScope 表示前台订单查询的分销租户范围。

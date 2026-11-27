@@ -63,6 +63,7 @@ interface NavGroupItem {
   label: string
   to: string
   permission?: string
+  superOnly?: boolean
   icon?: any
 }
 
@@ -177,6 +178,7 @@ const navGroups = computed<NavGroup[]>(() => {
           label: t('admin.navItems.orderRiskControl'),
           to: '/order-risk-control',
           icon: ShieldCheck,
+          superOnly: true,
           permission: 'GET:/admin/settings',
         },
         {
@@ -493,7 +495,7 @@ const navGroups = computed<NavGroup[]>(() => {
   return groups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => authStore.hasPermission(item.permission)),
+      items: group.items.filter((item) => (!item.superOnly || authStore.isSuper) && authStore.hasPermission(item.permission)),
     }))
     .filter((group) => group.items.length > 0)
 })

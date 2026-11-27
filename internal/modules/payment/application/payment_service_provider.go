@@ -160,11 +160,21 @@ func (s *PaymentService) applyProviderPayment(input CreatePaymentInput, order *o
 	// customerEmail 用于渠道预填邮箱（如 Stripe customer_email），来自会员邮箱或游客下单邮箱。
 	customerEmail, _, _ := s.resolveNotificationCustomer(order)
 
+	subject := buildOrderSubject(order)
+	if channelType == constants.PaymentChannelTypeAlipay {
+		cfg, _ := s.settingService.GetOrderRiskControlConfig()
+		subject = strings.NewReplacer(
+			"{order_no}", subject,
+			"{amount}", payment.Amount.Decimal.StringFixed(2),
+		).Replace(cfg.AlipayRiskSubject)
+	}
+
 	createInput := paymentcontract.GatewayCreateInput{
+		ExpiresAt:      order.ExpiresAt,
 		PaymentID:      payment.ID,
 		OrderID:        order.ID,
 		OrderNo:        providerOrderNo,
-		Subject:        buildOrderSubject(order),
+		Subject:        subject,
 		Amount:         payment.Amount,
 		Currency:       payment.Currency,
 		Email:          strings.TrimSpace(customerEmail),
@@ -220,6 +230,10 @@ func (s *PaymentService) applyProviderPayment(input CreatePaymentInput, order *o
 	}
 	payment.Status = constants.PaymentStatusPending
 	payment.UpdatedAt = time.Now()
+	if payment.QRCode != "" || payment.PayURL != "" {
+		readyAt := payment.UpdatedAt
+		payment.CheckoutReadyAt = &readyAt
+	}
 
 	// 网关请求期间该支付可能已被钱包支付替代、回调或过期；只有仍是 initiated 才写回，避免旧快照覆盖新状态。
 	return s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {

@@ -3,6 +3,7 @@ package paymentcallback_test
 import (
 	"errors"
 	"fmt"
+	riskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	"testing"
 	"time"
 
@@ -48,6 +49,7 @@ func newManualConfirmFixture(t *testing.T, orderStatus string, autoQuantity int)
 		&productdomain.Product{},
 		&productdomain.ProductSKU{},
 		&orderdomain.Order{},
+		&riskdomain.LockKey{},
 		&orderdomain.OrderItem{},
 		&fulfillmentdomain.Fulfillment{},
 		&paymentdomain.PaymentChannel{},

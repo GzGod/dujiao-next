@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dujiao-next/internal/logger"
 	orderriskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
@@ -63,6 +64,9 @@ func (s *Service) CheckOrderAllowed(input orderriskcontract.CheckInput) (orderri
 	}
 
 	if !input.SkipIPCheck && input.ClientIP != "" && len(cfg.Common.IPBlacklist) > 0 && s.isIPInBlacklist(input.ClientIP, cfg.Common.IPBlacklist) {
+		return result, orderriskcontract.ErrIPBlacklisted
+	}
+	if denied, _ := orderriskcontract.MatchSettlementList(input, cfg, time.Now()); denied {
 		return result, orderriskcontract.ErrIPBlacklisted
 	}
 	if input.IsGuest {

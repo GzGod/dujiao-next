@@ -45,19 +45,22 @@ type orderAdminQueryAdapter struct {
 
 func (a orderAdminQueryAdapter) ListOrdersForAdmin(filter ordertransport.OrderListFilter) ([]orderdomain.Order, int64, error) {
 	return a.orders.ListOrdersForAdmin(ordercontract.ListFilter{
-		IssuedOnly:     filter.IssuedOnly,
-		Page:           filter.Page,
-		PageSize:       filter.PageSize,
-		UserID:         filter.UserID,
-		UserKeyword:    filter.UserKeyword,
-		Status:         filter.Status,
-		OrderNo:        filter.OrderNo,
-		GuestEmail:     filter.GuestEmail,
-		ProductKeyword: filter.ProductKeyword,
-		CreatedFrom:    filter.CreatedFrom,
-		CreatedTo:      filter.CreatedTo,
-		SortBy:         filter.SortBy,
-		SortOrder:      filter.SortOrder,
+		IssuedOnly:          filter.IssuedOnly,
+		RiskHoldStatus:      filter.RiskHoldStatus,
+		RiskShadowCandidate: filter.RiskShadowCandidate,
+		RiskEvaluatedOnly:   filter.RiskEvaluatedOnly,
+		Page:                filter.Page,
+		PageSize:            filter.PageSize,
+		UserID:              filter.UserID,
+		UserKeyword:         filter.UserKeyword,
+		Status:              filter.Status,
+		OrderNo:             filter.OrderNo,
+		GuestEmail:          filter.GuestEmail,
+		ProductKeyword:      filter.ProductKeyword,
+		CreatedFrom:         filter.CreatedFrom,
+		CreatedTo:           filter.CreatedTo,
+		SortBy:              filter.SortBy,
+		SortOrder:           filter.SortOrder,
 	})
 }
 
@@ -368,6 +371,8 @@ type orderCreateAdapter struct {
 
 func (a orderCreateAdapter) CreateOrder(input ordertransport.CreateOrderInput) (*orderdomain.Order, error) {
 	order, err := a.orders.CreateOrder(orderapp.CreateOrderInput{
+		RiskDeviceHash:      input.RiskDeviceHash,
+		RiskUserAgent:       input.RiskUserAgent,
 		UserID:              input.UserID,
 		Tenant:              input.Tenant,
 		Items:               mapServiceOrderItems(input.Items),
@@ -382,6 +387,8 @@ func (a orderCreateAdapter) CreateOrder(input ordertransport.CreateOrderInput) (
 
 func (a orderCreateAdapter) CreateGuestOrder(input ordertransport.CreateGuestOrderInput) (*orderdomain.Order, error) {
 	order, err := a.orders.CreateGuestOrder(orderapp.CreateGuestOrderInput{
+		RiskDeviceHash:      input.RiskDeviceHash,
+		RiskUserAgent:       input.RiskUserAgent,
 		Email:               input.Email,
 		OrderPassword:       input.OrderPassword,
 		Locale:              input.Locale,
@@ -431,10 +438,11 @@ func (a orderPaymentCreatorAdapter) CreatePayment(input ordertransport.CreatePay
 		return nil, nil
 	}
 	return &ordertransport.CreatePaymentResult{
-		Payment:          result.Payment,
-		OrderPaid:        result.OrderPaid,
-		WalletPaidAmount: result.WalletPaidAmount,
-		OnlinePayAmount:  result.OnlinePayAmount,
+		DeliveryUnderReview: result.DeliveryUnderReview,
+		Payment:             result.Payment,
+		OrderPaid:           result.OrderPaid,
+		WalletPaidAmount:    result.WalletPaidAmount,
+		OnlinePayAmount:     result.OnlinePayAmount,
 	}, nil
 }
 

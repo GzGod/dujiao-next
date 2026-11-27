@@ -46,8 +46,8 @@ func TestNormalizeOrderRiskControlConfig_ClampValues(t *testing.T) {
 	if cfg.Guest.MaxPendingQuantityPerIPProduct != 2 {
 		t.Fatalf("expected invalid pending product quantity to use default 2, got %d", cfg.Guest.MaxPendingQuantityPerIPProduct)
 	}
-	if cfg.Guest.PaymentExpireMinutes != 10 {
-		t.Fatalf("expected invalid guest expiry to use default 10, got %d", cfg.Guest.PaymentExpireMinutes)
+	if cfg.Guest.PaymentExpireMinutes != 5 {
+		t.Fatalf("expected invalid guest expiry to use default 5, got %d", cfg.Guest.PaymentExpireMinutes)
 	}
 	if cfg.Guest.RateLimit.WindowSeconds != 60 || cfg.Guest.RateLimit.MaxRequests != 3 || cfg.Guest.RateLimit.BlockSeconds != 120 {
 		t.Fatalf("unexpected normalized guest rate limit: %+v", cfg.Guest.RateLimit)
@@ -153,5 +153,23 @@ func TestIsValidIPOrCIDR(t *testing.T) {
 		if got := isValidIPOrCIDR(tc.input); got != tc.valid {
 			t.Errorf("isValidIPOrCIDR(%q) = %v, want %v", tc.input, got, tc.valid)
 		}
+	}
+}
+
+func TestSettlementListNormalizesAndPreservesDenyPriority(t *testing.T) {
+	cfg := DefaultOrderRiskControlConfig()
+	cfg.Common.SettlementList = []SettlementListEntry{
+		{Kind: " CIDR ", Value: "192.0.2.8/24"},
+		{Kind: "cidr", Value: "192.0.2.0/24"},
+		{Kind: "device_token", Value: "invalid"},
+		{Kind: "contact_norm", Value: "Guest@example.com", Allow: true},
+		{Kind: "contact_norm", Value: "Guest@example.com"},
+		{Kind: "user_id", Value: "007", Allow: true},
+		{Kind: "user_id", Value: "7"},
+	}
+	rows := NormalizeOrderRiskControlConfig(cfg).Common.SettlementList
+	if len(rows) != 4 || rows[0].Value != "192.0.2.0/24" || rows[1].Value != "guest@example.com" ||
+		rows[2].Value != "7" || !rows[2].Allow || rows[3].Allow {
+		t.Fatalf("unexpected normalized list: %+v", rows)
 	}
 }

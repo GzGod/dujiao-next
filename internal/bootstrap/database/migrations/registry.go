@@ -64,6 +64,7 @@ func AutoMigrate() error {
 		&orderdomain.OrderItem{},
 		&orderdomain.OrderRefundRecord{},
 		&orderriskdomain.LockKey{},
+		&orderriskdomain.RedemptionEvidence{},
 		&cartdomain.Item{},
 		&paymentdomain.PaymentChannel{},
 		&paymentdomain.Payment{},

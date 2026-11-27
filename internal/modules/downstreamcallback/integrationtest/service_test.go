@@ -158,6 +158,10 @@ func TestSendCallbackBuildsPayloadAndPersistsSentStatus(t *testing.T) {
 		ID:      8,
 		OrderNo: "DJ-8",
 		Status:  "completed",
+		Children: []downstreamcontract.OrderSnapshot{
+			{RiskBlocked: true, Fulfillment: &downstreamcontract.Fulfillment{Status: "delivered", Payload: "held-secret"}},
+			{Fulfillment: &downstreamcontract.Fulfillment{Status: "delivered", Payload: "released-payload"}},
+		},
 	}}}
 	credentials := credentialReaderStub{credentials: map[uint]*downstreamcontract.Credential{5: {
 		ID:        5,
@@ -173,6 +177,9 @@ func TestSendCallbackBuildsPayloadAndPersistsSentStatus(t *testing.T) {
 	}
 	if deliverer.calls != 1 || deliverer.request.Payload.Event != "order.fulfilled" {
 		t.Fatalf("delivery request mismatch: %#v", deliverer.request)
+	}
+	if delivery := deliverer.request.Payload.Fulfillment; delivery == nil || delivery.Payload != "released-payload" {
+		t.Fatal("callback must only include a released child delivery")
 	}
 	if deliverer.request.APIKey != "downstream-key" || deliverer.request.Payload.Timestamp != 1_700_000_000 {
 		t.Fatalf("signed delivery inputs mismatch: %#v", deliverer.request)
@@ -228,5 +235,41 @@ func TestSendCallbackSkipsDeliveryWhenCredentialInactive(t *testing.T) {
 		if ref.CallbackStatus != downstreamdomain.StatusFailed {
 			t.Fatalf("retry=%d status = %s, want failed", retryCount, ref.CallbackStatus)
 		}
+	}
+}
+
+func TestQueuedCallbackDoesNotSendHeldOrder(t *testing.T) {
+	ref := &downstreamdomain.OrderRef{ID: 3, OrderID: 8, ApiCredentialID: 5, CallbackURL: "https://callback.example.test"}
+	references := &refRepositoryStub{byID: map[uint]*downstreamdomain.OrderRef{ref.ID: ref}}
+	order := &downstreamcontract.OrderSnapshot{ID: 8, Status: "paid", RiskBlocked: true}
+	orders := orderReaderStub{orders: map[uint]*downstreamcontract.OrderSnapshot{order.ID: order}}
+	credentials := credentialReaderStub{credentials: map[uint]*downstreamcontract.Credential{5: {ID: 5, Active: true}}}
+	deliverer := &delivererStub{}
+	service := newService(references, orders, credentials, nil, deliverer)
+	if err := service.SendCallback(context.Background(), ref.ID); err != nil || deliverer.calls != 0 {
+		t.Fatalf("held order sent callback: calls=%d err=%v", deliverer.calls, err)
+	}
+	order.RiskBlocked = false
+	if err := service.SendCallback(context.Background(), ref.ID); err != nil || deliverer.calls != 1 {
+		t.Fatalf("released order did not send callback: calls=%d err=%v", deliverer.calls, err)
+	}
+}
+
+func TestReleaseRecoveryDoesNotResetCallbackState(t *testing.T) {
+	ref := &downstreamdomain.OrderRef{ID: 3, OrderID: 8, CallbackURL: "https://callback.example.test", CallbackStatus: downstreamdomain.StatusPending}
+	references := &refRepositoryStub{byID: map[uint]*downstreamdomain.OrderRef{ref.ID: ref}, byOrderID: map[uint]*downstreamdomain.OrderRef{ref.OrderID: ref}}
+	queue := &callbackQueueStub{}
+	service := newService(references, orderReaderStub{}, credentialReaderStub{}, queue, &delivererStub{})
+	if err := service.RecoverPendingCallback(ref.OrderID); err != nil || len(queue.callbacks) != 1 {
+		t.Fatalf("expected pending callback to enqueue: %v", err)
+	}
+	ref.CallbackRetryCount = 1
+	if err := service.RecoverPendingCallback(ref.OrderID); err != nil || len(queue.callbacks) != 1 || ref.CallbackRetryCount != 1 {
+		t.Fatalf("recovery must respect an existing retry: %v", err)
+	}
+	ref.CallbackStatus = downstreamdomain.StatusSent
+	ref.CallbackRetryCount = 0
+	if err := service.RecoverPendingCallback(ref.OrderID); err != nil || len(queue.callbacks) != 1 {
+		t.Fatalf("recovery must not resend a delivered callback: %v", err)
 	}
 }

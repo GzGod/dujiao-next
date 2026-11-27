@@ -125,14 +125,18 @@ func (s *Service) CreateManual(input CreateManualInput) (*fulfillmentdomain.Fulf
 		if order.ParentID != nil {
 			rootID = *order.ParentID
 		}
-		if _, err := tx.Orders().GetByIDForUpdate(rootID); err != nil {
+		root, err := tx.Orders().GetByIDForUpdate(rootID)
+		if err != nil {
 			return err
+		}
+		if root == nil || root.RiskBlocksFulfillment() {
+			return ErrOrderStatusInvalid
 		}
 		locked, err := tx.Orders().GetByIDForUpdate(order.ID)
 		if err != nil {
 			return err
 		}
-		if locked == nil || (locked.Status != constants.OrderStatusPaid && locked.Status != constants.OrderStatusFulfilling) || locked.RefundedAmount.Decimal.IsPositive() {
+		if locked == nil || locked.RiskBlocksFulfillment() || (locked.Status != constants.OrderStatusPaid && locked.Status != constants.OrderStatusFulfilling) || locked.RefundedAmount.Decimal.IsPositive() {
 			return ErrOrderStatusInvalid
 		}
 		if existing, found, err := tx.Fulfillments().FindByOrderIDForUpdate(input.OrderID); err != nil {
@@ -177,6 +181,9 @@ func (s *Service) CreateManual(input CreateManualInput) (*fulfillmentdomain.Fulf
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, ErrOrderStatusInvalid) {
+			return nil, ErrOrderStatusInvalid
+		}
 		if errors.Is(err, ErrFulfillmentExists) {
 			return nil, ErrFulfillmentExists
 		}
@@ -266,6 +273,27 @@ func (s *Service) CreateAuto(orderID uint) (*fulfillmentdomain.Fulfillment, erro
 	now := time.Now()
 	var fulfillment *fulfillmentdomain.Fulfillment
 	err = s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
+		rootID := order.ID
+		if order.ParentID != nil {
+			rootID = *order.ParentID
+		}
+		root, err := tx.Orders().GetByIDForUpdate(rootID)
+		if err != nil {
+			return err
+		}
+		if root == nil || root.RiskBlocksFulfillment() {
+			return ErrOrderStatusInvalid
+		}
+		locked := root
+		if rootID != orderID {
+			locked, err = tx.Orders().GetByIDForUpdate(orderID)
+			if err != nil {
+				return err
+			}
+		}
+		if locked == nil || locked.RiskBlocksFulfillment() || locked.Status != constants.OrderStatusPaid || locked.RefundedAmount.Decimal.IsPositive() {
+			return ErrOrderStatusInvalid
+		}
 		if _, found, err := tx.Fulfillments().FindByOrderIDForUpdate(orderID); err != nil {
 			return err
 		} else if found {
@@ -351,6 +379,8 @@ func (s *Service) CreateAuto(orderID uint) (*fulfillmentdomain.Fulfillment, erro
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, ErrOrderStatusInvalid):
+			return nil, ErrOrderStatusInvalid
 		case errors.Is(err, ErrFulfillmentExists):
 			return nil, ErrFulfillmentExists
 		case errors.Is(err, ErrCardSecretInsufficient):

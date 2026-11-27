@@ -370,6 +370,9 @@ func normalizeGuestEmail(raw string) (string, error) {
 	if normalized == "" {
 		return "", ErrGuestEmailRequired
 	}
+	if len(normalized) > 254 {
+		return "", ErrInvalidEmail
+	}
 	if _, err := mail.ParseAddress(normalized); err != nil {
 		return "", ErrInvalidEmail
 	}

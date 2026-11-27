@@ -16,10 +16,12 @@ import (
 	"github.com/dujiao-next/internal/constants"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	downstreamcallbackdomain "github.com/dujiao-next/internal/modules/downstreamcallback/domain"
+	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	upstreamadapter "github.com/dujiao-next/internal/upstream"
 
 	"github.com/gin-gonic/gin"
@@ -319,7 +321,11 @@ func TestExternalLookupAndAfterSaleRespectCredential(t *testing.T) {
 
 type adminRedemptionProbe struct{ inspected uint }
 
-func (p *adminRedemptionProbe) Inspect(_ context.Context, id uint) (*procurementcontract.RedemptionState, error) {
+func (*adminRedemptionProbe) Inspect(context.Context, uint) (*procurementcontract.RedemptionState, error) {
+	panic("unexpected customer inspection")
+}
+
+func (p *adminRedemptionProbe) InspectForAudit(_ context.Context, id uint) (*procurementcontract.RedemptionState, error) {
 	p.inspected = id
 	return &procurementcontract.RedemptionState{Code: "private-test-code", Progress: "unused", Revision: 2}, nil
 }
@@ -352,6 +358,68 @@ func TestAdminRedemptionReadOnlyAndNoCodeLeak(t *testing.T) {
 		}
 		if strings.Contains(w.Body.String(), "private-test-code") {
 			t.Fatal("redemption code leaked")
+		}
+	}
+}
+
+type riskHeldDownstreamOrders struct{ formTestOrders }
+
+func (*riskHeldDownstreamOrders) GetOrderByUser(uint, uint) (*orderdomain.Order, error) {
+	return &orderdomain.Order{ID: 12, OrderNo: "HELD", RiskHoldStatus: "pending_review"}, nil
+}
+
+func TestHeldOrderBlocksDownstreamCodeAccess(t *testing.T) {
+	handler := &Handler{Dependencies: Dependencies{
+		Orders:         &riskHeldDownstreamOrders{},
+		DownstreamRefs: &scopedRefs{ref: &downstreamcallbackdomain.OrderRef{OrderID: 12, ApiCredentialID: 7}},
+	}}
+	for _, operation := range []func(*gin.Context){handler.RedemptionState, handler.ReplaceCode} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("POST", "/orders/12/redemption", nil)
+		c.Params = gin.Params{{Key: "id", Value: "12"}}
+		c.Set(upstreamUserIDKey, uint(42))
+		c.Set(upstreamCredentialIDKey, uint(7))
+		operation(c)
+		if w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "state_unavailable") {
+			t.Fatalf("held order reached the code operation: %d %s", w.Code, w.Body.String())
+		}
+	}
+}
+
+type deliveryLookupOrders struct {
+	formTestOrders
+	order *orderdomain.Order
+}
+
+func (s *deliveryLookupOrders) GetOrderByUser(uint, uint) (*orderdomain.Order, error) {
+	return s.order, nil
+}
+
+func (*deliveryLookupOrders) BuildLocalRefundRecordsForOrder(*orderdomain.Order) ([]jsonmap.JSON, error) {
+	return nil, nil
+}
+
+func TestDownstreamOrderLookupOnlyReturnsDeliveredUnheldChild(t *testing.T) {
+	order := &orderdomain.Order{ID: 12, OrderNo: "SPLIT", Status: constants.OrderStatusPartiallyDelivered}
+	order.Children = []orderdomain.Order{
+		{RiskHoldStatus: "pending_review", Fulfillment: &fulfillmentdomain.Fulfillment{Status: "delivered", Payload: "held-code"}},
+		{Fulfillment: &fulfillmentdomain.Fulfillment{Status: "pending", Payload: "pending-code"}},
+		{Fulfillment: &fulfillmentdomain.Fulfillment{Status: "delivered", Payload: "released-code"}},
+	}
+	handler := &Handler{Dependencies: Dependencies{Orders: &deliveryLookupOrders{order: order}}}
+	for _, hold := range []string{"", "pending_review", "rejected"} {
+		order.RiskHoldStatus = hold
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/orders/12", nil)
+		c.Params = gin.Params{{Key: "id", Value: "12"}}
+		c.Set(upstreamUserIDKey, uint(42))
+		handler.GetOrder(c)
+		body := w.Body.String()
+		if w.Code != http.StatusOK || strings.Contains(body, "held-code") || strings.Contains(body, "pending-code") ||
+			strings.Contains(body, "released-code") != (hold == "") {
+			t.Fatalf("unexpected fulfillment visibility for hold %q: HTTP %d %s", hold, w.Code, body)
 		}
 	}
 }

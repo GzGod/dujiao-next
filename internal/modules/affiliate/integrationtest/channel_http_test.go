@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	affiliatecontract "github.com/dujiao-next/internal/modules/affiliate/contract"
 	userauthgormstore "github.com/dujiao-next/internal/modules/identity/userauth/infrastructure/gormstore"
 	"net/http"
 	"net/http/httptest"
@@ -486,6 +487,17 @@ func TestChannelAffiliateApplyWithdraw(t *testing.T) {
 		t.Fatalf("marshal withdraw request failed: %v", err)
 	}
 
+	repo := affiliategormstore.New(db)
+	if err := db.Model(&order).Update("risk_hold_status", "pending_review").Error; err != nil {
+		t.Fatal(err)
+	}
+	if commissions, err := repo.ListAvailableCommissionsForUpdate(profile.ID); err != nil || len(commissions) != 0 {
+		t.Fatalf("held commission was selectable for withdrawal: %v", err)
+	}
+	if err := db.Model(&order).Update("risk_hold_status", "released").Error; err != nil {
+		t.Fatal(err)
+	}
+
 	resp, err := http.Post(server.URL+"/api/v1/channel/affiliate/withdraws", "application/json", bytes.NewReader(raw))
 	if err != nil {
 		t.Fatalf("post affiliate withdraw failed: %v", err)
@@ -512,5 +524,13 @@ func TestChannelAffiliateApplyWithdraw(t *testing.T) {
 	}
 	if withdrawCount != 1 {
 		t.Fatalf("expected 1 withdraw request, got %d", withdrawCount)
+	}
+	if err := db.Model(&order).Update("risk_hold_status", "rejected").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.BatchUpdateCommissions([]uint{commission.ID}, map[string]interface{}{
+		"status": constants.AffiliateCommissionStatusWithdrawn,
+	}); !errors.Is(err, affiliatecontract.ErrCommissionRiskHeld) {
+		t.Fatalf("held commission was allowed to settle: %v", err)
 	}
 }

@@ -180,14 +180,14 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	// 币种
 	currency, _ := h.Settings.GetSiteCurrency("CNY")
 
-	successResponse(c, gin.H{
-		"ok":       true,
-		"order_id": order.ID,
-		"order_no": order.OrderNo,
-		"status":   finalStatus,
-		"amount":   order.TotalAmount.StringFixed(2),
-		"currency": currency,
-	})
+	resp := gin.H{
+		"ok": true, "order_id": order.ID, "order_no": order.OrderNo,
+		"status": finalStatus, "amount": order.TotalAmount.StringFixed(2), "currency": currency,
+	}
+	if payResult != nil && payResult.DeliveryUnderReview {
+		resp["delivery_under_review"] = true
+	}
+	successResponse(c, resp)
 }
 
 // GetOrder GET /api/v1/upstream/orders/:id
@@ -217,7 +217,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 
 	status := strings.ToLower(strings.TrimSpace(order.Status))
 	localRefundRecords := make([]jsonmap.JSON, 0)
-	hideDelivery := false
+	hideDelivery := order.RiskBlocksFulfillment()
 
 	// 优先使用采购单视角的上游退款信息，避免订单状态与上游退款状态不一致。
 	if h.Procurements != nil {
@@ -226,7 +226,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 			procOrder, procErr = h.Procurements.GetByLocalOrderNo(order.Children[0].OrderNo)
 		}
 		if procErr == nil && procOrder != nil {
-			hideDelivery = procOrder.AfterSaleState == "processing" || procOrder.AfterSaleState == "refund_processing" || procOrder.AfterSaleState == "refunded"
+			hideDelivery = hideDelivery || procOrder.AfterSaleState == "processing" || procOrder.AfterSaleState == "refund_processing" || procOrder.AfterSaleState == "refunded"
 			switch strings.ToLower(strings.TrimSpace(procOrder.Status)) {
 			case constants.ProcurementStatusPartiallyRefunded, constants.ProcurementStatusRefunded:
 				status = strings.ToLower(strings.TrimSpace(procOrder.Status))
@@ -252,12 +252,17 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		"refund_records":  localRefundRecords,
 	}
 
+	if order.DeliveryUnderReview() {
+		resp["delivery_under_review"] = true
+	}
+
 	// 若已交付，返回交付信息（优先使用订单自身的 fulfillment，否则从子订单获取）
 	sourceFulfillment := order.Fulfillment
 	if sourceFulfillment == nil && len(order.Children) > 0 {
 		for i := range order.Children {
-			if order.Children[i].Fulfillment != nil {
-				sourceFulfillment = order.Children[i].Fulfillment
+			child := &order.Children[i]
+			if !child.RiskBlocksFulfillment() && child.Fulfillment != nil && child.Fulfillment.Status == constants.FulfillmentStatusDelivered {
+				sourceFulfillment = child.Fulfillment
 				break
 			}
 		}

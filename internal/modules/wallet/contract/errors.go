@@ -3,6 +3,7 @@ package contract
 import "errors"
 
 var (
+	ErrRechargeRecentPayment   = errors.New("recent monitored recharge already paid")
 	ErrInvalidAmount           = errors.New("wallet invalid amount")
 	ErrInsufficientBalance     = errors.New("wallet insufficient balance")
 	ErrAccountNotFound         = errors.New("wallet account not found")

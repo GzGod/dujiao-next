@@ -77,3 +77,32 @@ func TestAdminHandlerRejectsDedicatedKeysOnGenericUpdate(t *testing.T) {
 		}
 	}
 }
+
+func TestOrderRiskSettingsRequireSuperAdmin(t *testing.T) {
+	for _, super := range []bool{false, true} {
+		stub := &adminSettingsStub{}
+		handler := NewAdminHandler(stub)
+		for _, method := range []string{http.MethodGet, http.MethodPut} {
+			w := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(w)
+			ctx.Set("admin_is_super", super)
+			url := "/api/v1/admin/settings?key=" + constants.SettingKeyOrderRiskControlConfig
+			ctx.Request = httptest.NewRequest(method, url, strings.NewReader(`{"key":" `+constants.SettingKeyOrderRiskControlConfig+` ","value":{"enabled":true}}`))
+			ctx.Request.Header.Set("Content-Type", "application/json")
+			if method == http.MethodGet {
+				handler.Get(ctx)
+			} else {
+				handler.Update(ctx)
+			}
+			var result struct {
+				StatusCode int `json:"status_code"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || (result.StatusCode == 403) == super {
+				t.Fatalf("super=%v method=%s response=%s error=%v", super, method, w.Body.String(), err)
+			}
+		}
+		if (stub.updateCalls == 1) != super {
+			t.Fatalf("super=%v settings writes=%d", super, stub.updateCalls)
+		}
+	}
+}

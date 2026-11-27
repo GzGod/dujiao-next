@@ -10,6 +10,7 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 // Store 是卡密库存端口的 GORM 实现。
@@ -41,12 +42,44 @@ func (r *Store) Transaction(fn func(cardsecretcontract.Repository, cardsecretcon
 	})
 }
 
+// withVoidingGuard serializes code creation, edits and risk voiding. On
+// PostgreSQL the advisory lock lives until the enclosing transaction commits.
+func (r *Store) withVoidingGuard(fn func(*gorm.DB) error) error {
+	db := r.db.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
+	return db.Transaction(func(tx *gorm.DB) error {
+		if tx.Dialector.Name() == "postgres" {
+			// Application-reserved advisory lock namespace for card secret mutations.
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(1146441034, 1)").Error; err != nil {
+				return err
+			}
+		}
+		return fn(tx)
+	})
+}
+
 // CreateBatch 批量创建卡密
 func (r *Store) CreateBatch(items []cardsecretdomain.Secret) error {
 	if len(items) == 0 {
 		return nil
 	}
-	return r.db.CreateInBatches(&items, 200).Error
+	return r.withVoidingGuard(func(db *gorm.DB) error {
+		for start := 0; start < len(items); start += 200 {
+			batch := items[start:min(start+200, len(items))]
+			values := make([]string, 0, len(batch))
+			for _, item := range batch {
+				values = append(values, item.Secret)
+			}
+			var voided int64
+			if err := db.Model(&cardsecretdomain.Secret{}).
+				Where("status = ? AND secret IN ?", cardsecretdomain.StatusRiskVoided, values).Count(&voided).Error; err != nil {
+				return err
+			}
+			if voided > 0 {
+				return errors.New("card batch contains a voided code")
+			}
+		}
+		return db.CreateInBatches(&items, 200).Error
+	})
 }
 
 func (r *Store) buildListQuery(filter cardsecretcontract.ListFilter) *gorm.DB {
@@ -236,7 +269,18 @@ func (r *Store) GetByID(id uint) (*cardsecretdomain.Secret, error) {
 
 // Update 更新卡密
 func (r *Store) Update(secret *cardsecretdomain.Secret) error {
-	return r.db.Save(secret).Error
+	return r.withVoidingGuard(func(db *gorm.DB) error {
+		voided := db.Table("card_secrets AS revoked").Select("1").
+			Where("revoked.status = ? AND revoked.secret = ?", cardsecretdomain.StatusRiskVoided, secret.Secret)
+		result := db.Model(&cardsecretdomain.Secret{}).
+			Where("id = ? AND deleted_at IS NULL AND status <> ?", secret.ID, cardsecretdomain.StatusRiskVoided).
+			Where("NOT EXISTS (?)", voided).
+			Updates(map[string]interface{}{"secret": secret.Secret, "status": secret.Status, "updated_at": secret.UpdatedAt})
+		if result.Error == nil && result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return result.Error
+	})
 }
 
 // BatchUpdateStatus 批量更新卡密状态
@@ -248,7 +292,7 @@ func (r *Store) BatchUpdateStatus(ids []uint, status string, updatedAt time.Time
 		updatedAt = time.Now()
 	}
 	result := r.db.Model(&cardsecretdomain.Secret{}).
-		Where("id IN ? AND deleted_at IS NULL", ids).
+		Where("id IN ? AND deleted_at IS NULL AND status <> ?", ids, cardsecretdomain.StatusRiskVoided).
 		Updates(map[string]interface{}{
 			"status":     status,
 			"updated_at": updatedAt,
@@ -425,6 +469,21 @@ func (r *Store) ReleaseByOrder(orderID uint) (int64, error) {
 			"updated_at":  now,
 		})
 	return result.RowsAffected, result.Error
+}
+
+// VoidByOrders permanently excludes local cards associated with a rejected order.
+func (r *Store) VoidByOrders(orderIDs []uint, now time.Time) error {
+	if len(orderIDs) == 0 {
+		return nil
+	}
+	return r.withVoidingGuard(func(db *gorm.DB) error {
+		copies := db.Table("card_secrets AS source").Select("source.secret").
+			Where("source.order_id IN ? AND source.status IN ?", orderIDs,
+				[]string{cardsecretdomain.StatusReserved, cardsecretdomain.StatusUsed})
+		return db.Model(&cardsecretdomain.Secret{}).
+			Where("deleted_at IS NULL AND status <> ? AND secret IN (?)", cardsecretdomain.StatusRiskVoided, copies).
+			Updates(map[string]interface{}{"status": cardsecretdomain.StatusRiskVoided, "updated_at": now}).Error
+	})
 }
 
 // MarkUsed 标记卡密已使用

@@ -1,11 +1,13 @@
 package gormstore
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"gorm.io/gorm/logger"
 	"sort"
 	"strings"
 	"time"
@@ -356,6 +358,7 @@ func (r *Store) GetAnyByOrderNoAndUserScoped(orderNo string, userID uint, scope 
 	var order orderdomain.Order
 	query := r.withChildren(r.db)
 	query = applyTenantScope(query.Where("order_no = ? AND user_id = ?", orderNo, userID), scope)
+	query = downloadableOrder(query)
 	if err := query.First(&order).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -398,6 +401,7 @@ func (r *Store) GetAnyByOrderNoAndGuestScoped(orderNo, email, password string, s
 	var order orderdomain.Order
 	query := r.withChildren(r.db)
 	query = applyTenantScope(query.Where("order_no = ? AND user_id = 0 AND guest_email = ? AND guest_password = ?", orderNo, email, r.hashGuestCredential(email, password)), scope)
+	query = downloadableOrder(query)
 	if err := query.First(&order).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -405,6 +409,16 @@ func (r *Store) GetAnyByOrderNoAndGuestScoped(orderNo, email, password string, s
 		return nil, err
 	}
 	return &order, nil
+}
+
+// downloadableOrder denies direct child downloads if the parent is missing
+// or blocks fulfillment.
+func downloadableOrder(query *gorm.DB) *gorm.DB {
+	return query.Where(`orders.risk_hold_status IN ('', 'released') AND
+		(orders.parent_id IS NULL OR EXISTS (
+			SELECT 1 FROM orders AS parent WHERE parent.id = orders.parent_id
+			AND parent.deleted_at IS NULL AND parent.risk_hold_status IN ('', 'released')
+		))`)
 }
 
 // ListChildren 获取子订单列表
@@ -426,6 +440,51 @@ func (r *Store) ListChildren(parentID uint) ([]orderdomain.Order, error) {
 func (r *Store) ListAdmin(filter ordercontract.ListFilter) ([]orderdomain.Order, int64, error) {
 	var orders []orderdomain.Order
 	query := r.db.Model(&orderdomain.Order{}).Where("orders.deleted_at IS NULL AND parent_id IS NULL")
+	if filter.PendingExpiredBefore != nil {
+		query = query.Where("orders.status = ? AND orders.paid_at IS NULL AND orders.expires_at <= ?",
+			constants.OrderStatusPendingPayment, *filter.PendingExpiredBefore)
+	}
+	if filter.RiskAlertDue != nil {
+		query = query.Where("orders.risk_hold_status = ? AND orders.risk_alert_retry_at <= ?", "pending_review", *filter.RiskAlertDue)
+	}
+	if filter.RiskReleaseRecoveryDue != nil {
+		query = query.Where("orders.risk_hold_status = ? AND orders.risk_release_recovery_at <= ?", "released", *filter.RiskReleaseRecoveryDue)
+	}
+	if filter.RiskHoldStatus != "" {
+		query = query.Where("orders.risk_hold_status = ?", filter.RiskHoldStatus)
+	}
+	if filter.RiskEvaluatedOnly {
+		query = query.Where("orders.payment_risk_evaluated_at IS NOT NULL")
+	}
+	if filter.RiskShadowCandidate {
+		query = query.Where("orders.payment_risk_candidate = ? AND orders.risk_hold_status = ?", true, "")
+	}
+	if filter.ExcludeID != 0 {
+		query = query.Where("orders.id <> ?", filter.ExcludeID)
+	}
+	if filter.RiskDeviceHash != "" {
+		query = query.Where("orders.risk_device_hash = ?", filter.RiskDeviceHash)
+	}
+	if filter.RiskIP != "" {
+		query = query.Where("orders.risk_ip = ?", filter.RiskIP)
+	}
+	if filter.RiskIPv4Prefix != "" {
+		query = query.Where("orders.risk_ip LIKE ?", filter.RiskIPv4Prefix+"%")
+	}
+	if filter.RiskActivityFrom != nil {
+		query = query.Where("(orders.paid_at >= ? OR (orders.paid_at IS NULL AND orders.created_at >= ?))",
+			*filter.RiskActivityFrom, *filter.RiskActivityFrom)
+	}
+	if filter.PaidFrom != nil {
+		query = query.Where("orders.paid_at >= ?", *filter.PaidFrom)
+	}
+	if filter.PaidOnly {
+		query = query.Where("orders.paid_at IS NOT NULL")
+	}
+	if filter.RiskSuccessfulOnly {
+		query = query.Where("orders.paid_at IS NOT NULL AND orders.status IN ? AND orders.risk_hold_status IN ?",
+			[]string{constants.OrderStatusDelivered, constants.OrderStatusCompleted}, []string{"", "released"})
+	}
 	if filter.IssuedOnly {
 		// Select parent orders once even when several children have been delivered.
 		query = query.Where(`EXISTS (
@@ -465,7 +524,9 @@ func (r *Store) ListAdmin(filter ordercontract.ListFilter) ([]orderdomain.Order,
 	if filter.OrderNo != "" {
 		query = query.Where("order_no = ?", filter.OrderNo)
 	}
-	if filter.GuestEmail != "" {
+	if filter.RiskContactHash != "" && filter.GuestEmail != "" {
+		query = query.Where("(orders.risk_contact_hash = ? OR orders.guest_email = ?) AND orders.user_id = 0", filter.RiskContactHash, filter.GuestEmail)
+	} else if filter.GuestEmail != "" {
 		query = query.Where("guest_email = ?", filter.GuestEmail)
 	}
 	if keyword := strings.TrimSpace(filter.ProductKeyword); keyword != "" {
@@ -495,9 +556,20 @@ func (r *Store) ListAdmin(filter ordercontract.ListFilter) ([]orderdomain.Order,
 	}
 
 	dataQuery := gormutil.ApplyPagination(query.Session(&gorm.Session{}), filter.Page, filter.PageSize)
-	dataQuery = r.withChildren(dataQuery)
+	if !filter.SkipRelations {
+		dataQuery = r.withChildren(dataQuery)
+	}
 
 	orderClause := resolveAdminOrderSort(filter.SortBy, filter.SortOrder)
+	if filter.RiskAlertDue != nil {
+		orderClause = "orders.risk_alert_retry_at ASC, orders.id ASC"
+	} else if filter.RiskReleaseRecoveryDue != nil {
+		orderClause = "orders.risk_release_recovery_at ASC, orders.id ASC"
+	} else if filter.PendingExpiredBefore != nil {
+		orderClause = "orders.expires_at ASC, orders.id ASC"
+	} else if filter.RiskActivityFrom != nil {
+		orderClause = "COALESCE(orders.paid_at, orders.created_at) DESC, orders.id DESC"
+	}
 	if err := dataQuery.Order(orderClause).Find(&orders).Error; err != nil {
 		return nil, 0, err
 	}
@@ -909,4 +981,125 @@ func (r *Store) updateDeliveryProtectedFields(id uint, updates map[string]interf
 		}
 		return tx.Model(&orderdomain.Order{}).Where("id = ? AND deleted_at IS NULL", id).Updates(updates).Error
 	})
+}
+
+// RedemptionRiskBlocked covers historical and newly issued codes. Only
+// deliveries linked to held orders are read, and payloads never leave the store.
+func (s *Store) RedemptionRiskBlocked(ctx context.Context, digest [sha256.Size]byte) (bool, error) {
+	rows, err := s.db.WithContext(ctx).Table("fulfillments AS f").Select("COALESCE(f.payload, ''), COALESCE(f.redemption_previous_hashes, '')").
+		Joins("JOIN orders AS child ON child.id = f.order_id").
+		Joins("LEFT JOIN orders AS parent ON parent.id = child.parent_id").
+		Where("f.deleted_at IS NULL").
+		Where("(child.risk_hold_status NOT IN ('', 'released') OR parent.risk_hold_status NOT IN ('', 'released'))").
+		Rows()
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	encoded := hex.EncodeToString(digest[:])
+	for rows.Next() {
+		var payload, archived string
+		if err := rows.Scan(&payload, &archived); err != nil {
+			return false, err
+		}
+		for _, hash := range strings.Fields(archived) {
+			if hash == encoded {
+				return true, nil
+			}
+		}
+		for _, line := range strings.Split(payload, "\n") {
+			code := strings.TrimSpace(line)
+			if len(code) >= 24 && len(code) <= 80 && sha256.Sum256([]byte(code)) == digest {
+				return true, nil
+			}
+		}
+	}
+	return false, rows.Err()
+}
+
+// HasUnusedRedemption checks signed upstream observations on root or split
+// deliveries. An untracked delivery does not count as confirmed unused.
+func (s *Store) HasUnusedRedemption(orderIDs []uint) (bool, error) {
+	if len(orderIDs) == 0 {
+		return false, nil
+	}
+	var match uint
+	err := s.db.Table("fulfillments AS f").Select("f.id").
+		Joins("JOIN orders AS o ON o.id = f.order_id").
+		Where("f.deleted_at IS NULL AND o.deleted_at IS NULL AND f.redemption_progress = ?", "unused").
+		Where("(o.id IN ? OR o.parent_id IN ?)", orderIDs, orderIDs).
+		Limit(1).Scan(&match).Error
+	return match != 0, err
+}
+
+// RecordRedemptionSubmission clears a single-code delivery observation. The
+// payload comparison prevents an old submission clearing a replacement.
+func (s *Store) RecordRedemptionSubmission(ctx context.Context, digest [sha256.Size]byte) error {
+	type delivery struct {
+		ID      uint
+		Payload string
+	}
+	db := s.db.WithContext(ctx).Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
+	query := db.Table("fulfillments AS f").Select("f.id, f.payload").
+		Joins("JOIN orders AS child ON child.id = f.order_id").
+		Joins("LEFT JOIN orders AS parent ON parent.id = child.parent_id").
+		Where("f.deleted_at IS NULL AND f.redemption_progress = ?", "unused").
+		Where("COALESCE(parent.paid_at, child.paid_at) >= ?", time.Now().Add(-2*time.Hour))
+	var deliveries []delivery
+	if err := query.Scan(&deliveries).Error; err != nil {
+		return err
+	}
+	for _, delivered := range deliveries {
+		code := strings.TrimSpace(delivered.Payload)
+		if len(code) < 24 || len(code) > 80 || strings.ContainsAny(code, "\r\n") || sha256.Sum256([]byte(code)) != digest {
+			continue
+		}
+		if err := db.Table("fulfillments").
+			Where("id = ? AND deleted_at IS NULL AND payload = ? AND redemption_progress = ?", delivered.ID, delivered.Payload, "unused").
+			UpdateColumn("redemption_progress", "no_longer_unused").Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) RecordRedemptionEvidence(ctx context.Context, evidence orderriskdomain.RedemptionEvidence) error {
+	return s.db.WithContext(ctx).Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "event_id"}}, DoNothing: true}).Create(&evidence).Error
+}
+
+func (s *Store) ListRedemptionEvidence(ctx context.Context, codeHash, orderNo string, page, size int) ([]orderriskdomain.RedemptionEvidence, int64, error) {
+	items := make([]orderriskdomain.RedemptionEvidence, 0)
+	query := s.db.WithContext(ctx).Model(&orderriskdomain.RedemptionEvidence{})
+	if codeHash != "" {
+		query = query.Where("code_hash = ?", codeHash)
+	}
+	if orderNo != "" {
+		var deliveries []struct {
+			Payload                  string
+			RedemptionPreviousHashes string
+		}
+		err := s.db.WithContext(ctx).Table("fulfillments AS f").Select("f.payload, f.redemption_previous_hashes").
+			Joins("JOIN orders AS child ON child.id = f.order_id AND child.deleted_at IS NULL").
+			Joins("LEFT JOIN orders AS parent ON parent.id = child.parent_id AND parent.deleted_at IS NULL").
+			Where("f.deleted_at IS NULL AND (child.order_no = ? OR parent.order_no = ?)", orderNo, orderNo).
+			Scan(&deliveries).Error
+		if err != nil {
+			return nil, 0, err
+		}
+		hashes := make([]string, 0, len(deliveries))
+		for _, delivery := range deliveries {
+			hashes = append(hashes, orderriskdomain.RedemptionPayloadHashes(delivery.Payload)...)
+			hashes = append(hashes, strings.Fields(delivery.RedemptionPreviousHashes)...)
+		}
+		if len(hashes) == 0 {
+			return items, 0, nil
+		}
+		query = query.Where("code_hash IN ?", hashes)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := query.Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&items).Error
+	return items, total, err
 }

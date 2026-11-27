@@ -86,6 +86,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	orderPreviewHandler := orderHandlers.Preview
 	orderCreateHandler := orderHandlers.Create
 	paymentHandlers := paymentwiring.New(c)
+	paymentHandlers.Admin.RiskUpstream = upstreamwiring.NewFraudUpstream(c)
 	paymentLatestHandler := paymentHandlers.Latest
 	paymentWriteHandler := paymentHandlers.Write
 	adminPaymentHandler := paymentHandlers.Admin

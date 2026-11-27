@@ -1,14 +1,32 @@
 package settingssecurity
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net"
+	"net/mail"
+	"net/netip"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
 const orderRiskControlVersion = 2
+
+var settlementEmailDomainPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+
+const (
+	SettlementModeShadow     = "shadow"
+	SettlementModeHoldNotice = "hold_notice"
+	SettlementModeSilentTrap = "silent_trap"
+)
+
+const DefaultAlipayRiskSubject = "虚拟商品·非本人购买请勿付款 {order_no}"
 
 // OrderRateLimitConfig 下单频率限制配置。
 type OrderRateLimitConfig struct {
@@ -18,9 +36,18 @@ type OrderRateLimitConfig struct {
 	BlockSeconds  int  `json:"block_seconds"`
 }
 
+// SettlementListEntry is a temporary or permanent risk list entry.
+type SettlementListEntry struct {
+	Kind      string     `json:"kind"`
+	Value     string     `json:"value"`
+	Allow     bool       `json:"allow,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
 // OrderRiskCommonPolicy 保存与购买身份无关的订单风控策略。
 type OrderRiskCommonPolicy struct {
-	IPBlacklist []string `json:"ip_blacklist"`
+	SettlementList []SettlementListEntry `json:"settlement_list,omitempty"`
+	IPBlacklist    []string              `json:"ip_blacklist"`
 }
 
 // OrderRiskGuestPolicy 保存以可信客户端 IP 为主体的游客库存保护策略。
@@ -44,25 +71,33 @@ type OrderRiskMemberPolicy struct {
 
 // OrderRiskControlConfig 订单风控配置。游客邮箱仅用于订单业务，不作为风控身份。
 type OrderRiskControlConfig struct {
-	Version int                   `json:"version"`
-	Enabled bool                  `json:"enabled"`
-	Common  OrderRiskCommonPolicy `json:"common"`
-	Guest   OrderRiskGuestPolicy  `json:"guest"`
-	Member  OrderRiskMemberPolicy `json:"member"`
+	AlipayRiskSubject   string                `json:"alipay_risk_subject"`
+	RiskyEmailDomains   []string              `json:"risky_email_domains,omitempty"`
+	SettlementThreshold int                   `json:"settlement_threshold"`
+	SettlementWeights   map[string]int        `json:"settlement_weights,omitempty"`
+	SettlementMode      string                `json:"settlement_mode"`
+	Version             int                   `json:"version"`
+	Enabled             bool                  `json:"enabled"`
+	Common              OrderRiskCommonPolicy `json:"common"`
+	Guest               OrderRiskGuestPolicy  `json:"guest"`
+	Member              OrderRiskMemberPolicy `json:"member"`
 }
 
 // DefaultOrderRiskControlConfig 返回新安装推荐值；总开关默认关闭，避免静默改变订单行为。
 func DefaultOrderRiskControlConfig() OrderRiskControlConfig {
 	return OrderRiskControlConfig{
-		Version: orderRiskControlVersion,
-		Enabled: false,
-		Common:  OrderRiskCommonPolicy{IPBlacklist: []string{}},
+		Version:             orderRiskControlVersion,
+		SettlementMode:      SettlementModeShadow,
+		SettlementThreshold: 60,
+		AlipayRiskSubject:   DefaultAlipayRiskSubject,
+		Enabled:             false,
+		Common:              OrderRiskCommonPolicy{IPBlacklist: []string{}},
 		Guest: OrderRiskGuestPolicy{
 			Enabled:                        true,
 			MaxPendingOrdersPerIP:          2,
 			MaxQuantityPerProductPerOrder:  1,
 			MaxPendingQuantityPerIPProduct: 2,
-			PaymentExpireMinutes:           10,
+			PaymentExpireMinutes:           5,
 			RateLimit: OrderRateLimitConfig{
 				Enabled:       true,
 				WindowSeconds: 60,
@@ -89,6 +124,36 @@ func DefaultOrderRiskControlConfig() OrderRiskControlConfig {
 func NormalizeOrderRiskControlConfig(cfg OrderRiskControlConfig) OrderRiskControlConfig {
 	defaults := DefaultOrderRiskControlConfig()
 	cfg.Version = orderRiskControlVersion
+	cfg.AlipayRiskSubject = strings.TrimSpace(cfg.AlipayRiskSubject)
+	if cfg.AlipayRiskSubject == "" || !utf8.ValidString(cfg.AlipayRiskSubject) ||
+		utf8.RuneCountInString(cfg.AlipayRiskSubject) > 80 || strings.IndexFunc(cfg.AlipayRiskSubject, unicode.IsControl) >= 0 {
+		cfg.AlipayRiskSubject = DefaultAlipayRiskSubject
+	}
+	if cfg.SettlementThreshold < 1 || cfg.SettlementThreshold > 800 {
+		cfg.SettlementThreshold = 60
+	}
+	domains := make([]string, 0, min(len(cfg.RiskyEmailDomains), 250))
+	seenDomains := make(map[string]struct{})
+	for _, raw := range cfg.RiskyEmailDomains {
+		name := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(raw), "."))
+		if len(name) > 253 || !settlementEmailDomainPattern.MatchString(name) {
+			continue
+		}
+		if _, exists := seenDomains[name]; exists {
+			continue
+		}
+		seenDomains[name] = struct{}{}
+		domains = append(domains, name)
+		if len(domains) == 250 {
+			break
+		}
+	}
+	cfg.RiskyEmailDomains = domains
+	switch cfg.SettlementMode {
+	case SettlementModeHoldNotice, SettlementModeSilentTrap:
+	default:
+		cfg.SettlementMode = SettlementModeShadow
+	}
 	cfg.Guest.MaxPendingOrdersPerIP = normalizeRiskLimit(cfg.Guest.MaxPendingOrdersPerIP, 100, defaults.Guest.MaxPendingOrdersPerIP)
 	cfg.Guest.MaxQuantityPerProductPerOrder = normalizeRiskLimit(cfg.Guest.MaxQuantityPerProductPerOrder, 100000, defaults.Guest.MaxQuantityPerProductPerOrder)
 	cfg.Guest.MaxPendingQuantityPerIPProduct = normalizeRiskLimit(cfg.Guest.MaxPendingQuantityPerIPProduct, 100000, defaults.Guest.MaxPendingQuantityPerIPProduct)
@@ -114,7 +179,72 @@ func NormalizeOrderRiskControlConfig(cfg OrderRiskControlConfig) OrderRiskContro
 		cleanIPs = append(cleanIPs, entry)
 	}
 	cfg.Common.IPBlacklist = cleanIPs
+	cfg.Common.SettlementList = normalizeSettlementList(cfg.Common.SettlementList)
 	return cfg
+}
+
+// normalizeSettlementList preserves blacklist priority by keeping opposite
+// actions as distinct rules. Unsupported allow rules are ignored.
+func normalizeSettlementList(entries []SettlementListEntry) []SettlementListEntry {
+	var normalized []SettlementListEntry
+	seen := make(map[struct {
+		Kind, Value, Expiry string
+		Allow               bool
+	}]struct{})
+	for _, entry := range entries {
+		entry.Kind = strings.ToLower(strings.TrimSpace(entry.Kind))
+		entry.Value = strings.TrimSpace(entry.Value)
+		switch entry.Kind {
+		case "ip":
+			ip, err := netip.ParseAddr(entry.Value)
+			if err != nil || ip.Zone() != "" {
+				continue
+			}
+			entry.Value = ip.Unmap().String()
+		case "cidr":
+			prefix, err := netip.ParsePrefix(entry.Value)
+			if err != nil {
+				continue
+			}
+			entry.Value = prefix.Masked().String()
+		case "user_id":
+			id, err := strconv.ParseUint(entry.Value, 10, 64)
+			if err != nil || id == 0 {
+				continue
+			}
+			entry.Value = strconv.FormatUint(id, 10)
+		case "device_token":
+			digest, err := hex.DecodeString(entry.Value)
+			if err != nil || len(digest) != 32 {
+				continue
+			}
+			entry.Value = hex.EncodeToString(digest)
+		case "contact_norm":
+			address, err := mail.ParseAddress(entry.Value)
+			if err != nil || address.Address != entry.Value || len(entry.Value) > 254 || entry.Allow {
+				continue
+			}
+			entry.Value = strings.ToLower(entry.Value)
+		default:
+			continue
+		}
+		expiry := ""
+		if entry.ExpiresAt != nil {
+			at := entry.ExpiresAt.UTC()
+			entry.ExpiresAt = &at
+			expiry = at.Format(time.RFC3339Nano)
+		}
+		key := struct {
+			Kind, Value, Expiry string
+			Allow               bool
+		}{entry.Kind, entry.Value, expiry, entry.Allow}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, entry)
+	}
+	return normalized
 }
 
 func normalizeRiskLimit(value, maximum, fallback int) int {

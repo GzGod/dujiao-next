@@ -152,6 +152,19 @@ func TestOrderDetailHidesInstructionsBeforePayment(t *testing.T) {
 	if summary.Items[0].Instructions != nil {
 		t.Fatal("order summary must never expose instructions")
 	}
+	parent := mkOrder(&now)
+	parent.RiskHoldStatus = "pending_review"
+	parent.PaymentRiskDecision = jsonmap.JSON{"mode": "hold_notice"}
+	parent.Children = []orderdomain.Order{*mkOrder(&now)}
+	held := NewOrderDetail(parent)
+	if !held.DeliveryUnderReview || held.Items[0].Instructions != nil || held.Children[0].Items[0].Instructions != nil {
+		t.Fatal("held parent must suppress delivery instructions for all children")
+	}
+	parent.PaymentRiskDecision["mode"] = "silent_trap"
+	silent := NewOrderDetail(parent)
+	if silent.DeliveryUnderReview || silent.Children[0].Items[0].Instructions != nil {
+		t.Fatal("silent hold must suppress delivery without exposing the review stage")
+	}
 }
 
 func TestOrderSummaryOmitsSensitiveFields(t *testing.T) {

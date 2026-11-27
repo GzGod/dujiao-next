@@ -1,8 +1,10 @@
 package procurement_test
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	procurementgormstore "github.com/dujiao-next/internal/modules/procurement/infrastructure/gormstore"
 	"net/http"
@@ -446,9 +448,11 @@ func TestAfterSaleReservationAndDeliveryAreAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	sqlDB.SetMaxOpenConns(1)
+	const oldCode = "OLD-TEST-REDEMPTION-CODE-0001"
+	const newCode = "NEW-TEST-REDEMPTION-CODE-0001"
 	order := createProcTestOrder(t, db, "REPLACE-ATOMIC", "delivered", "upstream")
 	proc := createTestProcurementOrder(t, db, 1, order.ID, order.OrderNo, "fulfilled")
-	delivery := fulfillmentdomain.Fulfillment{OrderID: order.ID, Type: "upstream", Status: "delivered", Payload: "old-code"}
+	delivery := fulfillmentdomain.Fulfillment{OrderID: order.ID, Type: "upstream", Status: "delivered", Payload: oldCode}
 	if err := db.Create(&delivery).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -464,13 +468,13 @@ func TestAfterSaleReservationAndDeliveryAreAtomic(t *testing.T) {
 	if err := store.CompleteReplacement(proc.ID, "other", "wrong-code", 2); err == nil {
 		t.Fatal("wrong operation changed delivery")
 	}
-	if err := store.CompleteReplacement(proc.ID, "fixed", "new-code", 2); err != nil {
+	if err := store.CompleteReplacement(proc.ID, "fixed", newCode, 2); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.First(&delivery, delivery.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if delivery.Payload != "new-code" {
+	if delivery.Payload != newCode {
 		t.Fatal("replacement not delivered")
 	}
 	ok, err = store.BeginAfterSale(proc.ID, "replace", "stale", "", 1)
@@ -491,6 +495,10 @@ func TestAfterSaleReservationAndDeliveryAreAtomic(t *testing.T) {
 	}
 	if err := db.First(&delivery, delivery.ID).Error; err != nil {
 		t.Fatal(err)
+	}
+	wantArchives := fmt.Sprintf("%x %x", sha256.Sum256([]byte(oldCode)), sha256.Sum256([]byte(newCode)))
+	if delivery.RedemptionPreviousHashes != wantArchives || delivery.RedemptionProgress != "no_longer_unused" {
+		t.Fatal("expected both archived code digests and retired progress")
 	}
 	if delivery.Payload != "" || delivery.Status != "refunded" {
 		t.Fatal("refunded code still delivered")

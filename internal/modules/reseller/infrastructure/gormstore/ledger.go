@@ -60,10 +60,22 @@ func (r *Store) GetLedgerEntryByIdempotencyKey(key string) (*resellerdomain.Ledg
 	return &row, nil
 }
 
+// Risk holds exclude profit, while refund debits still reduce available money.
+const withdrawableLedgerRiskFilter = `(
+	reseller_ledger_entries.amount <= 0 OR NOT EXISTS (
+		SELECT 1 FROM orders AS source
+		LEFT JOIN orders AS parent ON parent.id = source.parent_id
+		WHERE source.id = reseller_ledger_entries.order_id
+			AND (source.risk_hold_status NOT IN ('', 'released')
+				OR parent.risk_hold_status NOT IN ('', 'released'))
+	)
+)`
+
 // MarkDueLedgerEntriesAvailable 将到期确认流水转为可提现。
 func (r *Store) MarkDueLedgerEntriesAvailable(now time.Time) (int64, error) {
 	res := r.db.Model(&resellerdomain.LedgerEntry{}).
 		Where("status = ? AND available_at IS NOT NULL AND available_at <= ? AND deleted_at IS NULL", resellerdomain.LedgerStatusPendingConfirm, now).
+		Where(withdrawableLedgerRiskFilter).
 		Updates(map[string]interface{}{
 			"status":     resellerdomain.LedgerStatusAvailable,
 			"updated_at": now,
@@ -76,6 +88,7 @@ func (r *Store) ListDueLedgerScopes(now time.Time) ([]resellercontract.LedgerSco
 	scopes := make([]resellercontract.LedgerScope, 0)
 	err := r.db.Model(&resellerdomain.LedgerEntry{}).
 		Where("status = ? AND available_at IS NOT NULL AND available_at <= ? AND deleted_at IS NULL", resellerdomain.LedgerStatusPendingConfirm, now).
+		Where(withdrawableLedgerRiskFilter).
 		Group("reseller_id, currency").
 		Select("reseller_id, currency").
 		Scan(&scopes).Error
@@ -164,6 +177,7 @@ func (r *Store) SumLedgerAmountGroupedByStatus(resellerID uint, currency string,
 	var rows []sumRow
 	err := r.db.Model(&resellerdomain.LedgerEntry{}).
 		Where("reseller_id = ? AND currency = ? AND status IN ? AND deleted_at IS NULL", resellerID, currency, statuses).
+		Where(withdrawableLedgerRiskFilter).
 		Group("status").
 		Select("status, COALESCE(SUM(amount), 0) AS total").
 		Scan(&rows).Error
@@ -189,6 +203,7 @@ func (r *Store) ListAvailableLedgerEntriesForUpdate(resellerID uint, currency st
 			currency,
 			resellerdomain.LedgerStatusAvailable,
 		).
+		Where(withdrawableLedgerRiskFilter).
 		Order("available_at ASC, id ASC").
 		Find(&rows).Error
 	return rows, err
@@ -226,8 +241,18 @@ func (r *Store) BatchUpdateLedgerEntriesByWithdrawID(withdrawID uint, updates ma
 	if updates == nil {
 		updates = map[string]interface{}{}
 	}
+	query := r.db.Model(&resellerdomain.LedgerEntry{}).
+		Where("withdraw_request_id = ? AND deleted_at IS NULL", withdrawID)
+	if updates["status"] == resellerdomain.LedgerStatusWithdrawn {
+		var held int64
+		if err := query.Session(&gorm.Session{}).Where("NOT " + withdrawableLedgerRiskFilter).Count(&held).Error; err != nil {
+			return err
+		}
+		if held > 0 {
+			return resellercontract.ErrBalanceAccountFrozen
+		}
+	}
 	updates["updated_at"] = time.Now()
-	return r.db.Model(&resellerdomain.LedgerEntry{}).
-		Where("withdraw_request_id = ? AND deleted_at IS NULL", withdrawID).
+	return query.
 		Updates(updates).Error
 }

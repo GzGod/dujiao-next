@@ -143,10 +143,11 @@ const (
 
 // 钱包充值状态常量
 const (
-	WalletRechargeStatusPending = "pending"
-	WalletRechargeStatusSuccess = "success"
-	WalletRechargeStatusFailed  = "failed"
-	WalletRechargeStatusExpired = "expired"
+	WalletRechargeStatusPendingReview = "pending_review"
+	WalletRechargeStatusPending       = "pending"
+	WalletRechargeStatusSuccess       = "success"
+	WalletRechargeStatusFailed        = "failed"
+	WalletRechargeStatusExpired       = "expired"
 )
 
 // 推广返利状态常量
@@ -392,6 +393,7 @@ const (
 	TaskOrderStatusEmail            = "order:status_email"
 	TaskOrderAutoFulfill            = "order:auto_fulfill"
 	TaskOrderTimeoutCancel          = "order:timeout_cancel"
+	TaskOrderRecovery               = "order:recovery"
 	TaskWalletRechargeExpire        = "wallet_recharge:timeout_expire"
 	TaskNotificationDispatch        = "notification:dispatch"
 	TaskAffiliateConfirmCommissions = "affiliate:confirm_commissions"

@@ -109,7 +109,7 @@ func (a paymentServiceAdapter) CreatePayment(input upstreamtransport.CreatePayme
 	if err != nil || result == nil {
 		return nil, err
 	}
-	return &upstreamtransport.CreatePaymentResult{OrderPaid: result.OrderPaid}, nil
+	return &upstreamtransport.CreatePaymentResult{OrderPaid: result.OrderPaid, DeliveryUnderReview: result.DeliveryUnderReview}, nil
 }
 
 func mapOrderError(err error) error {

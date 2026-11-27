@@ -91,11 +91,18 @@ type OrderNoCanceler interface {
 }
 
 // RedemptionState separates customer redemption from financial settlement.
+type RedemptionPause struct {
+	Status         string `json:"status"`
+	RecoveryStatus string `json:"recovery_status"`
+}
+
 type RedemptionState struct {
-	Code       string `json:"-"`
-	Revision   int    `json:"code_revision"`
-	CanReplace bool   `json:"can_replace"`
-	CanRefund  bool   `json:"can_refund"`
-	Progress   string `json:"progress_status"`
-	Financial  string `json:"financial_status"`
+	ReleaseStatus string           `json:"release_status,omitempty"`
+	Pause         *RedemptionPause `json:"pause,omitempty"`
+	Code          string           `json:"-"`
+	Revision      int              `json:"code_revision"`
+	CanReplace    bool             `json:"can_replace"`
+	CanRefund     bool             `json:"can_refund"`
+	Progress      string           `json:"progress_status"`
+	Financial     string           `json:"financial_status"`
 }

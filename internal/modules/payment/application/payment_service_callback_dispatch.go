@@ -23,6 +23,14 @@ func (s *PaymentService) enqueueOrderPaidAsync(order *orderdomain.Order, payment
 	if order == nil {
 		return
 	}
+	if order.RiskBlocksFulfillment() {
+		if order.RiskHoldStatus == "pending_review" && s.notificationSvc != nil {
+			if err := s.dispatchRiskReviewAlert(order); err != nil {
+				log.Warnw("notification_enqueue_order_risk_review_failed", "order_id", order.ID, "error", err)
+			}
+		}
+		return
+	}
 	if s.affiliateSvc != nil {
 		if err := s.affiliateSvc.HandleOrderPaid(order.ID); err != nil {
 			log.Warnw("affiliate_handle_order_paid_failed",

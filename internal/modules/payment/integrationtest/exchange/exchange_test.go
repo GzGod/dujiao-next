@@ -2,6 +2,8 @@ package exchange_test
 
 import (
 	"fmt"
+	riskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
+	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 	"testing"
 	"time"
 
@@ -46,6 +48,7 @@ func setupExchangeTest(t *testing.T) (*paymentapp.PaymentService, *gorm.DB) {
 	if err := db.AutoMigrate(
 		&userdomain.User{},
 		&orderdomain.Order{},
+		&riskdomain.LockKey{},
 		&orderdomain.OrderItem{},
 		&fulfillmentdomain.Fulfillment{},
 		&productdomain.Product{},
@@ -537,6 +540,11 @@ func TestProviderPayloadRetainsOriginalAfterConversion(t *testing.T) {
 		Amount:      money.FromDecimal(decimal.RequireFromString("72")),
 		Currency:    "CNY",
 		PaidAt:      &now,
+		Payload: jsonmap.JSON{
+			"exchange_rate": "0.01", "original_amount": "1.00", "original_currency": "EUR",
+			paymentcontract.GatewayPayloadFiatCurrencySent: "EUR",
+			"provider_event_id":                            "AUDIT-001",
+		},
 	})
 	if err != nil {
 		t.Fatalf("callback failed: %v", err)
@@ -567,5 +575,12 @@ func TestProviderPayloadRetainsOriginalAfterConversion(t *testing.T) {
 	}
 	if dbPayment.ProviderPayload["exchange_rate"] != "7.2" {
 		t.Errorf("exchange_rate = %v, want 7.2", dbPayment.ProviderPayload["exchange_rate"])
+	}
+	if dbPayment.ProviderPayload["provider_event_id"] != "AUDIT-001" {
+		t.Fatal("ordinary callback metadata was lost")
+	}
+	var evaluated orderdomain.Order
+	if err := db.First(&evaluated, order.ID).Error; err != nil || evaluated.PaymentRiskAmountFen != 7200 {
+		t.Fatalf("risk evaluation used the wrong conversion: %d (%v)", evaluated.PaymentRiskAmountFen, err)
 	}
 }

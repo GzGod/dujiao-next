@@ -4,11 +4,19 @@ import (
 	"time"
 
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 )
 
 // Order 订单表
 type Order struct {
+	RiskSubnet              string       `gorm:"type:varchar(48);index" json:"-"`
+	RiskUserAgent           string       `gorm:"type:text" json:"-"`
+	RiskAlertRetryAt        *time.Time   `gorm:"index" json:"-"`
+	RiskReleaseRecoveryAt   *time.Time   `gorm:"index" json:"-"`
+	PaymentRiskAmountFen    int64        `gorm:"not null;default:0" json:"-"`
+	RiskContactHash         string       `gorm:"type:varchar(64);index" json:"-"`
+	RiskDeviceHash          string       `gorm:"type:varchar(64);index" json:"-"`
 	ID                      uint         `gorm:"primarykey" json:"id"`                                                             // 主键
 	OrderNo                 string       `gorm:"uniqueIndex;not null" json:"order_no"`                                             // 订单编号
 	ParentID                *uint        `gorm:"index;index:idx_orders_risk_pending,priority:4" json:"parent_id,omitempty"`        // 父订单ID
@@ -43,6 +51,12 @@ type Order struct {
 	CreatedAt               time.Time    `gorm:"index" json:"created_at"`                                                          // 创建时间
 	UpdatedAt               time.Time    `gorm:"index" json:"updated_at"`                                                          // 更新时间
 	DeletedAt               *time.Time   `gorm:"index;index:idx_orders_risk_pending,priority:5" json:"-"`                          // 软删除时间
+
+	RiskHoldStatus         string       `gorm:"type:varchar(24);not null;default:''" json:"-"`
+	PaymentRiskPaymentID   uint         `gorm:"not null;default:0" json:"-"`
+	PaymentRiskEvaluatedAt *time.Time   `json:"-"`
+	PaymentRiskCandidate   bool         `gorm:"not null;default:false" json:"-"`
+	PaymentRiskDecision    jsonmap.JSON `gorm:"type:json" json:"-"`
 
 	Items []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"` // 订单项
 	// 关联
@@ -91,4 +105,14 @@ func (o *Order) TruncateFulfillmentPayload() {
 	for i := range o.Children {
 		o.Children[i].TruncateFulfillmentPayload()
 	}
+}
+
+// RiskBlocksFulfillment is shared by fulfillment and paid-order dispatch.
+func (o Order) RiskBlocksFulfillment() bool {
+	return o.RiskHoldStatus != "" && o.RiskHoldStatus != "released"
+}
+
+// DeliveryUnderReview exposes only the customer-facing review mode.
+func (o Order) DeliveryUnderReview() bool {
+	return o.RiskHoldStatus == "pending_review" && o.PaymentRiskDecision["mode"] == "hold_notice"
 }

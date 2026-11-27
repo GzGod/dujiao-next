@@ -31,6 +31,13 @@ func (r *Reader) GetByID(id uint) (*procurementdomain.LocalOrder, error) {
 		return nil, err
 	}
 	mapped := MapOrder(*order)
+	if !mapped.RiskBlocked && order.ParentID != nil {
+		parent, err := r.source.GetByID(*order.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		mapped.RiskBlocked = parent == nil || parent.RiskBlocksFulfillment()
+	}
 	return &mapped, nil
 }
 
@@ -53,7 +60,8 @@ func (r *Reader) UpdateStatus(id uint, status string, updates map[string]interfa
 // MapOrder 将订单域的持久化实体收窄为采购上下文快照。
 func MapOrder(order orderdomain.Order) procurementdomain.LocalOrder {
 	result := procurementdomain.LocalOrder{
-		ID: order.ID, OrderNo: order.OrderNo, ParentID: order.ParentID,
+		RiskBlocked: order.RiskBlocksFulfillment(),
+		ID:          order.ID, OrderNo: order.OrderNo, ParentID: order.ParentID,
 		UserID: order.UserID, GuestEmail: order.GuestEmail, Status: order.Status,
 		Currency: order.Currency, TotalAmount: order.TotalAmount, RefundedAmount: order.RefundedAmount,
 		Items:    make([]procurementdomain.LocalOrderItem, 0, len(order.Items)),

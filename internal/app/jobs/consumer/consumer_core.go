@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"github.com/dujiao-next/internal/app/container"
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	"github.com/dujiao-next/internal/queue"
@@ -40,6 +41,7 @@ func (c *Consumer) Register(mux *asynq.ServeMux) {
 	mux.HandleFunc(queue.TaskOrderStatusEmail, withPanicRecovery(queue.TaskOrderStatusEmail, c.handleOrderStatusEmail))
 	mux.HandleFunc(queue.TaskOrderAutoFulfill, withPanicRecovery(queue.TaskOrderAutoFulfill, c.handleOrderAutoFulfill))
 	mux.HandleFunc(queue.TaskOrderTimeoutCancel, withPanicRecovery(queue.TaskOrderTimeoutCancel, c.handleOrderTimeoutCancel))
+	mux.HandleFunc(constants.TaskOrderRecovery, withPanicRecovery(constants.TaskOrderRecovery, c.handleOrderRecovery))
 	mux.HandleFunc(queue.TaskWalletRechargeExpire, withPanicRecovery(queue.TaskWalletRechargeExpire, c.handleWalletRechargeExpire))
 	mux.HandleFunc(queue.TaskNotificationDispatch, withPanicRecovery(queue.TaskNotificationDispatch, c.handleNotificationDispatch))
 	mux.HandleFunc(queue.TaskAffiliateOrderPaid, withPanicRecovery(queue.TaskAffiliateOrderPaid, c.handleAffiliateOrderPaid))

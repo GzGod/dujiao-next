@@ -30,6 +30,7 @@ type Repository interface {
 	CountStockByProductIDs(productIDs []uint) ([]SKUStockCount, error)
 	Reserve(ids []uint, orderID uint, reservedAt time.Time) (int64, error)
 	ReleaseByOrder(orderID uint) (int64, error)
+	VoidByOrders(orderIDs []uint, now time.Time) error
 	MarkUsed(ids []uint, orderID uint, usedAt time.Time) (int64, error)
 	DeleteByProduct(productID uint) error
 }

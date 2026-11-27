@@ -45,10 +45,11 @@ type CreatePaymentInput struct {
 
 // CreatePaymentResult 创建支付结果。
 type CreatePaymentResult struct {
-	Payment          *paymentdomain.Payment
-	OrderPaid        bool
-	WalletPaidAmount money.Amount
-	OnlinePayAmount  money.Amount
+	DeliveryUnderReview bool
+	Payment             *paymentdomain.Payment
+	OrderPaid           bool
+	WalletPaidAmount    money.Amount
+	OnlinePayAmount     money.Amount
 }
 
 // OrderPaymentCreator 订单支付创建端口。
@@ -109,6 +110,8 @@ func (h *CreateHandler) CreateOrder(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
+		RiskDeviceHash:      c.GetString(ginutil.PaymentDeviceContextKey),
+		RiskUserAgent:       c.Request.UserAgent(),
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -140,6 +143,8 @@ func (h *CreateHandler) CreateGuestOrder(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
+		RiskDeviceHash:      c.GetString(ginutil.PaymentDeviceContextKey),
+		RiskUserAgent:       c.Request.UserAgent(),
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -174,6 +179,8 @@ func (h *CreateHandler) CreateOrderAndPay(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateOrder(CreateOrderInput{
+		RiskDeviceHash:      c.GetString(ginutil.PaymentDeviceContextKey),
+		RiskUserAgent:       c.Request.UserAgent(),
 		UserID:              uid,
 		Tenant:              tenantFromRequest(c),
 		Items:               mapOrderItems(req.Items),
@@ -214,6 +221,8 @@ func (h *CreateHandler) CreateGuestOrderAndPay(c *gin.Context) {
 	}
 
 	order, err := h.orders.CreateGuestOrder(CreateGuestOrderInput{
+		RiskDeviceHash:      c.GetString(ginutil.PaymentDeviceContextKey),
+		RiskUserAgent:       c.Request.UserAgent(),
 		Email:               req.Email,
 		OrderPassword:       req.OrderPassword,
 		Locale:              i18n.ResolveLocale(c),
@@ -289,6 +298,11 @@ func (h *CreateHandler) respondCreateAndPay(c *gin.Context, order *orderdomain.O
 		return
 	}
 
+	orderResp.DeliveryUnderReview = result.DeliveryUnderReview
+	if result.Payment != nil && result.Payment.ExpiredAt != nil &&
+		(orderResp.ExpiresAt == nil || result.Payment.ExpiredAt.Before(*orderResp.ExpiresAt)) {
+		orderResp.ExpiresAt = result.Payment.ExpiredAt
+	}
 	resp := gin.H{
 		"order":              orderResp,
 		"order_no":           order.OrderNo,

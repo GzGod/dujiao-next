@@ -5,9 +5,10 @@ import (
 )
 
 const (
-	StatusAvailable = "available"
-	StatusReserved  = "reserved"
-	StatusUsed      = "used"
+	StatusAvailable  = "available"
+	StatusReserved   = "reserved"
+	StatusUsed       = "used"
+	StatusRiskVoided = "risk_voided"
 )
 
 // Secret 卡密库存实体。

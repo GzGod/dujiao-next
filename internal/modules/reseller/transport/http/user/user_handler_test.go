@@ -3,7 +3,9 @@ package userhttp
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -152,4 +154,41 @@ func TestUserHandlerSiteConfigUpdateAndGet(t *testing.T) {
 
 func (s managementStub) RequestUserDomainCheck(userID, domainID uint) (*resellerdomain.Domain, error) {
 	return nil, s.err
+}
+
+func TestRedemptionProxyStopsHeldOrUnavailableSubmission(t *testing.T) {
+	const code = "TEST-REDEMPTION-CODE-00001"
+	for _, tc := range []struct {
+		body    string
+		blocked bool
+		err     error
+		status  int
+		checks  int
+	}{
+		{`{"code":"invalid"}`, false, nil, http.StatusBadRequest, 0},
+		{`{"CODE":"` + code + `"}`, false, nil, http.StatusBadRequest, 0},
+		{`{"code":"` + code + `","CODE":"OTHER-REDEMPTION-CODE-00001"}`, true, nil, http.StatusConflict, 1},
+		{`{"code":"OTHER-REDEMPTION-CODE-00001","code":"` + code + `"}`, true, nil, http.StatusConflict, 1},
+		{`{"code":"` + code + `","session":"sensitive"}`, true, nil, http.StatusConflict, 1},
+		{`{"code":"` + code + `","session":"sensitive"}`, false, errors.New("database unavailable"), http.StatusServiceUnavailable, 1},
+	} {
+		checks := 0
+		handler := &UserHandler{}
+		router := gin.New()
+		router.POST("/redemptions/:operation", func(c *gin.Context) {
+			handler.Redeem(c, func(_ context.Context, digest [sha256.Size]byte, _ string) (bool, error) {
+				checks++
+				if digest != sha256.Sum256([]byte(code)) {
+					t.Fatal("unexpected redemption digest")
+				}
+				return tc.blocked, tc.err
+			})
+		})
+		req := httptest.NewRequest(http.MethodPost, "https://xuegaogx.cc/redemptions/submit", strings.NewReader(tc.body))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != tc.status || checks != tc.checks || strings.Contains(w.Body.String(), "sensitive") {
+			t.Fatalf("status=%d checks=%d body=%s", w.Code, checks, w.Body.String())
+		}
+	}
 }

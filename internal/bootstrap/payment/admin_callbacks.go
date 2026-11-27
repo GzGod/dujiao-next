@@ -62,6 +62,10 @@ func (a adminPaymentConfirmerAdapter) ManualConfirmPayment(input paymenttranspor
 	return payment, mapTransportError(err)
 }
 
+func (a adminPaymentConfirmerAdapter) ReviewOrderRiskWithList(orderID, adminID uint, approve bool, kinds []string) error {
+	return mapTransportError(a.payments.ReviewOrderRiskWithList(orderID, adminID, approve, kinds))
+}
+
 type adminChannelLookupAdapter struct {
 	channels paymentcontract.ChannelStore
 }

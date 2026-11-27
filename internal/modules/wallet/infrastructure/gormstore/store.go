@@ -2,6 +2,7 @@ package gormstore
 
 import (
 	"errors"
+	"github.com/dujiao-next/internal/constants"
 	"strings"
 
 	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
@@ -283,6 +284,12 @@ func applyRechargeFilters(query *gorm.DB, filter walletcontract.RechargeListFilt
 	}
 	if filter.CreatedTo != nil {
 		query = query.Where("wallet_recharge_orders.created_at <= ?", *filter.CreatedTo)
+	}
+	// A successful recharge's updated_at is set when its wallet credit commits,
+	// including when payment was received earlier and held for review.
+	if filter.CreditedFrom != nil {
+		query = query.Where("wallet_recharge_orders.status = ? AND wallet_recharge_orders.updated_at >= ?",
+			constants.WalletRechargeStatusSuccess, *filter.CreditedFrom)
 	}
 	if filter.PaidFrom != nil {
 		query = query.Where("wallet_recharge_orders.paid_at >= ?", *filter.PaidFrom)

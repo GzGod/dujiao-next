@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Copy } from 'lucide-vue-next'
 import { adminAPI } from '@/api/admin'
+import { useAdminAuthStore } from '@/stores/auth'
 import type { AdminPayment } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
 import { Button } from '@/components/ui/button'
@@ -44,9 +45,12 @@ const filters = reactive({
 const normalizeFilterValue = (value: string) => (value === '__all__' ? '' : value)
 const { t } = useI18n()
 const route = useRoute()
+const auth = useAdminAuthStore()
 const showDetail = ref(false)
 const detailLoading = ref(false)
 const detailError = ref('')
+const approvingRecharge = ref(false)
+const rechargeReviewError = ref('')
 const detailPayment = ref<AdminPayment | null>(null)
 const exporting = ref(false)
 const exportError = ref('')
@@ -192,6 +196,7 @@ const openDetail = async (payment: { id: number }) => {
   showDetail.value = true
   detailLoading.value = true
   detailError.value = ''
+  rechargeReviewError.value = ''
   detailPayment.value = null
   try {
     const response = await adminAPI.getPayment(payment.id)
@@ -200,6 +205,21 @@ const openDetail = async (payment: { id: number }) => {
     detailError.value = err?.message || t('admin.payments.detailFetchFailed')
   } finally {
     detailLoading.value = false
+  }
+}
+
+const approveRecharge = async (paymentId: number) => {
+  if (approvingRecharge.value || !window.confirm(t('admin.payments.approveRechargeConfirm'))) return
+  approvingRecharge.value = true
+  rechargeReviewError.value = ''
+  try {
+    await adminAPI.approveWalletRecharge(paymentId)
+    await openDetail({ id: paymentId })
+    await fetchPayments(pagination.value.page)
+  } catch (err: any) {
+    rechargeReviewError.value = err?.message || t('admin.payments.approveRechargeFailed')
+  } finally {
+    approvingRecharge.value = false
   }
 }
 
@@ -216,7 +236,7 @@ const closeDetail = () => {
 
 const statusClass = (status: string) => paymentStatusClass(status)
 
-const statusLabel = (status: string) => paymentStatusLabel(t, status)
+const statusLabel = (status: string) => status === 'pending_review' ? t('admin.payments.rechargePendingReview') : paymentStatusLabel(t, status)
 
 const feePolicyLabel = (policy?: string) => {
   if (!policy) return '-'
@@ -593,6 +613,11 @@ watch(
                       </div>
                       <div v-if="detailPayment.recharge_status">
                         {{ t('admin.payments.rechargeStatus') }}: {{ statusLabel(detailPayment.recharge_status) }}
+                        <Button v-if="auth.isSuper && detailPayment.recharge_status === 'pending_review'" size="sm" variant="outline"
+                          :disabled="approvingRecharge" @click="approveRecharge(detailPayment.id)">
+                          {{ t('admin.payments.approveRecharge') }}
+                        </Button>
+                        <p v-if="rechargeReviewError" role="alert" class="text-destructive">{{ rechargeReviewError }}</p>
                       </div>
                     </div>
                   </div>

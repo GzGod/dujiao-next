@@ -35,6 +35,17 @@ func (s *Service) HandleUpstreamCallback(procurementOrderID uint, upstreamStatus
 
 	switch upstreamStatus {
 	case "delivered", "completed", "fulfilled":
+		local, err := s.orderRepo.GetByID(procOrder.LocalOrderID)
+		if err != nil {
+			return err
+		}
+		if local == nil {
+			return procurementcontract.ErrOrderNotFound
+		}
+		if local.RiskBlocked {
+			// Leave the procurement nonterminal so polling can resume after release.
+			return procurementcontract.ErrOrderRiskHeld
+		}
 		// 先创建交付记录（幂等），再推进采购单状态；写入失败时采购单保持非终态以便上游重试
 		if fulfillment != nil && s.orderLifecycle != nil {
 			if err := s.createUpstreamFulfillment(procOrder.LocalOrderID, fulfillment, now); err != nil {

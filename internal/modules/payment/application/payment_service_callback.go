@@ -2,14 +2,18 @@ package application
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
+	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	riskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
 	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
 
 	"github.com/dujiao-next/internal/constants"
@@ -234,6 +238,7 @@ func updateCallbackMetaWithRepo(repo paymentcontract.Store, payment *paymentdoma
 	}
 	if payment.Status == constants.PaymentStatusSuccess && payment.PaidAt == nil && input.PaidAt != nil {
 		payment.PaidAt = input.PaidAt
+		payment.ProviderPaidAtKnown = true
 		updated = true
 	}
 	if updated {
@@ -251,8 +256,12 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 	returnVal := payment
 	processedOrder := order
 	orderPaid := false
+	riskConfig, err := s.settingService.GetOrderRiskControlConfig()
+	if err != nil {
+		return nil, nil, false, err
+	}
 
-	err := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
+	err = s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
 		paymentRepo := tx.Payments()
 		// 先订单后支付，与创建支付、钱包支付的加锁顺序一致，避免 PostgreSQL 死锁。
 		lockedOrder, err := tx.Orders().GetByIDForUpdateWithChildren(order.ID)
@@ -308,6 +317,16 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 		}
 
 		orderOpen := lockedOrder.Status == constants.OrderStatusPendingPayment && lockedOrder.PaidAt == nil
+		// The expiry worker may still be queued. A successful receipt only
+		// qualifies for automatic delivery within the original order window.
+		if orderOpen && !manualRecover && lockedOrder.ExpiresAt != nil {
+			receivedAt := now
+			if input.PaidAt != nil && !input.PaidAt.IsZero() && !input.PaidAt.After(now) &&
+				!input.PaidAt.Before(lockedPayment.CreatedAt.Truncate(time.Second)) {
+				receivedAt = *input.PaidAt
+			}
+			orderOpen = receivedAt.Before(*lockedOrder.ExpiresAt)
+		}
 
 		// 金额守恒：一笔支付只有覆盖订单当前的在线应付额才允许履约。
 		// 混合支付切换渠道会退回余额并抬高在线应付额，而旧链接在网关侧依然可付，
@@ -340,6 +359,7 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 			// 迟到回调已记录网关侧真实支付时间，人工恢复订单时不要覆盖它。
 			if !(manualRecover && lockedPayment.PaidAt != nil) {
 				lockedPayment.PaidAt = &paidAt
+				lockedPayment.ProviderPaidAtKnown = input.PaidAt != nil
 			}
 			switch {
 			case underpaid:
@@ -381,7 +401,7 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 			}
 		}
 		if canFulfillOrder {
-			if err := s.markOrderPaid(tx, lockedOrder, now); err != nil {
+			if err := s.markOrderPaid(tx, lockedOrder, lockedPayment, now, riskConfig); err != nil {
 				return err
 			}
 			if s.resellerAccounting != nil {
@@ -391,8 +411,12 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 			}
 			orderPaid = true
 		}
-		if underpaid {
-			// 订单不履约，但用户的钱不能吞：转入余额，用户可用余额补齐后重新支付。
+		// CNY orders and fiat receipts must not turn underpayment into wallet
+		// credit, even when the order and the gateway use different currencies.
+		manualReconcile := strings.EqualFold(strings.TrimSpace(lockedOrder.Currency), "CNY") ||
+			strings.EqualFold(strings.TrimSpace(lockedPayment.Currency), "CNY") ||
+			strings.EqualFold(strings.TrimSpace(lockedPayment.ChannelType), constants.PaymentChannelTypeAlipay)
+		if underpaid && !manualReconcile {
 			if err := s.creditUnderpaidToWallet(tx, lockedOrder, lockedPayment, coveredOnlineAmount, requiredOnlineAmount); err != nil {
 				return err
 			}
@@ -461,7 +485,7 @@ func (s *PaymentService) creditUnderpaidToWallet(
 }
 
 // mergeProviderPayload 合并第三方回调原文，同时保留创建支付阶段写入的展示快照等元数据。
-// 回调字段优先覆盖同名旧字段，未出现在回调中的 display_channel_type 等字段不会丢失。
+// 普通回调字段更新同名值；服务端创建时记录的换汇快照只能由本地代码写入。
 func mergeProviderPayload(existing jsonmap.JSON, incoming jsonmap.JSON) jsonmap.JSON {
 	if incoming == nil {
 		return existing
@@ -471,20 +495,268 @@ func mergeProviderPayload(existing jsonmap.JSON, incoming jsonmap.JSON) jsonmap.
 		merged[key] = value
 	}
 	for key, value := range incoming {
+		switch key {
+		case "exchange_rate", "original_amount", "original_currency", paymentcontract.GatewayPayloadFiatCurrencySent:
+			continue
+		}
 		merged[key] = value
 	}
 	return merged
 }
 
 // markOrderPaid 在事务内将订单更新为已支付并处理库存
-func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *orderdomain.Order, now time.Time) error {
+func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *orderdomain.Order, payment *paymentdomain.Payment, now time.Time, riskConfig settingssecurity.OrderRiskControlConfig) error {
 	if order == nil {
 		return orderapp.ErrOrderNotFound
 	}
 	if !orderapp.IsTransitionAllowed(order.Status, constants.OrderStatusPaid) {
 		return orderapp.ErrOrderStatusInvalid
 	}
+	cnyAmount, canScore := order.TotalAmount.Decimal, strings.EqualFold(order.Currency, "CNY")
+	if !canScore && payment != nil && strings.EqualFold(payment.Currency, "CNY") {
+		if rate, ok := paymentExchangeRate(payment); ok {
+			cnyAmount, canScore = order.TotalAmount.Decimal.Mul(rate), true
+		}
+	}
+	// Match the stored currency precision and bound the integer conversion.
+	fen := cnyAmount.Shift(2).Round(0)
+	if fen.GreaterThan(decimal.NewFromInt(1_000_000_000_000_000)) {
+		fen = decimal.NewFromInt(1_000_000_000_000_000)
+	}
+	riskMode := riskConfig.SettlementMode
+	identityInput := riskcontract.CheckInput{
+		UserID: order.UserID, ClientIP: order.ClientIP, RiskDeviceHash: order.RiskDeviceHash, GuestEmail: order.GuestEmail,
+	}
 	orderRepo := tx.Orders()
+	if err := orderRepo.LockRiskKeys(riskcontract.SettlementLockKeys(identityInput)); err != nil {
+		return err
+	}
+	denied, trusted := riskcontract.MatchSettlementList(identityInput, riskConfig, now)
+	facts := riskcontract.SettlementFacts{Blacklisted: denied}
+	var riskDecision jsonmap.JSON
+	var riskCandidate bool
+	// Both full-wallet checkout and online settlement use this path.
+	if s.walletSvc != nil && order.UserID != 0 && order.WalletPaidAmount.Decimal.IsPositive() {
+		since := now.Add(-24 * time.Hour)
+		walletRepo := tx.Wallets().Wallets()
+		_, recharges, err := walletRepo.ListRechargeOrdersAdmin(walletcontract.RechargeListFilter{
+			UserID: order.UserID, ChannelType: constants.PaymentChannelTypeAlipay,
+			CreditedFrom: &since, Page: 1, PageSize: 1,
+		})
+		if err != nil {
+			return err
+		}
+		_, underpaidCredits, err := walletRepo.ListTransactions(walletcontract.TransactionListFilter{
+			UserID: order.UserID, Type: constants.WalletTxnTypeOrderUnderpaidCredit,
+			CreatedFrom: &since, Page: 1, PageSize: 1,
+		})
+		if err != nil {
+			return err
+		}
+		facts.RecentMonitoredWalletFunding = recharges > 0 || underpaidCredits > 0
+	}
+	if canScore {
+		facts.Amount = fen.IntPart()
+	}
+	delayKnown := false
+	if payment != nil && payment.ProviderPaidAtKnown && payment.PaidAt != nil && payment.InteractionMode == constants.PaymentInteractionQR {
+		ready := payment.CreatedAt
+		if payment.CheckoutReadyAt != nil {
+			ready = *payment.CheckoutReadyAt
+		}
+		if !ready.IsZero() && !payment.PaidAt.Before(ready) && !payment.PaidAt.After(now) {
+			delayKnown = true
+			facts.PaymentDelay = payment.PaidAt.Sub(ready)
+		}
+	}
+	since := now.Add(-24 * time.Hour)
+	identity := ordercontract.ListFilter{UserID: order.UserID, ExcludeID: order.ID, Page: 1, PageSize: 100, SkipRelations: true}
+	if order.UserID == 0 {
+		identity.GuestEmail = strings.TrimSpace(order.GuestEmail)
+		identity.RiskContactHash = riskcontract.GuestContactHash(identity.GuestEmail)
+	}
+	var recent []orderdomain.Order
+	if identity.UserID != 0 || identity.GuestEmail != "" {
+		oldest := identity
+		oldest.PageSize, oldest.SortBy, oldest.SortOrder = 1, "created_at", "asc"
+		history, total, err := orderRepo.ListAdmin(oldest)
+		if err != nil {
+			return err
+		}
+		facts.NewContact = total == 0
+		if len(history) > 0 {
+			facts.CustomerAge = now.Sub(history[0].CreatedAt)
+		}
+		oldest.RiskSuccessfulOnly = true
+		_, paid, err := orderRepo.ListAdmin(oldest)
+		if err != nil {
+			return err
+		}
+		facts.HistoricalSuccessfulOrders = int(paid)
+		identity.RiskActivityFrom = &since
+		recent, _, err = orderRepo.ListAdmin(identity)
+		if err != nil {
+			return err
+		}
+	}
+	seenRecent := make(map[uint]bool, len(recent))
+	for _, previous := range recent {
+		seenRecent[previous.ID] = true
+	}
+	shortWindow := now.Add(-30 * time.Minute)
+	if order.RiskIP != "" {
+		ipHistory := ordercontract.ListFilter{RiskIP: order.RiskIP, ExcludeID: order.ID, Page: 1, PageSize: 1, SkipRelations: true}
+		_, total, err := orderRepo.ListAdmin(ipHistory)
+		if err != nil {
+			return err
+		}
+		facts.NewIP = total == 0
+		if total > 0 && identity.GuestEmail != "" {
+			ipHistory.PageSize, ipHistory.CreatedFrom = 50, &since
+			neighbors, _, err := orderRepo.ListAdmin(ipHistory)
+			if err != nil {
+				return err
+			}
+			for _, previous := range neighbors {
+				if previous.GuestEmail == "" || previous.GuestEmail == identity.GuestEmail {
+					continue
+				}
+				same, similar := riskcontract.CompareGuestContacts(identity.GuestEmail, previous.GuestEmail)
+				facts.ApproximateContact = facts.ApproximateContact || similar
+				if same {
+					facts.NewContact = false
+					if !seenRecent[previous.ID] {
+						recent = append(recent, previous)
+						seenRecent[previous.ID] = true
+					}
+				} else if !previous.CreatedAt.Before(shortWindow) {
+					facts.DifferentContactSameIP = true
+				}
+			}
+		}
+	}
+	if facts.Amount >= 15000 && order.RiskIP != "" {
+		subnet := ordercontract.ListFilter{ExcludeID: order.ID, PaidFrom: &shortWindow, Page: 1, PageSize: 50, SkipRelations: true}
+		if ip, err := netip.ParseAddr(order.RiskIP); err == nil && ip.Is4() {
+			masked := netip.PrefixFrom(ip, 24).Masked().Addr().String()
+			subnet.RiskIPv4Prefix = masked[:strings.LastIndexByte(masked, '.')+1]
+		} else {
+			// IPv6 risk IPs already store a normalized /64.
+			subnet.RiskIP = order.RiskIP
+		}
+		neighbors, _, err := orderRepo.ListAdmin(subnet)
+		if err != nil {
+			return err
+		}
+		for _, previous := range neighbors {
+			if previous.PaymentRiskAmountFen >= 15000 ||
+				strings.EqualFold(previous.Currency, "CNY") && previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(150)) {
+				facts.SubnetBurst = true
+				break
+			}
+		}
+	}
+	if order.RiskDeviceHash != "" {
+		rows, _, err := orderRepo.ListAdmin(ordercontract.ListFilter{
+			RiskDeviceHash: order.RiskDeviceHash, ExcludeID: order.ID, RiskActivityFrom: &since,
+			Page: 1, PageSize: 50, SkipRelations: true,
+		})
+		if err != nil {
+			return err
+		}
+		for _, previous := range rows {
+			if !seenRecent[previous.ID] {
+				recent = append(recent, previous)
+				seenRecent[previous.ID] = true
+			}
+			if order.UserID != previous.UserID {
+				facts.DeviceSwitch = true
+			}
+			if identity.GuestEmail != "" && previous.GuestEmail != "" && previous.GuestEmail != identity.GuestEmail {
+				same, similar := riskcontract.CompareGuestContacts(identity.GuestEmail, previous.GuestEmail)
+				facts.DeviceSwitch = facts.DeviceSwitch || !same
+				facts.ApproximateContact = facts.ApproximateContact || similar
+			}
+		}
+	}
+	for _, previous := range recent {
+		if previous.PaidAt != nil && !previous.PaidAt.Before(since) {
+			amount := previous.PaymentRiskAmountFen
+			if amount == 0 && strings.EqualFold(previous.Currency, "CNY") {
+				amount = decimal.Min(previous.TotalAmount.Decimal.Shift(2).Round(0), decimal.NewFromInt(1_000_000_000_000_000)).IntPart()
+			}
+			if amount <= 0 && !previous.TotalAmount.Decimal.IsPositive() {
+				continue
+			}
+			if amount < 0 {
+				amount = 0
+			}
+			facts.PaidCount24h++
+			facts.PaidAmount24h += amount
+			if !previous.PaidAt.Before(shortWindow) {
+				facts.PaidCount30m++
+				facts.PaidAmount30m += amount
+			}
+		} else if previous.PaidAt == nil && !previous.CreatedAt.Before(since) && (previous.Status == constants.OrderStatusPendingPayment || previous.Status == constants.OrderStatusCanceled) {
+			facts.Unpaid24h++
+			if !previous.CreatedAt.Before(shortWindow) {
+				facts.Unpaid30m++
+			}
+		}
+	}
+	if reader, ok := orderRepo.(interface {
+		HasUnusedRedemption([]uint) (bool, error)
+	}); ok {
+		eligible := make([]uint, 0, len(recent))
+		for _, previous := range recent {
+			if previous.PaidAt == nil || previous.PaidAt.Before(now.Add(-2*time.Hour)) {
+				continue
+			}
+			if previous.PaymentRiskAmountFen >= 15000 ||
+				previous.PaymentRiskAmountFen == 0 && strings.EqualFold(previous.Currency, "CNY") &&
+					previous.TotalAmount.Decimal.GreaterThanOrEqual(decimal.NewFromInt(150)) {
+				eligible = append(eligible, previous.ID)
+			}
+		}
+		unused, err := reader.HasUnusedRedemption(eligible)
+		if err != nil {
+			return err
+		}
+		facts.UnredeemedHighOrder = unused
+	}
+	facts.RiskyEmail = riskcontract.SettlementRiskyEmail(order.GuestEmail, riskConfig)
+	decision := riskcontract.EvaluateSettlement(facts, riskConfig)
+	if trusted && !facts.Blacklisted && !facts.RecentMonitoredWalletFunding {
+		decision.Hold, decision.Exempt = false, true
+	}
+	riskCandidate = decision.Hold
+	riskDecision = jsonmap.JSON{
+		"mode": riskMode, "score": decision.Score, "exempt": decision.Exempt,
+		"hard_rules": decision.HardRules, "signals": decision.Signals,
+		"recent_wallet_funding": facts.RecentMonitoredWalletFunding, "cny_amount_known": canScore,
+		"pay_delay_known": delayKnown,
+		"threshold":       riskConfig.SettlementThreshold,
+		"features": jsonmap.JSON{
+			"paid_count_30m": facts.PaidCount30m, "paid_count_24h": facts.PaidCount24h,
+			"paid_amount_fen_30m": facts.PaidAmount30m, "paid_amount_fen_24h": facts.PaidAmount24h,
+			"unpaid_count_30m": facts.Unpaid30m, "unpaid_count_24h": facts.Unpaid24h,
+			"new_contact": facts.NewContact, "new_ip": facts.NewIP, "device_switch": facts.DeviceSwitch,
+			"approximate_contact": facts.ApproximateContact, "unredeemed_high_order": facts.UnredeemedHighOrder,
+			"subnet_burst": facts.SubnetBurst, "different_contact_same_ip": facts.DifferentContactSameIP,
+			"risky_email": facts.RiskyEmail, "blacklisted": facts.Blacklisted,
+			"historical_successful_orders": facts.HistoricalSuccessfulOrders,
+			"customer_age_hours":           int64(facts.CustomerAge / time.Hour),
+			"matched_allowlist":            trusted,
+		},
+	}
+	if delayKnown {
+		riskDecision["pay_delay_seconds"] = int64(facts.PaymentDelay / time.Second)
+	}
+	if decision.Hold || decision.Score > 0 || facts.RecentMonitoredWalletFunding {
+		paymentLogger("order_id", order.ID).Infow("payment_risk_shadow_settlement",
+			"hold_candidate", decision.Hold, "score", decision.Score, "hard_rules", decision.HardRules,
+			"signals", decision.Signals, "recent_wallet_funding", facts.RecentMonitoredWalletFunding)
+	}
 	productRepo := tx.Products()
 	var productSKURepo productcontract.SKURepository
 	if s.productSKURepo != nil {
@@ -497,10 +769,33 @@ func (s *PaymentService) markOrderPaid(tx paymentcontract.Transaction, order *or
 		"online_paid_amount": money.FromDecimal(onlineAmount),
 		"updated_at":         now,
 	}
+	if riskDecision != nil {
+		orderUpdates["payment_risk_evaluated_at"] = now
+		orderUpdates["payment_risk_amount_fen"] = facts.Amount
+		if payment != nil {
+			orderUpdates["payment_risk_payment_id"] = payment.ID
+		}
+		orderUpdates["payment_risk_candidate"] = riskCandidate
+		orderUpdates["payment_risk_decision"] = riskDecision
+		if riskCandidate && (riskMode == settingssecurity.SettlementModeHoldNotice || riskMode == settingssecurity.SettlementModeSilentTrap) {
+			orderUpdates["risk_hold_status"] = "pending_review"
+			if s.notificationSvc != nil {
+				orderUpdates["risk_alert_retry_at"] = now.Add(2 * time.Minute)
+			}
+		}
+	}
 	if err := orderRepo.UpdateStatus(order.ID, constants.OrderStatusPaid, orderUpdates); err != nil {
 		return orderapp.ErrOrderUpdateFailed
 	}
 	order.Status = constants.OrderStatusPaid
+	if riskDecision != nil {
+		order.PaymentRiskDecision = riskDecision
+		order.PaymentRiskCandidate = riskCandidate
+		order.PaymentRiskEvaluatedAt = &now
+	}
+	if hold, ok := orderUpdates["risk_hold_status"].(string); ok {
+		order.RiskHoldStatus = hold
+	}
 	order.PaidAt = &now
 	order.OnlinePaidAmount = money.FromDecimal(onlineAmount)
 	order.UpdatedAt = now

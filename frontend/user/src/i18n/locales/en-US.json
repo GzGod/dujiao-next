@@ -589,6 +589,7 @@
       "directionIn": "In",
       "directionOut": "Out",
       "rechargeStatus": {
+        "pending_review": "Payment received, awaiting review",
         "pending": "Pending",
         "success": "Credited",
         "failed": "Failed",
@@ -1279,6 +1280,7 @@
     "ipDeliveryHint": "Payment confirmed. Contact Telegram support with your order number to receive your US residential IP.",
     "inlineGmCashier": "GMwallet network and token checkout",
     "gptRedeemHint": "Your code is ready. Copy it and open redemption to submit the required account details, then confirm the top-up result.",
+    "deliveryUnderReview": "Payment received. Your order is under review and will be fulfilled after approval.",
     "gptDeliveryPending": "Payment confirmed. Your redemption code will appear here automatically when ready.",
     "gptCopyCode": "Copy redemption code",
     "gptCodeCopied": "Code copied",

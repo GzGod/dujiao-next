@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
 
@@ -90,6 +91,20 @@ func (c *Consumer) handleOrderStatusEmail(ctx context.Context, task *asynq.Task)
 		)
 		return nil
 	}
+	blocked := order.RiskBlocksFulfillment()
+	if !blocked && order.ParentID != nil {
+		parent, err := c.orderReader.GetByID(*order.ParentID)
+		if err != nil {
+			return err
+		}
+		blocked = parent == nil || parent.RiskBlocksFulfillment()
+	}
+	if blocked {
+		switch status {
+		case constants.OrderStatusPaid, constants.OrderStatusFulfilling, constants.OrderStatusDelivered, constants.OrderStatusCompleted:
+			return nil
+		}
+	}
 	var receiverEmail string
 	var locale string
 	if order.UserID != 0 {
@@ -127,7 +142,10 @@ func (c *Consumer) handleOrderStatusEmail(ctx context.Context, task *asynq.Task)
 			tmplSetting = &setting
 		}
 	}
-	payloadText := buildOrderFulfillmentEmailPayload(order)
+	payloadText := ""
+	if !blocked {
+		payloadText = buildOrderFulfillmentEmailPayload(order)
+	}
 	emailBrand, brandErr := c.resolveOrderEmailBrand(ctx, order)
 	if brandErr != nil {
 		logger.Warnw("worker_order_status_email_load_site_brand_failed", "order_id", order.ID, "error", brandErr)
@@ -272,6 +290,22 @@ func (c *Consumer) handleOrderAutoFulfill(_ context.Context, task *asynq.Task) e
 	return nil
 }
 
+func (c *Consumer) handleOrderRecovery(_ context.Context, _ *asynq.Task) error {
+	if c == nil {
+		return nil
+	}
+	now := time.Now()
+	var expired, released, alerts error
+	if c.OrderService != nil {
+		expired = c.OrderService.RecoverExpiredOrders(now)
+	}
+	if c.PaymentService != nil {
+		released = c.PaymentService.RecoverReleasedFulfillment(now)
+		alerts = c.PaymentService.RecoverRiskAlerts(now)
+	}
+	return errors.Join(expired, released, alerts)
+}
+
 // handleOrderTimeoutCancel 处理超时未支付订单自动取消任务。
 func (c *Consumer) handleOrderTimeoutCancel(_ context.Context, task *asynq.Task) error {
 	if c == nil || task == nil {
@@ -406,7 +440,7 @@ func localizedInstructionsText(raw jsonmap.JSON, locale string) string {
 
 // buildOrderFulfillmentEmailPayload 组装订单状态邮件中的交付内容文本。
 func buildOrderFulfillmentEmailPayload(order *orderdomain.Order) string {
-	if order == nil {
+	if order == nil || order.RiskBlocksFulfillment() {
 		return ""
 	}
 	if order.Fulfillment != nil {
@@ -420,7 +454,7 @@ func buildOrderFulfillmentEmailPayload(order *orderdomain.Order) string {
 	}
 	parts := make([]string, 0, len(order.Children))
 	for _, child := range order.Children {
-		if child.Fulfillment == nil {
+		if child.Fulfillment == nil || child.RiskBlocksFulfillment() {
 			continue
 		}
 		content := strings.TrimSpace(child.Fulfillment.Payload)

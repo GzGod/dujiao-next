@@ -108,9 +108,40 @@ func (s *PaymentService) CreateWalletRechargePayment(input CreateWalletRechargeP
 	}
 	now := time.Now()
 
+	monitored := strings.EqualFold(strings.TrimSpace(channel.ChannelType), constants.PaymentChannelTypeAlipay)
+	if monitored {
+		if s.walletSvc == nil {
+			return nil, walletcontract.ErrAccountNotFound
+		}
+		if _, err := s.walletSvc.GetAccount(input.UserID); err != nil {
+			return nil, err
+		}
+	}
+
 	var payment *paymentdomain.Payment
 	var recharge *walletdomain.RechargeOrder
 	err = s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
+		rechargeRepo := tx.Wallets().Wallets()
+		if monitored {
+			account, err := rechargeRepo.GetAccountByUserIDForUpdate(input.UserID)
+			if err != nil {
+				return err
+			}
+			if account == nil {
+				return walletcontract.ErrAccountNotFound
+			}
+			since := now.Add(-24 * time.Hour)
+			_, recent, err := rechargeRepo.ListRechargeOrdersAdmin(walletcontract.RechargeListFilter{
+				UserID: input.UserID, ChannelType: constants.PaymentChannelTypeAlipay,
+				PaidFrom: &since, Page: 1, PageSize: 1,
+			})
+			if err != nil {
+				return err
+			}
+			if recent > 0 {
+				return walletcontract.ErrRechargeRecentPayment
+			}
+		}
 		rechargeNo := generateWalletRechargeNo()
 		paymentRepo := tx.Payments()
 		payment = &paymentdomain.Payment{
@@ -135,7 +166,6 @@ func (s *PaymentService) CreateWalletRechargePayment(input CreateWalletRechargeP
 			return ErrPaymentCreateFailed
 		}
 
-		rechargeRepo := tx.Wallets().Wallets()
 		remark := strings.TrimSpace(input.Remark)
 		if remark == "" {
 			remark = "余额充值"

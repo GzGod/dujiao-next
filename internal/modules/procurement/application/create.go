@@ -23,6 +23,10 @@ func (s *Service) CreateForOrder(orderID uint) error {
 		return procurementcontract.ErrOrderNotFound
 	}
 
+	if order.RiskBlocked {
+		return nil
+	}
+
 	// 父订单有子订单：遍历子订单。单个子订单失败不能挡住其余子订单的采购。
 	if order.ParentID == nil && len(order.Children) > 0 {
 		var errs []error
@@ -52,6 +56,9 @@ func (s *Service) CreateForOrder(orderID uint) error {
 
 // createProcurementForSingleOrder 为单个订单创建采购单
 func (s *Service) createProcurementForSingleOrder(order *procurementdomain.LocalOrder) error {
+	if order.RiskBlocked {
+		return nil
+	}
 	// 检查是否已存在
 	existing, err := s.procRepo.GetByLocalOrderID(order.ID)
 	if err != nil {

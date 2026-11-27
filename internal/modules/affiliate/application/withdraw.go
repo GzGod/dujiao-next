@@ -1,6 +1,7 @@
 package application
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -195,6 +196,9 @@ func (s *Service) ReviewWithdraw(adminID, withdrawID uint, action, rejectReason 
 		}
 		return repoTx.UpdateWithdraw(req)
 	})
+	if errors.Is(err, affiliatecontract.ErrCommissionRiskHeld) {
+		return nil, ErrWithdrawStatusInvalid
+	}
 	if err != nil {
 		return nil, err
 	}

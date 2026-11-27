@@ -31,15 +31,20 @@ func (staticProductReader) ListByIDs([]uint) ([]productdomain.Product, error) {
 }
 
 // 佣金重试任务晚于退款执行时，退款流程已找不到佣金可冲销，重试不能再生成佣金。
-func TestHandleOrderPaidSkipsRefundedOrder(t *testing.T) {
+func TestHandleOrderPaidOnlyCreatesCommissionForEligibleRootOrder(t *testing.T) {
 	for _, tc := range []struct {
-		status string
-		want   bool
+		name, status, hold string
+		child, want        bool
 	}{
-		{constants.OrderStatusPaid, true},
-		{constants.OrderStatusRefunded, false},
+		{name: "paid", status: constants.OrderStatusPaid, want: true},
+		{name: "released", status: constants.OrderStatusPaid, hold: "released", want: true},
+		{name: "held", status: constants.OrderStatusPaid, hold: "pending_review"},
+		{name: "rejected", status: constants.OrderStatusPaid, hold: "rejected"},
+		{name: "child", status: constants.OrderStatusPaid, child: true},
+		{name: "not paid", status: constants.OrderStatusPendingPayment},
+		{name: "refunded", status: constants.OrderStatusRefunded},
 	} {
-		t.Run(tc.status, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			_, db, _ := setupAffiliateServiceTest(t)
 			if err := db.AutoMigrate(&affiliatedomain.Commission{}); err != nil {
 				t.Fatalf("migrate commission: %v", err)
@@ -48,8 +53,12 @@ func TestHandleOrderPaidSkipsRefundedOrder(t *testing.T) {
 			profile := createAffiliateTestProfile(t, db, promoter.ID, "PROMO1", constants.AffiliateProfileStatusActive)
 
 			order := &orderdomain.Order{
-				ID: 10, UserID: promoter.ID + 1, Status: tc.status, AffiliateProfileID: &profile.ID,
+				ID: 10, UserID: promoter.ID + 1, Status: tc.status, RiskHoldStatus: tc.hold, AffiliateProfileID: &profile.ID,
 				Items: []orderdomain.OrderItem{{ProductID: 1, TotalPrice: money.FromDecimal(decimal.NewFromInt(100))}},
+			}
+			if tc.child {
+				parentID := uint(9)
+				order.ParentID = &parentID
 			}
 			store := affiliategormstore.New(db)
 			settings := settingsapp.NewService(memorysettings.New())

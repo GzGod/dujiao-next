@@ -165,6 +165,10 @@ func (s *Service) requeueStalledSubmissions() {
 				if dueAt.After(cutoff) {
 					continue
 				}
+				local, err := s.orderRepo.GetByID(orders[i].LocalOrderID)
+				if err != nil || local == nil || local.RiskBlocked {
+					continue
+				}
 				if err := s.queue.EnqueueSubmit(orders[i].ID, 0); err != nil {
 					logger.Warnw("procurement_requeue_stalled_failed", "procurement_order_id", orders[i].ID, "error", err)
 					continue

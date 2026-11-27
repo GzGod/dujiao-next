@@ -178,7 +178,20 @@ func TestSyncAcceptedOrders_RequeuesStalledSubmissions(t *testing.T) {
 	order := createProcTestOrder(t, db, "PROC-STALLED-001", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
 	stalled := createTestProcurementOrder(t, db, 1, order.ID, order.OrderNo, constants.ProcurementStatusPending)
 	db.Model(stalled).UpdateColumn("updated_at", time.Now().Add(-time.Hour))
-	fresh := createTestProcurementOrder(t, db, 1, order.ID+1, "PROC-STALLED-002", constants.ProcurementStatusPending)
+	freshOrder := createProcTestOrder(t, db, "PROC-STALLED-002", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	fresh := createTestProcurementOrder(t, db, 1, freshOrder.ID, freshOrder.OrderNo, constants.ProcurementStatusPending)
+	heldOrder := createProcTestOrder(t, db, "PROC-STALLED-HELD", constants.OrderStatusPaid, constants.FulfillmentTypeUpstream)
+	if err := db.Model(heldOrder).UpdateColumn("risk_hold_status", "rejected").Error; err != nil {
+		t.Fatal(err)
+	}
+	held := createTestProcurementOrder(t, db, 1, heldOrder.ID, heldOrder.OrderNo, constants.ProcurementStatusPending)
+	if err := db.Model(held).UpdateColumn("updated_at", time.Now().Add(-time.Hour)).Error; err != nil {
+		t.Fatal(err)
+	}
+	orphaned := createTestProcurementOrder(t, db, 1, heldOrder.ID+100, "PROC-STALLED-ORPHAN", constants.ProcurementStatusPending)
+	if err := db.Model(orphaned).UpdateColumn("updated_at", time.Now().Add(-time.Hour)).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	queue := &recordingEnqueuer{}
 	svc := procurementapp.NewService(procurementapp.Options{

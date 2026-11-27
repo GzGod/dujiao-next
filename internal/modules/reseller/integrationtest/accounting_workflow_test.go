@@ -13,6 +13,7 @@ import (
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	ordergormstore "github.com/dujiao-next/internal/modules/order/infrastructure/gormstore"
+	orderriskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 
 	resellerapplication "github.com/dujiao-next/internal/modules/reseller/application"
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
@@ -59,6 +60,7 @@ func openResellerAccountingServiceTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&userdomain.User{},
 		&orderdomain.Order{},
+		&orderriskdomain.LockKey{},
 		&orderdomain.OrderItem{},
 		&fulfillmentdomain.Fulfillment{},
 		&paymentdomain.Payment{},
@@ -889,5 +891,40 @@ func TestResellerAccountingApplyWithdrawRejectsExceedingNetAvailable(t *testing.
 	}
 	if req == nil || req.Amount.Decimal.StringFixed(2) != "50.00" {
 		t.Fatalf("unexpected withdraw request: %+v", req)
+	}
+}
+
+func TestHeldOrderProfitCannotBeWithdrawn(t *testing.T) {
+	db := openResellerAccountingServiceTestDB(t)
+	order, _, snapshot := seedPaidResellerOrderSnapshot(t, db, true)
+	now := time.Now()
+	entry := resellerdomain.LedgerEntry{
+		ResellerID: snapshot.ResellerID, OrderID: &order.ID, Type: resellerdomain.LedgerTypeOrderProfit,
+		Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: "USD",
+		IdempotencyKey: "risk-withdraw-test", Status: resellerdomain.LedgerStatusAvailable, AvailableAt: &now,
+	}
+	if err := db.Create(&entry).Error; err != nil {
+		t.Fatal(err)
+	}
+	setHold := func(status string) {
+		t.Helper()
+		if err := db.Model(&order).Update("risk_hold_status", status).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := newResellerAccountingTestHarness(resellergormstore.New(db), 0)
+	input := resellercontract.WithdrawApplyInput{Amount: decimal.NewFromInt(10), Currency: "USD", Channel: "usdt", Account: "test"}
+	setHold("pending_review")
+	if _, err := svc.withdraw.ApplyWithdraw(snapshot.ResellerID, input); !errors.Is(err, resellercontract.ErrWithdrawInsufficient) {
+		t.Fatalf("held profit counted as withdrawable: %v", err)
+	}
+	setHold("released")
+	req, err := svc.withdraw.ApplyWithdraw(snapshot.ResellerID, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setHold("rejected")
+	if _, err := svc.withdraw.ReviewWithdraw(99, req.ID, resellercontract.WithdrawActionPay, ""); !errors.Is(err, resellercontract.ErrBalanceAccountFrozen) {
+		t.Fatalf("existing request was not blocked: %v", err)
 	}
 }

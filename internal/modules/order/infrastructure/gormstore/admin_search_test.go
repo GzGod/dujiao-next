@@ -1,7 +1,10 @@
 package gormstore
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	orderriskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	"testing"
 	"time"
 
@@ -186,5 +189,179 @@ func TestListAdminIssuedOnlyIncludesDeliveredChildrenWithoutDuplicates(t *testin
 	_, total, err = repo.ListAdmin(ordercontract.ListFilter{Page: 1, PageSize: 20})
 	if err != nil || total != 6 {
 		t.Fatal("ordinary order listing changed")
+	}
+}
+
+func TestAdminRiskShadowFilterExcludesHeldOrders(t *testing.T) {
+	_, repo, db := setupAdminSearchRepositoryTest(t)
+	now := time.Now()
+	orders := []orderdomain.Order{
+		{OrderNo: "SHADOW-HIT", Currency: "CNY", Status: "paid", PaymentRiskCandidate: true, PaymentRiskEvaluatedAt: &now},
+		{OrderNo: "HELD-HIT", Currency: "CNY", Status: "paid", PaymentRiskCandidate: true, RiskHoldStatus: "pending_review", PaymentRiskEvaluatedAt: &now},
+		{OrderNo: "EVALUATED-CLEAN", Currency: "CNY", Status: "paid", PaymentRiskEvaluatedAt: &now},
+		{OrderNo: "SHADOW-CLEAN", Currency: "CNY", Status: "paid"},
+	}
+	if err := db.Create(&orders).Error; err != nil {
+		t.Fatal(err)
+	}
+	rows, total, err := repo.ListAdmin(ordercontract.ListFilter{RiskShadowCandidate: true, SkipRelations: true})
+	if err != nil || total != 1 || len(rows) != 1 || rows[0].OrderNo != "SHADOW-HIT" {
+		t.Fatalf("expected only observation-mode candidate, got total=%d rows=%d err=%v", total, len(rows), err)
+	}
+	_, total, err = repo.ListAdmin(ordercontract.ListFilter{RiskEvaluatedOnly: true, SkipRelations: true})
+	if err != nil || total != 3 {
+		t.Fatalf("expected all three evaluated orders, got total=%d err=%v", total, err)
+	}
+}
+
+func TestRiskSuccessfulHistoryExcludesUnfulfilledAndRejectedPayments(t *testing.T) {
+	_, store, db := setupAdminSearchRepositoryTest(t)
+	now := time.Now()
+	for i, order := range []orderdomain.Order{
+		{Status: "delivered"},
+		{Status: "completed", RiskHoldStatus: "released"},
+		{Status: "paid"},
+		{Status: "fulfilled", RiskHoldStatus: "pending_review"},
+		{Status: "delivered", RiskHoldStatus: "rejected"},
+		{Status: "refunded"},
+	} {
+		order.OrderNo = fmt.Sprintf("risk-success-history-%d", i)
+		order.UserID = 42
+		order.PaidAt = &now
+		if err := db.Create(&order).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, count, err := store.ListAdmin(ordercontract.ListFilter{
+		UserID: 42, Page: 1, PageSize: 1, RiskSuccessfulOnly: true, SkipRelations: true,
+	})
+	if err != nil || count != 2 {
+		t.Fatalf("successful history count = %v, want 2: %v", count, err)
+	}
+}
+
+func TestRedemptionRiskBlocksHeldParentHistoricalDelivery(t *testing.T) {
+	_, store, db := setupAdminSearchRepositoryTest(t)
+	assertRedemptionRiskBlocksHeldParent(t, store, db)
+}
+
+func TestPostgresRedemptionRiskBlocksHeldParentHistoricalDelivery(t *testing.T) {
+	db := openGuestCredentialPostgresDB(t)
+	assertRedemptionRiskBlocksHeldParent(t, New(db, "test-guest-credential-secret-with-32-bytes"), db)
+}
+
+func assertRedemptionRiskBlocksHeldParent(t *testing.T, store *Store, db *gorm.DB) {
+	t.Helper()
+	parent := orderdomain.Order{OrderNo: "risk-parent", RiskHoldStatus: "pending_review"}
+	if err := db.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	child := orderdomain.Order{OrderNo: "risk-child", ParentID: &parent.ID}
+	if err := db.Create(&child).Error; err != nil {
+		t.Fatal(err)
+	}
+	const replaced = "REPLACED-0000-0000-0000-0000"
+	archivedDigest := sha256.Sum256([]byte(replaced))
+	const code = "TEST-0000-0000-0000-0000-0000"
+	delivery := fulfillmentdomain.Fulfillment{
+		OrderID: child.ID, Type: "upstream", Status: "delivered",
+		RedemptionPreviousHashes: hex.EncodeToString(archivedDigest[:]),
+		Payload:                  "OTHER-0000-0000-0000-0000-0000\r\n" + code,
+	}
+	if err := db.Create(&delivery).Error; err != nil {
+		t.Fatal(err)
+	}
+	assertBlocked := func(value string, want bool) {
+		t.Helper()
+		got, err := store.RedemptionRiskBlocked(t.Context(), sha256.Sum256([]byte(value)))
+		if err != nil || got != want {
+			t.Fatalf("blocked = %v, want %v, error = %v", got, want, err)
+		}
+	}
+	assertBlocked(code, true)
+	assertBlocked(replaced, true)
+	assertBlocked("UNKNOWN-0000-0000-0000-0000", false)
+	if err := db.Model(&parent).Update("risk_hold_status", "released").Error; err != nil {
+		t.Fatal(err)
+	}
+	assertBlocked(code, false)
+	assertBlocked(replaced, false)
+	if err := db.Model(&child).Update("risk_hold_status", "rejected").Error; err != nil {
+		t.Fatal(err)
+	}
+	assertBlocked(code, true)
+	assertBlocked(replaced, true)
+	// Legacy manual rows can have no payload. They must neither make all
+	// lookups fail nor hide the archived code from the same held order.
+	if err := db.Model(&delivery).UpdateColumn("payload", nil).Error; err != nil {
+		t.Fatal(err)
+	}
+	assertBlocked(replaced, true)
+	assertBlocked(code, false)
+	assertBlocked("UNKNOWN-0000-0000-0000-0000", false)
+}
+
+func TestRedemptionSubmissionClearsOnlyMatchingCode(t *testing.T) {
+	_, store, db := setupAdminSearchRepositoryTest(t)
+	assertRedemptionSubmissionClearsOnlyMatchingCode(t, store, db)
+}
+
+func TestPostgresRedemptionSubmissionClearsOnlyMatchingCode(t *testing.T) {
+	db := openGuestCredentialPostgresDB(t)
+	assertRedemptionSubmissionClearsOnlyMatchingCode(t, New(db, "test-guest-credential-secret-with-32-bytes"), db)
+}
+
+func assertRedemptionSubmissionClearsOnlyMatchingCode(t *testing.T, store *Store, db *gorm.DB) {
+	t.Helper()
+	now := time.Now()
+	const code = "TEST-0000-0000-0000-0000-0000"
+	order := orderdomain.Order{OrderNo: "recent-redemption", PaidAt: &now}
+	if err := db.Create(&order).Error; err != nil {
+		t.Fatal(err)
+	}
+	delivery := fulfillmentdomain.Fulfillment{
+		OrderID: order.ID, Type: "upstream", Status: "delivered",
+		Payload: code, RedemptionProgress: "unused",
+	}
+	if err := db.Create(&delivery).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []string{"OTHER-0000-0000-0000-0000-0000", code, code} {
+		if err := store.RecordRedemptionSubmission(t.Context(), sha256.Sum256([]byte(candidate))); err != nil {
+			t.Fatal(err)
+		}
+		unused, err := store.HasUnusedRedemption([]uint{order.ID})
+		if err != nil || unused != (candidate != code) {
+			t.Fatalf("unexpected unused state %v: %v", unused, err)
+		}
+	}
+}
+
+func TestRedemptionEvidenceFiltersParentOrderDeliveries(t *testing.T) {
+	_, store, db := setupAdminSearchRepositoryTest(t)
+	if err := db.AutoMigrate(&orderriskdomain.RedemptionEvidence{}); err != nil {
+		t.Fatal(err)
+	}
+	parent := orderdomain.Order{OrderNo: "evidence-parent"}
+	if err := db.Create(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	child := orderdomain.Order{OrderNo: "evidence-child", ParentID: &parent.ID}
+	if err := db.Create(&child).Error; err != nil {
+		t.Fatal(err)
+	}
+	code := "TEST-REDEMPTION-CODE-00001"
+	if err := db.Create(&fulfillmentdomain.Fulfillment{OrderID: child.ID, Type: "upstream", Status: "delivered", Payload: code}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{code, "OTHER-REDEMPTION-CODE-00001"} {
+		digest := sha256.Sum256([]byte(value))
+		if err := store.RecordRedemptionEvidence(t.Context(), orderriskdomain.RedemptionEvidence{CodeHash: hex.EncodeToString(digest[:]), Operation: "verify", Outcome: "attempt", ClientIP: "127.0.0.1"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, count, err := store.ListRedemptionEvidence(t.Context(), "", parent.OrderNo, 1, 20)
+	if err != nil || count != 1 || len(items) != 1 {
+		t.Fatalf("wanted only the child code record, got %d records and error %v", count, err)
 	}
 }

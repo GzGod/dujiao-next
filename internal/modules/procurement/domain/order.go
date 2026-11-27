@@ -73,6 +73,7 @@ func (o *Order) TruncateUpstreamPayload(maxLines int) {
 
 // LocalOrder 是采购应用读取的订单最小快照，同时保持管理端所需的 JSON 形状。
 type LocalOrder struct {
+	RiskBlocked    bool             `json:"-"`
 	ID             uint             `json:"id"`
 	OrderNo        string           `json:"order_no"`
 	ParentID       *uint            `json:"parent_id,omitempty"`

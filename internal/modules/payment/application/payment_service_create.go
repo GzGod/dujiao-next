@@ -12,6 +12,7 @@ import (
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	riskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 
 	"github.com/dujiao-next/internal/constants"
@@ -37,11 +38,12 @@ type CreatePaymentInput struct {
 
 // CreatePaymentResult 创建支付结果
 type CreatePaymentResult struct {
-	Payment          *paymentdomain.Payment
-	Channel          *paymentdomain.PaymentChannel
-	OrderPaid        bool
-	WalletPaidAmount money.Amount
-	OnlinePayAmount  money.Amount
+	DeliveryUnderReview bool
+	Payment             *paymentdomain.Payment
+	Channel             *paymentdomain.PaymentChannel
+	OrderPaid           bool
+	WalletPaidAmount    money.Amount
+	OnlinePayAmount     money.Amount
 }
 
 func hasProviderResult(payment *paymentdomain.Payment) bool {
@@ -65,6 +67,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 	var payment *paymentdomain.Payment
 	var order *orderdomain.Order
 	var channel *paymentdomain.PaymentChannel
+	var shortenedDeadline *time.Time
 	feeRate := decimal.Zero
 	reusedPending := false
 	orderPaidByWallet := false
@@ -83,7 +86,11 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		}
 	}
 
-	err := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
+	riskConfig, err := s.settingService.GetOrderRiskControlConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
 		preloaded, err := tx.Orders().GetByIDForUpdateWithChildren(input.OrderID)
 		if err != nil {
 			return orderapp.ErrOrderFetchFailed
@@ -102,6 +109,14 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			return orderapp.ErrOrderStatusInvalid
 		}
 
+		riskIdentity := riskcontract.CheckInput{UserID: lockedOrder.UserID, ClientIP: lockedOrder.ClientIP,
+			RiskDeviceHash: lockedOrder.RiskDeviceHash, GuestEmail: lockedOrder.GuestEmail}
+		checkedAt := time.Now()
+		storedDenied, _ := riskcontract.MatchSettlementList(riskIdentity, riskConfig, checkedAt)
+		currentDenied, _ := riskcontract.MatchSettlementList(riskcontract.CheckInput{ClientIP: input.ClientIP}, riskConfig, checkedAt)
+		if storedDenied || currentDenied {
+			return ErrPaymentInvalid
+		}
 		paymentRepo := tx.Payments()
 		channelRepo := tx.PaymentChannels()
 		if input.ChannelID != 0 {
@@ -137,6 +152,25 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 				return err
 			}
 
+			if riskConfig.Guest.PaymentExpireMinutes > 0 && channel.InteractionMode == constants.PaymentInteractionQR &&
+				(channel.ChannelType == constants.PaymentChannelTypeAlipay || channel.ChannelType == constants.PaymentChannelTypeWechat) {
+				deadline := time.Now().Add(time.Duration(riskConfig.Guest.PaymentExpireMinutes) * time.Minute)
+				if lockedOrder.ExpiresAt == nil || deadline.Before(*lockedOrder.ExpiresAt) {
+					updates := map[string]interface{}{"expires_at": deadline}
+					if err := tx.Orders().UpdateFields(lockedOrder.ID, updates); err != nil {
+						return err
+					}
+					for _, child := range lockedOrder.Children {
+						if child.ExpiresAt == nil || deadline.Before(*child.ExpiresAt) {
+							if err := tx.Orders().UpdateFields(child.ID, updates); err != nil {
+								return err
+							}
+						}
+					}
+					lockedOrder.ExpiresAt = &deadline
+					shortenedDeadline = &deadline
+				}
+			}
 			existing, err := paymentRepo.GetLatestPendingByOrderChannel(lockedOrder.ID, channel.ID, time.Now())
 			if err != nil {
 				return ErrPaymentCreateFailed
@@ -147,6 +181,12 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 				if !legacyFeePayment || feeConfig.ReuseLegacyOrderFeePayment {
 					if _, err := paymentRepo.SupersedePendingByOrderID(lockedOrder.ID, existing.ID, time.Now()); err != nil {
 						return ErrPaymentCreateFailed
+					}
+					if lockedOrder.ExpiresAt != nil && (existing.ExpiredAt == nil || lockedOrder.ExpiresAt.Before(*existing.ExpiredAt)) {
+						existing.ExpiredAt = lockedOrder.ExpiresAt
+						if err := paymentRepo.Update(existing); err != nil {
+							return ErrPaymentUpdateFailed
+						}
 					}
 					reusedPending = true
 					payment = existing
@@ -196,7 +236,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if _, err := paymentRepo.SupersedePendingByOrderID(lockedOrder.ID, payment.ID, paidAt); err != nil {
 				return ErrPaymentCreateFailed
 			}
-			if err := s.markOrderPaid(tx, &lockedOrder, paidAt); err != nil {
+			if err := s.markOrderPaid(tx, &lockedOrder, payment, paidAt, riskConfig); err != nil {
 				return err
 			}
 			// 与在线支付回调一致：分销利润与支付在同一事务入账
@@ -241,6 +281,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			FeePolicy:       feePolicy,
 			Currency:        lockedOrder.Currency,
 			Status:          constants.PaymentStatusInitiated,
+			ExpiredAt:       lockedOrder.ExpiresAt,
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -272,6 +313,12 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		return nil, orderapp.ErrOrderFetchFailed
 	}
 
+	if shortenedDeadline != nil && !orderPaidByWallet && s.queue != nil && s.queue.Enabled() {
+		if err := s.queue.EnqueueTimeoutCancel(order.ID, time.Until(*shortenedDeadline)); err != nil {
+			log.Warnw("payment_shortened_timeout_enqueue_failed", "error", err)
+		}
+	}
+
 	if reusedPending {
 		log.Infow("payment_create_reuse_pending",
 			"payment_id", payment.ID,
@@ -299,11 +346,12 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		)
 		s.enqueueOrderPaidAsync(order, payment, log)
 		return &CreatePaymentResult{
-			Payment:          nil,
-			Channel:          nil,
-			OrderPaid:        true,
-			WalletPaidAmount: order.WalletPaidAmount,
-			OnlinePayAmount:  money.FromDecimal(decimal.Zero),
+			Payment:             nil,
+			Channel:             nil,
+			OrderPaid:           true,
+			DeliveryUnderReview: order.DeliveryUnderReview(),
+			WalletPaidAmount:    order.WalletPaidAmount,
+			OnlinePayAmount:     money.FromDecimal(decimal.Zero),
 		}, nil
 	}
 

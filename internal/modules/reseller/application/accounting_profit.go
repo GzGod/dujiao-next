@@ -38,7 +38,7 @@ func NewAccountingLedgerService(store resellercontract.AccountingLedgerStore, co
 
 // PostOrderProfit 在调用方已开启的事务 store 上写入订单利润流水。
 func (s *AccountingLedgerService) PostOrderProfit(store resellercontract.AccountingLedgerStore, order *orderdomain.Order, payment *paymentdomain.Payment) error {
-	if s == nil || store == nil || order == nil || order.ID == 0 {
+	if s == nil || store == nil || order == nil || order.ID == 0 || order.RiskBlocksFulfillment() {
 		return nil
 	}
 	if order.ResellerID == nil || *order.ResellerID == 0 {

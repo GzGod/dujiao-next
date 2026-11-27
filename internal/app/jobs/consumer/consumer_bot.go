@@ -35,6 +35,28 @@ func (c *Consumer) handleBotNotify(_ context.Context, task *asynq.Task) error {
 		return nil
 	}
 
+	if payload.OrderID != 0 && (payload.EventType == "" || payload.EventType == queue.BotNotifyEventOrderFulfilled || payload.EventType == queue.BotNotifyEventOrderPaid) {
+		if c.orderReader == nil {
+			return fmt.Errorf("order reader unavailable")
+		}
+		order, err := c.orderReader.GetByID(payload.OrderID)
+		if err != nil {
+			return err
+		}
+		if order == nil || order.RiskBlocksFulfillment() {
+			return nil
+		}
+		if order.ParentID != nil {
+			parent, err := c.orderReader.GetByID(*order.ParentID)
+			if err != nil {
+				return err
+			}
+			if parent == nil || parent.RiskBlocksFulfillment() {
+				return nil
+			}
+		}
+	}
+
 	// 从 DB 读取 telegram_bot 类型的活跃 ChannelClient
 	channelEndpoint, err := c.ChannelClientService.GetActiveEndpoint("telegram_bot")
 	if err != nil {

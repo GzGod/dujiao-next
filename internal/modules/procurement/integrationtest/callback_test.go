@@ -135,6 +135,20 @@ func TestHandleUpstreamCallback_Delivered_CreatesFulfillment(t *testing.T) {
 		DeliveredAt: &now,
 	}
 
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", order.ID).Update("risk_hold_status", "pending_review").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.HandleUpstreamCallback(proc.ID, "delivered", fulfillment); err != procurementcontract.ErrOrderRiskHeld {
+		t.Fatalf("held upstream delivery returned %v", err)
+	}
+	var count int64
+	if err := db.Model(&fulfillmentdomain.Fulfillment{}).Where("order_id = ?", order.ID).Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("held order received fulfillment: count=%d err=%v", count, err)
+	}
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", order.ID).Update("risk_hold_status", "released").Error; err != nil {
+		t.Fatal(err)
+	}
+
 	if err := svc.HandleUpstreamCallback(proc.ID, "delivered", fulfillment); err != nil {
 		t.Fatalf("HandleUpstreamCallback: %v", err)
 	}

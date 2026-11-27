@@ -3,6 +3,7 @@ package userhttp
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"mime/multipart"
@@ -20,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
+	"net/mail"
 	"strings"
 )
 
@@ -435,7 +437,7 @@ func (h *UserHandler) RedemptionSite(c *gin.Context) {
 }
 
 // Redeem proxies the fixed customer API; never forwards browser credentials.
-func (h *UserHandler) Redeem(c *gin.Context) {
+func (h *UserHandler) Redeem(c *gin.Context, check func(context.Context, [sha256.Size]byte, string) (bool, error)) {
 	op := c.Param("operation")
 	if op != "verify" && op != "submit" && op != "progress" {
 		c.Status(404)
@@ -461,6 +463,42 @@ func (h *UserHandler) Redeem(c *gin.Context) {
 	if err != nil || !json.Valid(body) {
 		c.Status(400)
 		return
+	}
+	if op == "submit" {
+		// Use case-sensitive keys like the receiving Node gateway. Re-encode
+		// the same object so repeated keys cannot select a different code.
+		var submission map[string]json.RawMessage
+		var code string
+		if err := json.Unmarshal(body, &submission); err != nil || json.Unmarshal(submission["code"], &code) != nil || !validRedemptionCode(code) {
+			c.JSON(http.StatusBadRequest, gin.H{"status_code": 400, "msg": "请提供完整核销码"})
+			return
+		}
+		var canonical bytes.Buffer
+		encoder := json.NewEncoder(&canonical)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(submission); err != nil {
+			c.Status(http.StatusBadRequest)
+			return
+		}
+		body = bytes.TrimSuffix(canonical.Bytes(), []byte("\n"))
+		var email string
+		if err := json.Unmarshal(submission["email"], &email); err != nil || len(email) > 254 {
+			email = ""
+		}
+		if address, err := mail.ParseAddress(email); err != nil || address.Address != email {
+			email = ""
+		}
+		riskCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		blocked, err := check(riskCtx, sha256.Sum256([]byte(code)), email)
+		cancel()
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status_code": 503, "msg": "暂时无法核实核销状态，请稍后再试。"})
+			return
+		}
+		if blocked {
+			c.JSON(http.StatusConflict, gin.H{"status_code": 409, "msg": "该核销码已触发平台反诈核验。请通过原下单联系方式联系客服，提供含商户单号与时间的支付账单详情截图及本次充值账号信息。若通过第三方购得，请联系原卖家提供支付凭证。"})
+			return
+		}
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 35*time.Second)
 	defer cancel()
@@ -504,4 +542,16 @@ func (h *UserHandler) RecheckDomain(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.NewResellerDomainResp(row))
+}
+
+func validRedemptionCode(code string) bool {
+	if len(code) < 24 || len(code) > 80 {
+		return false
+	}
+	for _, char := range code {
+		if !(char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '-') {
+			return false
+		}
+	}
+	return true
 }

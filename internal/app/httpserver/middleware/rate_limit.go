@@ -2,15 +2,24 @@ package middleware
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dujiao-next/internal/i18n"
 	"github.com/dujiao-next/internal/logger"
+	"github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
 	"github.com/dujiao-next/internal/upstream"
 
@@ -121,7 +130,10 @@ func (l *localRateLimiter) shouldWarnRedisFallback(now time.Time) bool {
 // 多实例部署必须配置共享 Redis 才能获得全局一致的计数。Redis 故障降级和
 // 本地容量耗尽都会输出节流后的 warning，避免故障期间产生日志洪泛。
 func RateLimitMiddleware(client *redis.Client, rule RateLimitRule, keyFunc RateLimitKeyFunc) gin.HandlerFunc {
-	local := &localRateLimiter{}
+	return rateLimitWithFallback(client, rule, keyFunc, &localRateLimiter{})
+}
+
+func rateLimitWithFallback(client *redis.Client, rule RateLimitRule, keyFunc RateLimitKeyFunc, local *localRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if rule.WindowSeconds <= 0 || rule.MaxRequests <= 0 {
 			c.Next()
@@ -335,4 +347,141 @@ func toInt64(value interface{}) (int64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// PaymentCreationLimits shares limits across initial checkout and later payment attempts.
+func PaymentCreationLimits(client *redis.Client, member bool, signingKey string) []gin.HandlerFunc {
+	return paymentCreationLimits(client, member, signingKey, &localRateLimiter{})
+}
+
+// PaymentCreationLimitGroups shares counters across authentication modes,
+// including when Redis is temporarily unavailable.
+func PaymentCreationLimitGroups(client *redis.Client, signingKey string) (guest, member []gin.HandlerFunc) {
+	local := &localRateLimiter{}
+	return paymentCreationLimits(client, false, signingKey, local), paymentCreationLimits(client, true, signingKey, local)
+}
+
+func paymentCreationLimits(client *redis.Client, member bool, signingKey string, local *localRateLimiter) []gin.HandlerFunc {
+	key := RateLimitKeyFunc(KeyByIP)
+	scope := "guest"
+	if member {
+		scope = "member"
+		key = func(c *gin.Context) string {
+			id, ok := c.Get("user_id")
+			if !ok {
+				return c.ClientIP()
+			}
+			return fmt.Sprint(id)
+		}
+	}
+	wrap := func(rule RateLimitRule, key RateLimitKeyFunc) gin.HandlerFunc {
+		limit := rateLimitWithFallback(client, rule, key, local)
+		return func(c *gin.Context) {
+			path := c.FullPath()
+			if c.Request.Method == http.MethodPost &&
+				(strings.HasSuffix(path, "/payments") || strings.HasSuffix(path, "/orders/create-and-pay") ||
+					member && strings.HasSuffix(path, "/wallet/recharge")) {
+				limit(c)
+			}
+		}
+	}
+	limits := []gin.HandlerFunc{
+		wrap(RateLimitRule{Prefix: "pay_create_short_" + scope, WindowSeconds: 900, MaxRequests: 5}, key),
+		wrap(RateLimitRule{Prefix: "pay_create_daily_" + scope, WindowSeconds: 86400, MaxRequests: 8}, key),
+	}
+	if len(signingKey) >= 32 {
+		deviceKey := func(c *gin.Context) string { return c.GetString(ginutil.PaymentDeviceContextKey) }
+		limits = append(limits, func(c *gin.Context) {
+			path := c.FullPath()
+			if c.Request.Method == http.MethodPost && (strings.HasSuffix(path, "/orders") ||
+				strings.HasSuffix(path, "/orders/create-and-pay") || strings.HasSuffix(path, "/payments") ||
+				member && strings.HasSuffix(path, "/wallet/recharge")) {
+				if hash := paymentDeviceKey(c, []byte(signingKey), time.Now()); hash != "" {
+					c.Set(ginutil.PaymentDeviceContextKey, hash)
+				}
+			}
+		})
+		verified := func(rule RateLimitRule) gin.HandlerFunc {
+			limit := wrap(rule, deviceKey)
+			return func(c *gin.Context) {
+				if deviceKey(c) != "" {
+					limit(c)
+				}
+			}
+		}
+		limits = append(limits,
+			verified(RateLimitRule{Prefix: "pay_create_device_short", WindowSeconds: 900, MaxRequests: 5}),
+			verified(RateLimitRule{Prefix: "pay_create_device_daily", WindowSeconds: 86400, MaxRequests: 8}))
+	}
+	fresh := func(limit gin.HandlerFunc) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			if c.GetString(ginutil.PaymentDeviceContextKey) == "" {
+				limit(c)
+			}
+		}
+	}
+	subnetLimit := wrap(RateLimitRule{Prefix: "pay_create_guest_subnet", WindowSeconds: 900, MaxRequests: 30}, paymentSubnetKey)
+	limits = append(limits,
+		fresh(wrap(RateLimitRule{Prefix: "pay_create_fresh_ip", WindowSeconds: 900, MaxRequests: 5}, KeyByIP)),
+		fresh(wrap(RateLimitRule{Prefix: "pay_create_fresh_ip_daily", WindowSeconds: 86400, MaxRequests: 8}, KeyByIP)))
+	if member {
+		limits = append(limits, fresh(subnetLimit))
+	} else {
+		limits = append(limits, subnetLimit)
+	}
+	return limits
+}
+
+func paymentSubnetKey(c *gin.Context) string {
+	ip, err := netip.ParseAddr(c.ClientIP())
+	if err != nil {
+		return c.ClientIP()
+	}
+	ip = ip.Unmap()
+	bits := 64
+	if ip.Is4() {
+		bits = 24
+	}
+	return netip.PrefixFrom(ip, bits).Masked().String()
+}
+
+const paymentDeviceCookie = "__Host-aishop-payment-device"
+
+func signPaymentDevice(key, payload []byte) []byte {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("aishop/payment-device/v1:"))
+	mac.Write(payload)
+	return mac.Sum(nil)
+}
+
+// paymentDeviceKey returns a verified risk identifier. A fresh cookie does
+// not identify a returning device until it is sent back and verified.
+func paymentDeviceKey(c *gin.Context, key []byte, now time.Time) string {
+	const lifetime = 30 * 24 * time.Hour
+	const payloadSize = 24
+	if value, err := c.Cookie(paymentDeviceCookie); err == nil && len(value) == 75 {
+		raw, err := base64.RawURLEncoding.DecodeString(value)
+		if err == nil && len(raw) == payloadSize+sha256.Size {
+			payload, signature := raw[:payloadSize], raw[payloadSize:]
+			expires := int64(binary.BigEndian.Uint64(payload[16:]))
+			if expires > now.Unix() && expires <= now.Add(lifetime).Unix() &&
+				hmac.Equal(signature, signPaymentDevice(key, payload)) {
+				hash := sha256.Sum256(payload[:16])
+				return hex.EncodeToString(hash[:])
+			}
+		}
+	}
+	if _, issued := c.Get(paymentDeviceCookie); !issued {
+		payload := make([]byte, payloadSize)
+		if _, err := rand.Read(payload[:16]); err == nil {
+			binary.BigEndian.PutUint64(payload[16:], uint64(now.Add(lifetime).Unix()))
+			value := base64.RawURLEncoding.EncodeToString(append(payload, signPaymentDevice(key, payload)...))
+			http.SetCookie(c.Writer, &http.Cookie{
+				Name: paymentDeviceCookie, Value: value, Path: "/", MaxAge: int(lifetime.Seconds()),
+				Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+			})
+			c.Set(paymentDeviceCookie, true)
+		}
+	}
+	return ""
 }

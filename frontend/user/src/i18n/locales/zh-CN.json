@@ -536,6 +536,7 @@
       "directionIn": "收入",
       "directionOut": "支出",
       "rechargeStatus": {
+        "pending_review": "已收款，等待人工审核",
         "pending": "待支付",
         "success": "已到账",
         "failed": "支付失败",
@@ -1226,6 +1227,7 @@
     "ipDeliveryHint": "付款成功。请联系 Telegram 客服，提供订单号领取美国家宽 IP。",
     "inlineGmCashier": "GMwallet 选链与代币收银台",
     "gptRedeemHint": "核销码已发放。复制后前往核销，按提示提交账号资料。核销完成后再确认充值结果。",
+    "deliveryUnderReview": "付款已确认，订单正在审核，审核通过后将继续交付。",
     "gptDeliveryPending": "付款已确认，正在准备核销码。发码后会自动显示。",
     "gptCopyCode": "复制核销码",
     "gptCodeCopied": "已复制核销码",

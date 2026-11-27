@@ -8,12 +8,19 @@ import (
 	"time"
 
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
+	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
+	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	riskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
+	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
 
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	"github.com/dujiao-next/internal/constants"
+	"github.com/dujiao-next/internal/i18n"
 	"github.com/dujiao-next/internal/logger"
+	notificationcontract "github.com/dujiao-next/internal/modules/notification/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
@@ -297,4 +304,222 @@ func (s *PaymentService) loadManualConfirmPayment(orderID, paymentID uint) (*pay
 		return nil, ErrPaymentUnderpaidCredited
 	}
 	return payment, nil
+}
+
+// ReviewOrderRisk resolves a hold without replaying the original payment.
+func (s *PaymentService) ReviewOrderRisk(orderID, adminID uint, approve bool) error {
+	return s.ReviewOrderRiskWithList(orderID, adminID, approve, nil)
+}
+
+func (s *PaymentService) ReviewOrderRiskWithList(orderID, adminID uint, approve bool, kinds []string) error {
+	if orderID == 0 || adminID == 0 || len(kinds) > 4 {
+		return ErrPaymentInvalid
+	}
+	target := "rejected"
+	if approve {
+		target = "released"
+	}
+	var released *orderdomain.Order
+	var payment *paymentdomain.Payment
+	err := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
+		order, err := tx.Orders().GetByIDForUpdateWithChildren(orderID)
+		if err != nil {
+			return err
+		}
+		if order == nil {
+			return orderapp.ErrOrderNotFound
+		}
+		if order.ParentID != nil {
+			return orderapp.ErrOrderStatusInvalid
+		}
+		if order.RiskHoldStatus == target {
+			return nil
+		}
+		if order.RiskHoldStatus != "pending_review" || order.PaidAt == nil {
+			return orderapp.ErrOrderStatusInvalid
+		}
+		if approve {
+			if (order.Status != constants.OrderStatusPaid && order.Status != constants.OrderStatusFulfilling) ||
+				order.RefundedAmount.Decimal.IsPositive() {
+				return orderapp.ErrOrderStatusInvalid
+			}
+			payments, err := tx.Payments().ListByOrderID(order.ID)
+			if err != nil {
+				return err
+			}
+			for i := range payments {
+				candidate := &payments[i]
+				if candidate.ID == order.PaymentRiskPaymentID && candidate.Status == constants.PaymentStatusSuccess {
+					payment = candidate
+					break
+				}
+			}
+			if payment == nil {
+				return ErrPaymentNotFound
+			}
+		}
+		entries, err := orderRiskReviewEntries(order, approve, kinds)
+		if err != nil {
+			return err
+		}
+		if len(entries) > 0 {
+			if err := tx.AppendOrderRiskReviewEntries(entries); err != nil {
+				return err
+			}
+		}
+		now := time.Now()
+		decision := mergeProviderPayload(order.PaymentRiskDecision, jsonmap.JSON{
+			"review_admin_id": adminID, "reviewed_at": now.UTC().Format(time.RFC3339Nano), "review_status": target,
+			"review_list_kinds": kinds,
+		})
+		updates := map[string]interface{}{
+			"risk_hold_status": target, "payment_risk_decision": decision, "updated_at": now, "risk_alert_retry_at": nil,
+			"risk_release_recovery_at": nil,
+		}
+		if approve {
+			updates["risk_release_recovery_at"] = now.Add(2 * time.Minute)
+		}
+		if err := tx.Orders().UpdateFields(order.ID, updates); err != nil {
+			return err
+		}
+		if !approve {
+			orderIDs := []uint{order.ID}
+			for _, child := range order.Children {
+				orderIDs = append(orderIDs, child.ID)
+			}
+			if err := tx.CardSecrets().VoidByOrders(orderIDs, now); err != nil {
+				return err
+			}
+		}
+		order.RiskHoldStatus = target
+		if approve {
+			if s.resellerAccounting != nil {
+				if err := s.resellerAccounting.PostOrderProfit(tx.ResellerAccounting(), order, payment); err != nil {
+					return err
+				}
+			}
+			released = order
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if released != nil {
+		s.enqueueOrderPaidAsync(released, payment, paymentLogger("order_id", orderID))
+	}
+	return nil
+}
+
+func orderRiskReviewEntries(order *orderdomain.Order, allow bool, kinds []string) ([]settingssecurity.SettlementListEntry, error) {
+	values := riskcontract.ReviewListValues(riskcontract.CheckInput{
+		ClientIP: order.ClientIP, RiskDeviceHash: order.RiskDeviceHash, UserID: order.UserID,
+	})
+	entries := make([]settingssecurity.SettlementListEntry, 0, len(kinds))
+	seen := make(map[string]bool, len(kinds))
+	for _, kind := range kinds {
+		value := values[kind]
+		if value == "" || seen[kind] {
+			return nil, ErrPaymentInvalid
+		}
+		seen[kind] = true
+		entries = append(entries, settingssecurity.SettlementListEntry{Kind: kind, Value: value, Allow: allow})
+	}
+	return entries, nil
+}
+
+// RecoverReleasedFulfillment retries fulfillment, affiliate commission,
+// and pending downstream callbacks without reposting reseller profit.
+func (s *PaymentService) RecoverReleasedFulfillment(now time.Time) error {
+	if s.queue == nil || !s.queue.Enabled() {
+		return nil
+	}
+	orders, _, err := s.orderRepo.ListAdmin(ordercontract.ListFilter{
+		RiskReleaseRecoveryDue: &now, Page: 1, PageSize: 100,
+	})
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for i := range orders {
+		order := &orders[i]
+		var recoveryErr error
+		if !order.RiskBlocksFulfillment() && !order.RefundedAmount.Decimal.IsPositive() &&
+			(order.Status == constants.OrderStatusPaid || order.Status == constants.OrderStatusFulfilling || order.Status == constants.OrderStatusPartiallyDelivered) {
+			targets := order.Children
+			if len(targets) == 0 {
+				targets = []orderdomain.Order{*order}
+			}
+			for j := range targets {
+				child := &targets[j]
+				if child.Status == constants.OrderStatusPaid && !child.RiskBlocksFulfillment() && shouldAutoFulfill(child) {
+					recoveryErr = errors.Join(recoveryErr, s.queue.EnqueueOrderAutoFulfill(child.ID))
+				}
+			}
+			if s.procurementSvc != nil {
+				if err := s.procurementSvc.CreateForOrder(order.ID); err != nil && !errors.Is(err, procurementcontract.ErrExists) {
+					recoveryErr = errors.Join(recoveryErr, err)
+				}
+			}
+		}
+		if !order.RiskBlocksFulfillment() && order.Status != constants.OrderStatusCanceled {
+			if s.affiliateSvc != nil && order.Status != constants.OrderStatusRefunded {
+				recoveryErr = errors.Join(recoveryErr, s.affiliateSvc.HandleOrderPaid(order.ID))
+			}
+			if callbacks, ok := s.downstreamCallbackSvc.(interface{ RecoverPendingCallback(uint) error }); ok {
+				recoveryErr = errors.Join(recoveryErr, callbacks.RecoverPendingCallback(order.ID))
+			}
+		}
+		var next *time.Time
+		if recoveryErr != nil {
+			retryAt := now.Add(5 * time.Minute)
+			next = &retryAt
+			failures = append(failures, fmt.Errorf("recover released order %d: %w", order.ID, recoveryErr))
+		}
+		if err := s.orderRepo.UpdateFields(order.ID, map[string]interface{}{"risk_release_recovery_at": next}); err != nil {
+			failures = append(failures, err)
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (s *PaymentService) dispatchRiskReviewAlert(order *orderdomain.Order) error {
+	locale := s.notificationTemplateLocale()
+	label := i18n.T(locale, "notification.order_risk_review_title")
+	data := jsonmap.JSON{
+		"alert_type": label, "alert_type_key": "order_risk_review", "alert_level": "warning",
+		"alert_value": fmt.Sprint(order.PaymentRiskDecision["score"]), "alert_threshold": "-",
+		"message": fmt.Sprintf(i18n.T(locale, "notification.order_risk_review_message"), order.OrderNo),
+	}
+	if err := s.notificationSvc.Enqueue(notificationcontract.EnqueueInput{
+		EventType: constants.NotificationEventExceptionAlert, BizType: constants.NotificationBizTypeOrder,
+		BizID: order.ID, Locale: locale, Data: data,
+	}); err != nil {
+		return err
+	}
+	return s.orderRepo.UpdateFields(order.ID, map[string]interface{}{"risk_alert_retry_at": nil})
+}
+
+// RecoverRiskAlerts re-enqueues pending alerts after transient queue failures.
+func (s *PaymentService) RecoverRiskAlerts(now time.Time) error {
+	if s.notificationSvc == nil || s.queue == nil || !s.queue.Enabled() {
+		return nil
+	}
+	orders, _, err := s.orderRepo.ListAdmin(ordercontract.ListFilter{
+		RiskAlertDue: &now, SkipRelations: true, Page: 1, PageSize: 100,
+	})
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for i := range orders {
+		order := &orders[i]
+		if err := s.dispatchRiskReviewAlert(order); err != nil {
+			failures = append(failures, fmt.Errorf("enqueue risk review alert for order %d: %w", order.ID, err))
+			if err := s.orderRepo.UpdateFields(order.ID, map[string]interface{}{"risk_alert_retry_at": now.Add(5 * time.Minute)}); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	return errors.Join(failures...)
 }

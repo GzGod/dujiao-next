@@ -6,6 +6,7 @@ var (
 	ErrNotFound           = errors.New("procurement order not found")
 	ErrExists             = errors.New("procurement order already exists")
 	ErrStatusInvalid      = errors.New("procurement order status invalid")
+	ErrOrderRiskHeld      = errors.New("order fulfillment is held for review")
 	ErrOrderNotFound      = errors.New("order not found")
 	ErrConnectionNotFound = errors.New("site connection not found")
 	// ErrUpstreamCancelRefused 上游拒绝取消（订单已在上游付款），需到上游申请退款

@@ -276,3 +276,35 @@ func TestOrderStoreExcludesSoftDeletedAggregatesAndAssociations(t *testing.T) {
 		t.Fatalf("soft-deleted fulfillment must not preload, got %+v", got.Fulfillment)
 	}
 }
+
+func TestScopedChildDownloadInheritsParentRiskHold(t *testing.T) {
+	db := openOrderTenantScopeTestDB(t)
+	repo := New(db, "test-guest-credential-secret-with-32-bytes")
+	scope := ordercontract.TenantScope{}
+	member := userdomain.User{Email: "held-member@example.com", PasswordHash: "hash"}
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatal(err)
+	}
+	const email, password = "held-guest@example.com", "test-pass"
+	memberRoot := seedScopedOrder(t, db, "HELD-MEMBER", member.ID, "", "", constants.OrderStatusPaid, nil, nil)
+	memberChild := seedScopedOrder(t, db, "HELD-MEMBER-CHILD", member.ID, "", "", constants.OrderStatusPaid, nil, &memberRoot.ID)
+	guestRoot := seedScopedOrder(t, db, "HELD-GUEST", 0, email, password, constants.OrderStatusPaid, nil, nil)
+	guestChild := seedScopedOrder(t, db, "HELD-GUEST-CHILD", 0, email, password, constants.OrderStatusPaid, nil, &guestRoot.ID)
+	if _, err := repo.BackfillGuestCredentialHashes(); err != nil {
+		t.Fatal(err)
+	}
+	for _, hold := range []string{"pending_review", "rejected", "released"} {
+		if err := db.Model(&orderdomain.Order{}).Where("id IN ?", []uint{memberRoot.ID, guestRoot.ID}).
+			UpdateColumn("risk_hold_status", hold).Error; err != nil {
+			t.Fatal(err)
+		}
+		memberOrder, err := repo.GetAnyByOrderNoAndUserScoped(memberChild.OrderNo, member.ID, scope)
+		if err != nil || (memberOrder != nil) != (hold == "released") {
+			t.Fatalf("unexpected member download access for %s: %v", hold, err)
+		}
+		guestOrder, err := repo.GetAnyByOrderNoAndGuestScoped(guestChild.OrderNo, email, password, scope)
+		if err != nil || (guestOrder != nil) != (hold == "released") {
+			t.Fatalf("unexpected guest download access for %s: %v", hold, err)
+		}
+	}
+}

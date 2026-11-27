@@ -5,6 +5,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import { useAdminAuthStore } from '@/stores/auth'
 import type { AdminOrder, AdminOrderItem } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
 import { Copy } from 'lucide-vue-next'
@@ -22,11 +23,16 @@ import {
 } from '@/utils/status'
 import { formatDate, formatMoney, getLocalizedText, toRFC3339 } from '@/utils/format'
 import { formatSkuDisplayLabel } from '@/utils/sku'
+import RedemptionEvidenceTable from './components/RedemptionEvidenceTable.vue'
 import IssuedCardsTable from './components/IssuedCardsTable.vue'
 import OrderDetailDialog from './components/OrderDetailDialog.vue'
 import OrderFulfillmentModal from './components/OrderFulfillmentModal.vue'
 import { adminUrl } from '@/utils/adminBase'
 
+const auth = useAdminAuthStore()
+const riskFilter = ref<"all" | "pending_review" | "shadow" | "evaluated" | "released" | "rejected">("all")
+const evidenceOpen = ref(false)
+const evidenceOrderNo = ref('')
 const view = ref<'orders' | 'issued'>('orders')
 const loading = ref(true)
 const { refreshing, refreshList } = useListRefresh()
@@ -103,6 +109,9 @@ const fetchOrders = async (page = 1, options: ListFetchOptions = {}) => {
       page_size: pagination.value.page_size,
       issued_only: view.value === 'issued' ? true : undefined,
       status: normalizeFilterValue(filters.status) || undefined,
+      risk_hold_status: ['pending_review', 'released', 'rejected'].includes(riskFilter.value) ? riskFilter.value : undefined,
+      risk_evaluated_only: riskFilter.value === "evaluated" ? true : undefined,
+      risk_shadow_candidate: riskFilter.value === "shadow" ? true : undefined,
       user_id: filters.userId || undefined,
       user_keyword: filters.userKeyword || undefined,
       order_no: filters.orderNo || undefined,
@@ -222,6 +231,12 @@ const handleDetailClose = (value: boolean) => {
   }
 }
 
+const openOrderEvidence = (orderNo: string) => {
+  handleDetailClose(false)
+  evidenceOrderNo.value = orderNo
+  evidenceOpen.value = true
+}
+
 const handleFulfillmentClose = (value: boolean) => {
   showFulfillmentModal.value = value
   if (!value) {
@@ -290,12 +305,26 @@ watch(
     </div>
 
     <div class="inline-flex gap-1 rounded-full border border-border bg-muted p-1" role="group" :aria-label="t('admin.orders.title')">
-      <Button size="sm" :variant="view === 'orders' ? 'default' : 'ghost'" :aria-pressed="view === 'orders'" @click="switchView('orders')">{{ t('issuedCards.orders') }}</Button>
-      <Button size="sm" :variant="view === 'issued' ? 'default' : 'ghost'" :aria-pressed="view === 'issued'" @click="switchView('issued')">{{ t('issuedCards.title') }}</Button>
+      <Button size="sm" :variant="!evidenceOpen && view === 'orders' ? 'default' : 'ghost'" :aria-pressed="!evidenceOpen && view === 'orders'" @click="evidenceOpen = false; switchView('orders')">{{ t('issuedCards.orders') }}</Button>
+      <Button size="sm" :variant="!evidenceOpen && view === 'issued' ? 'default' : 'ghost'" :aria-pressed="!evidenceOpen && view === 'issued'" @click="evidenceOpen = false; switchView('issued')">{{ t('issuedCards.title') }}</Button>
+      <Button v-if="auth.isSuper" size="sm" :variant="evidenceOpen ? 'default' : 'ghost'" :aria-pressed="evidenceOpen" @click="evidenceOrderNo = ''; evidenceOpen = true">{{ t('admin.orders.evidence.title') }}</Button>
     </div>
 
+    <RedemptionEvidenceTable v-if="evidenceOpen && auth.isSuper" :key="evidenceOrderNo" :initial-order-no="evidenceOrderNo" />
+    <template v-else>
     <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <Select v-if="auth.isSuper && view === 'orders'" v-model="riskFilter" @update:modelValue="debouncedSearch">
+          <SelectTrigger class="w-full sm:w-48" :aria-label="t('admin.orders.riskTitle')"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{{ t('admin.orders.riskAll') }}</SelectItem>
+            <SelectItem value="pending_review">{{ t('admin.orders.riskQueue') }}</SelectItem>
+            <SelectItem value="evaluated">{{ t('admin.orders.riskEvaluated') }}</SelectItem>
+            <SelectItem value="released">{{ t('admin.orders.riskReleased') }}</SelectItem>
+            <SelectItem value="rejected">{{ t('admin.orders.riskRejected') }}</SelectItem>
+            <SelectItem value="shadow">{{ t('admin.orders.riskShadowMatches') }}</SelectItem>
+          </SelectContent>
+        </Select>
         <div class="w-full md:w-32">
           <Input v-model="filters.userId" :placeholder="t('admin.orders.filterUserId')" @update:modelValue="debouncedSearch" />
         </div>
@@ -487,11 +516,15 @@ watch(
       />
     </div>
 
+    </template>
+
     <OrderDetailDialog
       :model-value="showDetail"
       :order="selectedOrder"
       site-currency=""
       :max-refund-days="maxRefundDays"
+      :allow-redemption-evidence="auth.isSuper"
+      @open-redemption-evidence="openOrderEvidence"
       @update:model-value="handleDetailClose"
       @refresh="refresh"
       @open-fulfillment="handleDetailOpenFulfillment"

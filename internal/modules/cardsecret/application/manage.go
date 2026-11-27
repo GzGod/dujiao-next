@@ -114,6 +114,9 @@ func (s *Service) UpdateCardSecret(id uint, secret, status string) (*cardsecretd
 	if item == nil {
 		return nil, ErrNotFound
 	}
+	if item.Status == cardsecretdomain.StatusRiskVoided {
+		return nil, ErrInvalid
+	}
 	trimmedSecret := strings.TrimSpace(secret)
 	if trimmedSecret != "" {
 		item.Secret = trimmedSecret

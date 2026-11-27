@@ -9,6 +9,7 @@ import (
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	riskcontract "github.com/dujiao-next/internal/modules/orderrisk/contract"
 
 	coupondomain "github.com/dujiao-next/internal/modules/coupon/domain"
 
@@ -31,19 +32,22 @@ var (
 
 // OrderListFilter 管理端订单列表过滤。
 type OrderListFilter struct {
-	IssuedOnly     bool
-	Page           int
-	PageSize       int
-	UserID         uint
-	UserKeyword    string
-	Status         string
-	OrderNo        string
-	GuestEmail     string
-	ProductKeyword string
-	CreatedFrom    *time.Time
-	CreatedTo      *time.Time
-	SortBy         string
-	SortOrder      string
+	RiskHoldStatus      string
+	RiskShadowCandidate bool
+	RiskEvaluatedOnly   bool
+	IssuedOnly          bool
+	Page                int
+	PageSize            int
+	UserID              uint
+	UserKeyword         string
+	Status              string
+	OrderNo             string
+	GuestEmail          string
+	ProductKeyword      string
+	CreatedFrom         *time.Time
+	CreatedTo           *time.Time
+	SortBy              string
+	SortOrder           string
 }
 
 // OrderQuery 管理端订单查询与状态更新端口。
@@ -126,6 +130,10 @@ type AdminOrderPaymentItem struct {
 
 // AdminOrderDetail 管理端订单详情返回
 type AdminOrderDetail struct {
+	RiskReviewListKinds    []string               `json:"risk_review_list_kinds,omitempty"`
+	PaymentRiskEvaluatedAt *time.Time             `json:"payment_risk_evaluated_at,omitempty"`
+	RiskHoldStatus         string                 `json:"risk_hold_status,omitempty"`
+	PaymentRiskDecision    map[string]interface{} `json:"payment_risk_decision,omitempty"`
 	orderdomain.Order
 	UserEmail       string                  `json:"user_email,omitempty"`
 	UserDisplayName string                  `json:"user_display_name,omitempty"`
@@ -156,20 +164,30 @@ func (h *AdminHandler) AdminListOrders(c *gin.Context) {
 	sortBy := strings.TrimSpace(c.Query("sort_by"))
 	sortOrder := strings.TrimSpace(c.Query("sort_order"))
 
+	riskStatus := ""
+	if ginutil.IsSuperAdmin(c) {
+		switch status := c.Query("risk_hold_status"); status {
+		case "pending_review", "released", "rejected":
+			riskStatus = status
+		}
+	}
 	orders, total, err := h.orders.ListOrdersForAdmin(OrderListFilter{
-		IssuedOnly:     c.Query("issued_only") == "true",
-		Page:           page,
-		PageSize:       pageSize,
-		UserID:         userID,
-		UserKeyword:    userKeyword,
-		Status:         status,
-		OrderNo:        orderNo,
-		GuestEmail:     guestEmail,
-		ProductKeyword: productKeyword,
-		CreatedFrom:    createdFrom,
-		CreatedTo:      createdTo,
-		SortBy:         sortBy,
-		SortOrder:      sortOrder,
+		RiskHoldStatus:      riskStatus,
+		RiskShadowCandidate: ginutil.IsSuperAdmin(c) && c.Query("risk_shadow_candidate") == "true",
+		RiskEvaluatedOnly:   ginutil.IsSuperAdmin(c) && c.Query("risk_evaluated_only") == "true",
+		IssuedOnly:          c.Query("issued_only") == "true",
+		Page:                page,
+		PageSize:            pageSize,
+		UserID:              userID,
+		UserKeyword:         userKeyword,
+		Status:              status,
+		OrderNo:             orderNo,
+		GuestEmail:          guestEmail,
+		ProductKeyword:      productKeyword,
+		CreatedFrom:         createdFrom,
+		CreatedTo:           createdTo,
+		SortBy:              sortBy,
+		SortOrder:           sortOrder,
 	})
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
@@ -352,14 +370,30 @@ func (h *AdminHandler) AdminGetOrder(c *gin.Context) {
 	}
 
 	order.TruncateFulfillmentPayload()
-	response.Success(c, AdminOrderDetail{
+	detail := AdminOrderDetail{
 		Order:           *order,
 		UserEmail:       email,
 		UserDisplayName: displayName,
 		CouponCode:      couponCode,
 		PromotionName:   promotionName,
 		Payments:        paymentItems,
-	})
+	}
+	if ginutil.IsSuperAdmin(c) {
+		detail.RiskHoldStatus = order.RiskHoldStatus
+		detail.PaymentRiskDecision = order.PaymentRiskDecision
+		detail.PaymentRiskEvaluatedAt = order.PaymentRiskEvaluatedAt
+		if order.RiskHoldStatus == "pending_review" && order.ParentID == nil {
+			values := riskcontract.ReviewListValues(riskcontract.CheckInput{
+				ClientIP: order.ClientIP, RiskDeviceHash: order.RiskDeviceHash, UserID: order.UserID,
+			})
+			for _, kind := range []string{"ip", "cidr", "device_token", "user_id"} {
+				if values[kind] != "" {
+					detail.RiskReviewListKinds = append(detail.RiskReviewListKinds, kind)
+				}
+			}
+		}
+	}
+	response.Success(c, detail)
 }
 
 func (h *AdminHandler) resolvePaymentChannelNames(payments []paymentdomain.Payment) (map[uint]string, error) {

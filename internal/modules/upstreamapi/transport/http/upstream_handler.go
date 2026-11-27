@@ -70,7 +70,8 @@ type CreatePaymentInput struct {
 }
 
 type CreatePaymentResult struct {
-	OrderPaid bool
+	DeliveryUnderReview bool
+	OrderPaid           bool
 }
 
 type CategoryRepository interface {
@@ -149,6 +150,7 @@ type SecretDecrypter interface {
 type AfterSales interface {
 	ReviewRefund(context.Context, uint, bool, uint, string) error
 	Inspect(context.Context, uint) (*procurementcontract.RedemptionState, error)
+	InspectForAudit(context.Context, uint) (*procurementcontract.RedemptionState, error)
 	Replace(context.Context, uint, string, int) (*procurementcontract.RedemptionState, error)
 	RequestRefund(context.Context, uint, string, string) error
 }

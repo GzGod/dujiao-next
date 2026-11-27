@@ -100,19 +100,21 @@ type gptgetOrderReq struct {
 }
 
 type gptgetOrderData struct {
-	OrderNo         string `json:"order_no"`
-	ExternalOrderNo string `json:"external_order_no"`
-	SKUID           uint   `json:"sku_id"`
-	ProductName     string `json:"product_name"`
-	Code            string `json:"code"`
-	CodeRevision    int    `json:"code_revision"`
-	FinancialStatus string `json:"financial_status"`
-	ProgressStatus  string `json:"progress_status"`
-	ChargedAmount   string `json:"charged_amount"`
-	Currency        string `json:"currency"`
-	BalanceAfter    string `json:"balance_after"`
-	CanReplace      bool   `json:"can_replace"`
-	CanRefund       bool   `json:"can_refund"`
+	ReleaseStatus   string                               `json:"release_status"`
+	Pause           *procurementcontract.RedemptionPause `json:"pause"`
+	OrderNo         string                               `json:"order_no"`
+	ExternalOrderNo string                               `json:"external_order_no"`
+	SKUID           uint                                 `json:"sku_id"`
+	ProductName     string                               `json:"product_name"`
+	Code            string                               `json:"code"`
+	CodeRevision    int                                  `json:"code_revision"`
+	FinancialStatus string                               `json:"financial_status"`
+	ProgressStatus  string                               `json:"progress_status"`
+	ChargedAmount   string                               `json:"charged_amount"`
+	Currency        string                               `json:"currency"`
+	BalanceAfter    string                               `json:"balance_after"`
+	CanReplace      bool                                 `json:"can_replace"`
+	CanRefund       bool                                 `json:"can_refund"`
 }
 
 type gptgetOrderResp struct {
@@ -540,7 +542,7 @@ func (a *GptgetAdapter) ReplaceRedemption(ctx context.Context, orderNo, requestI
 	return redemptionState(response.Data), nil
 }
 func redemptionState(d gptgetOrderData) *procurementcontract.RedemptionState {
-	return &procurementcontract.RedemptionState{Code: d.Code, Revision: d.CodeRevision, CanReplace: d.CanReplace, CanRefund: d.CanRefund, Progress: d.ProgressStatus, Financial: d.FinancialStatus}
+	return &procurementcontract.RedemptionState{Code: d.Code, Revision: d.CodeRevision, ReleaseStatus: d.ReleaseStatus, Pause: d.Pause, CanReplace: d.CanReplace, CanRefund: d.CanRefund, Progress: d.ProgressStatus, Financial: d.FinancialStatus}
 }
 
 func (a *GptgetAdapter) RefundRedemption(ctx context.Context, orderNo, requestID string, revision int) (*procurementcontract.RedemptionState, error) {
@@ -549,4 +551,26 @@ func (a *GptgetAdapter) RefundRedemption(ctx context.Context, orderNo, requestID
 		return nil, err
 	}
 	return redemptionState(response.Data), nil
+}
+
+func (a *GptgetAdapter) HasRedemptionOperation(ctx context.Context, operation string) (bool, error) {
+	var result struct {
+		Data struct {
+			Enabled    bool     `json:"business_operations_enabled"`
+			Operations []string `json:"available_operations"`
+		} `json:"data"`
+	}
+	if err := a.doRequest(ctx, http.MethodGet, "/capabilities", nil, &result); err != nil {
+		return false, err
+	}
+	for _, candidate := range result.Data.Operations {
+		if result.Data.Enabled && candidate == operation {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (a *GptgetAdapter) PauseRedemption(ctx context.Context, orderNo, requestID string) error {
+	return a.doRequest(ctx, http.MethodPost, "/orders/"+url.PathEscape(orderNo)+"/pause", map[string]string{"request_id": requestID}, nil)
 }

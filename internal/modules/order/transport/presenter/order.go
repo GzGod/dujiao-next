@@ -63,6 +63,7 @@ func NewOrderSummaryList(orders []orderdomain.Order) []OrderSummary {
 
 // OrderDetail 订单详情响应（完整字段）
 type OrderDetail struct {
+	DeliveryUnderReview      bool              `json:"delivery_under_review,omitempty"`
 	OrderNo                  string            `json:"order_no"`
 	GuestEmail               string            `json:"guest_email,omitempty"`
 	GuestLocale              string            `json:"guest_locale,omitempty"`
@@ -109,7 +110,13 @@ type OrderRefundResp struct {
 // NewOrderDetail 从 orderdomain.Order 构造 OrderDetail，
 // 内部自动处理 upstream 类型伪装和成本价清除。
 func NewOrderDetail(o *orderdomain.Order) OrderDetail {
+	return newOrderDetailWithRiskHold(o, false)
+}
+
+func newOrderDetailWithRiskHold(o *orderdomain.Order, parentBlocked bool) OrderDetail {
+	blocked := parentBlocked || o.RiskBlocksFulfillment()
 	d := OrderDetail{
+		DeliveryUnderReview:     o.DeliveryUnderReview(),
 		OrderNo:                 o.OrderNo,
 		GuestEmail:              o.GuestEmail,
 		GuestLocale:             o.GuestLocale,
@@ -132,17 +139,17 @@ func NewOrderDetail(o *orderdomain.Order) OrderDetail {
 	paid := o.PaidAt != nil
 	for _, item := range o.Items {
 		resp := newOrderItemResp(&item)
-		if !paid {
+		if !paid || blocked {
 			resp.Instructions = nil
 		}
 		d.Items = append(d.Items, resp)
 	}
-	if o.Fulfillment != nil {
+	if !blocked && o.Fulfillment != nil {
 		fr := newFulfillmentResp(o.Fulfillment)
 		d.Fulfillment = &fr
 	}
 	for i := range o.Children {
-		d.Children = append(d.Children, NewOrderDetail(&o.Children[i]))
+		d.Children = append(d.Children, newOrderDetailWithRiskHold(&o.Children[i], blocked))
 	}
 	return d
 }

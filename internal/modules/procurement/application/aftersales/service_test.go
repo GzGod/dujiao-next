@@ -14,6 +14,7 @@ type testStore struct {
 	order      procurementdomain.Order
 	delivery   string
 	failCommit bool
+	accessErr  error
 }
 
 func (s *testStore) GetByID(uint) (*procurementdomain.Order, error) {
@@ -22,6 +23,14 @@ func (s *testStore) GetByID(uint) (*procurementdomain.Order, error) {
 	o := s.order
 	return &o, nil
 }
+func (s *testStore) CheckRedemptionAccess(context.Context, uint) error {
+	return s.accessErr
+}
+
+func (s *testStore) ObserveRedemptionProgress(context.Context, uint, string, string) error {
+	return nil
+}
+
 func (s *testStore) BeginAfterSale(id uint, kind, requestID, reason string, revision int) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -207,5 +216,42 @@ func TestUsedCodeAndRejectedRefund(t *testing.T) {
 	}
 	if store.order.AfterSaleState != "rejected" || remote.refundCalls != 0 {
 		t.Fatal("rejection affected funds")
+	}
+}
+
+func TestHeldOrderCannotExposeOrReplaceRedemptionCode(t *testing.T) {
+	for _, replay := range []bool{false, true} {
+		service, store, remote := fixture()
+		if replay {
+			store.order.AfterSaleKind = "replace"
+			store.order.AfterSaleRequestID = "fixed"
+			store.order.AfterSaleExpectedRevision = 1
+			store.order.AfterSaleState = "completed"
+		}
+		store.accessErr = procurementcontract.ErrOrderRiskHeld
+		if result, err := service.Inspect(t.Context(), 1); result != nil || !errors.Is(err, store.accessErr) {
+			t.Fatalf("held inspection returned %v, %v", result, err)
+		}
+		if result, err := service.Replace(t.Context(), 1, "fixed", 1); result != nil || !errors.Is(err, store.accessErr) {
+			t.Fatalf("held replacement returned %v, %v", result, err)
+		}
+		if remote.replaceCalls != 0 {
+			t.Fatal("held replacement reached upstream")
+		}
+	}
+}
+
+func TestHeldOrderAllowsRedactedAuditInspectionOnly(t *testing.T) {
+	service, store, remote := fixture()
+	store.accessErr = procurementcontract.ErrOrderRiskHeld
+	state, err := service.InspectForAudit(t.Context(), 1)
+	if err != nil || state == nil || state.Progress != "unused" || state.Code != "" {
+		t.Fatalf("expected code-free audit status, got error %v", err)
+	}
+	if remote.state.Code != "original" || remote.replaceCalls != 0 || remote.refundCalls != 0 {
+		t.Fatal("audit inspection changed upstream state")
+	}
+	if state, err := service.Inspect(t.Context(), 1); state != nil || !errors.Is(err, store.accessErr) {
+		t.Fatal("customer inspection bypassed the hold")
 	}
 }

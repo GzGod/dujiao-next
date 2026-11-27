@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 
@@ -103,6 +104,10 @@ func TestAlipayAdapter_ValidateConfig_EmptyInteractionModeUsesDefault(t *testing
 // 字段写入回归。模式见 stripe_adapter_test.go 同名测试。
 func TestAlipayAdapter_CreatePayment_ExchangeRate_AuditFields(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var biz map[string]any
+		if err := json.Unmarshal([]byte(r.FormValue("biz_content")), &biz); err != nil || biz["timeout_express"] != "5m" {
+			t.Errorf("expected gateway expiry of five minutes: %v (%v)", biz["timeout_express"], err)
+		}
 		// 模拟 alipay precreate(QR mode)成功响应
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"alipay_trade_precreate_response": map[string]any{
@@ -132,7 +137,9 @@ func TestAlipayAdapter_CreatePayment_ExchangeRate_AuditFields(t *testing.T) {
 		"exchange_rate":   "7.2",
 	}
 
+	expires := time.Now().Add(4*time.Minute + 30*time.Second)
 	input := paymentcontract.GatewayCreateInput{
+		ExpiresAt: &expires,
 		OrderNo:   "ORDER-ALIPAY-USD-10",
 		Subject:   "audit field test",
 		Currency:  "USD",

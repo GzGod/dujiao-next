@@ -62,6 +62,16 @@ func (s *PaymentService) handleWalletRechargeCallback(payment *paymentdomain.Pay
 		return s.updateCallbackMeta(payment, payment.Status, input)
 	}
 
+	// Initialize the account before opening the callback transaction so every
+	// monitored callback can serialize on the same wallet row.
+	if status == constants.PaymentStatusSuccess && strings.EqualFold(strings.TrimSpace(payment.ChannelType), constants.PaymentChannelTypeAlipay) {
+		if s.walletSvc == nil {
+			return nil, walletcontract.ErrAccountNotFound
+		}
+		if _, err := s.walletSvc.GetAccount(recharge.UserID); err != nil {
+			return nil, err
+		}
+	}
 	now := time.Now()
 	updated, newlySucceeded, err := s.applyWalletRechargePaymentUpdate(payment, status, input, now)
 	if err != nil {
@@ -169,14 +179,37 @@ func (s *PaymentService) applyWalletRechargePaymentUpdate(payment *paymentdomain
 
 		switch status {
 		case constants.PaymentStatusSuccess:
-			if s.walletSvc == nil {
-				return walletcontract.ErrAccountNotFound
+			hold := false
+			if strings.EqualFold(strings.TrimSpace(lockedPayment.ChannelType), constants.PaymentChannelTypeAlipay) {
+				account, err := rechargeRepo.GetAccountByUserIDForUpdate(recharge.UserID)
+				if err != nil {
+					return err
+				}
+				if account == nil {
+					return walletcontract.ErrAccountNotFound
+				}
+				since := now.Add(-24 * time.Hour)
+				_, recent, err := rechargeRepo.ListRechargeOrdersAdmin(walletcontract.RechargeListFilter{
+					UserID: recharge.UserID, ChannelType: constants.PaymentChannelTypeAlipay,
+					PaidFrom: &since, Page: 1, PageSize: 1,
+				})
+				if err != nil {
+					return err
+				}
+				hold = recent > 0
 			}
-			if _, err := s.walletSvc.ApplyRechargePayment(walletTx, recharge); err != nil {
-				return err
+			if hold {
+				recharge.Status = constants.WalletRechargeStatusPendingReview
+			} else {
+				if s.walletSvc == nil {
+					return walletcontract.ErrAccountNotFound
+				}
+				if _, err := s.walletSvc.ApplyRechargePayment(walletTx, recharge); err != nil {
+					return err
+				}
+				newlySucceeded = true
+				recharge.Status = constants.WalletRechargeStatusSuccess
 			}
-			newlySucceeded = true
-			recharge.Status = constants.WalletRechargeStatusSuccess
 			paidAt := now
 			if lockedPayment.PaidAt != nil {
 				paidAt = *lockedPayment.PaidAt

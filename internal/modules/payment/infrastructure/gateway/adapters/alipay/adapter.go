@@ -116,6 +116,16 @@ func (a *alipayAdapter) CreatePayment(ctx context.Context, raw jsonmap.JSON, inp
 		NotifyURL: input.NotifyURL,
 		ReturnURL: returnURL,
 	}
+	if input.ExpiresAt != nil {
+		remaining := time.Until(*input.ExpiresAt)
+		if remaining <= 0 {
+			return nil, fmt.Errorf("%w: payment window expired", paymentcontract.ErrGatewayConfigInvalid)
+		}
+		// Alipay uses whole minutes. Round up so a short remaining window
+		// does not make the gateway expire before the storefront.
+		minutes := (remaining + time.Minute - 1) / time.Minute
+		native.TimeoutExpress = fmt.Sprintf("%dm", minutes)
+	}
 	result, err := alipay.CreatePayment(ctx, cfg, native, interactionMode)
 	if err != nil {
 		return nil, mapAlipayError(err)

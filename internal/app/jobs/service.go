@@ -3,6 +3,8 @@ package jobs
 import (
 	"context"
 	"errors"
+	"github.com/dujiao-next/internal/constants"
+	"time"
 
 	jobconsumer "github.com/dujiao-next/internal/app/jobs/consumer"
 	"github.com/dujiao-next/internal/config"
@@ -104,6 +106,12 @@ func registerPeriodicTasks(scheduler *asynq.Scheduler, consumer *jobconsumer.Con
 			} else {
 				logger.Infow("scheduler_register_inventory_alert_check_ok", "entry_id", entryID)
 			}
+		}
+	}
+	if consumer.OrderService != nil || consumer.PaymentService != nil {
+		task := asynq.NewTask(constants.TaskOrderRecovery, nil)
+		if _, err := scheduler.Register("@every 1m", task, asynq.Queue(queue.DefaultQueue), asynq.Unique(55*time.Second)); err != nil {
+			logger.Warnw("scheduler_register_order_recovery_failed", "error", err)
 		}
 	}
 	if consumer.ProcurementOrderService != nil {

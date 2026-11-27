@@ -24,6 +24,7 @@ type Fulfillment struct {
 
 // OrderSnapshot 是回调应用读取订单所需的最小投影。
 type OrderSnapshot struct {
+	RiskBlocked bool
 	ID          uint
 	OrderNo     string
 	ParentID    *uint

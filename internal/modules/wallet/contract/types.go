@@ -37,6 +37,7 @@ type RechargeListFilter struct {
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
 	PaidFrom     *time.Time
+	CreditedFrom *time.Time
 	PaidTo       *time.Time
 }
 

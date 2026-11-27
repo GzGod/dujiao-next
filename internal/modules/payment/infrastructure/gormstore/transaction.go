@@ -6,6 +6,8 @@ import (
 	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	ordergormstore "github.com/dujiao-next/internal/modules/order/infrastructure/gormstore"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
+	settingsstore "github.com/dujiao-next/internal/modules/settings/infrastructure/gormstore"
+	settingssecurity "github.com/dujiao-next/internal/modules/settings/schema/security"
 
 	"gorm.io/gorm"
 )
@@ -40,6 +42,10 @@ func (tx transaction) Payments() paymentcontract.Store {
 
 func (tx transaction) PaymentChannels() paymentcontract.ChannelStore {
 	return NewChannelStore(tx.db)
+}
+
+func (tx transaction) AppendOrderRiskReviewEntries(entries []settingssecurity.SettlementListEntry) error {
+	return settingsstore.New(tx.db).AppendOrderRiskReviewEntries(entries)
 }
 
 func (s *Store) WithinTransaction(fn func(paymentcontract.Transaction) error) error {

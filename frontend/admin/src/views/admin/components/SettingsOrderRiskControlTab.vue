@@ -21,17 +21,37 @@ const defaultRateLimit = (guest: boolean) => ({
   block_seconds: 120,
 })
 
+const defaultSettlementWeights: Record<string, number> = {
+  first_seen_high_amount: 25,
+  slow_qr_payment: 35,
+  same_device_contact_switch: 40,
+  unpaid_probe_moderate: 35,
+  unredeemed_high_reorder: 35,
+  subnet_burst_high_amount: 30,
+  same_ip_different_contact: 15,
+  disposable_or_random_email: 25,
+}
+
+const riskListKinds = ['ip', 'cidr', 'user_id', 'device_token', 'contact_norm'] as const
+type RiskListEntry = { kind: typeof riskListKinds[number]; value: string; allow: boolean; expires_at?: string }
+const canAllow = (kind: RiskListEntry['kind']) => kind !== 'contact_norm'
 const form = reactive({
+  settlement_mode: 'shadow',
+  alipay_risk_subject: '',
+  risky_email_domains_text: '',
+  settlement_threshold: 60,
+  settlement_weights: { ...defaultSettlementWeights },
   enabled: false,
   common: {
     ip_blacklist_text: '',
+    settlement_list: [] as RiskListEntry[],
   },
   guest: {
     enabled: true,
     max_pending_orders_per_ip: 2,
     max_quantity_per_product_per_order: 1,
     max_pending_quantity_per_ip_product: 2,
-    payment_expire_minutes: 10,
+    payment_expire_minutes: 5,
     rate_limit: defaultRateLimit(true),
   },
   member: {
@@ -70,22 +90,31 @@ const applyRecommendedGuestPolicy = () => {
   form.guest.max_pending_orders_per_ip = 2
   form.guest.max_quantity_per_product_per_order = 1
   form.guest.max_pending_quantity_per_ip_product = 2
-  form.guest.payment_expire_minutes = 10
+  form.guest.payment_expire_minutes = 5
   Object.assign(form.guest.rate_limit, defaultRateLimit(true))
 }
 
 const loadNestedConfig = (data: Record<string, unknown>) => {
+  form.alipay_risk_subject = typeof data.alipay_risk_subject === 'string' ? data.alipay_risk_subject : ''
+  form.risky_email_domains_text = Array.isArray(data.risky_email_domains) ? data.risky_email_domains.join('\n') : ''
+  form.settlement_mode = data.settlement_mode === 'hold_notice' || data.settlement_mode === 'silent_trap' ? data.settlement_mode : 'shadow'
+  form.settlement_threshold = numberValue(data.settlement_threshold, 60)
+  const weights = data.settlement_weights as Record<string, unknown> | undefined
+  for (const [key, fallback] of Object.entries(defaultSettlementWeights)) {
+    form.settlement_weights[key] = numberValue(weights?.[key], fallback)
+  }
   const common = data.common as Record<string, unknown> | undefined
   const guest = data.guest as Record<string, unknown> | undefined
   const member = data.member as Record<string, unknown> | undefined
   form.enabled = !!data.enabled
+  form.common.settlement_list = Array.isArray(common?.settlement_list) ? common.settlement_list.map((entry: RiskListEntry) => ({ ...entry, allow: Boolean(entry.allow) })) : []
   form.common.ip_blacklist_text = ((common?.ip_blacklist as string[] | undefined) || []).join('\n')
 
   form.guest.enabled = guest?.enabled != null ? !!guest.enabled : true
   form.guest.max_pending_orders_per_ip = numberValue(guest?.max_pending_orders_per_ip, 2)
   form.guest.max_quantity_per_product_per_order = numberValue(guest?.max_quantity_per_product_per_order, 1)
   form.guest.max_pending_quantity_per_ip_product = numberValue(guest?.max_pending_quantity_per_ip_product, 2)
-  form.guest.payment_expire_minutes = numberValue(guest?.payment_expire_minutes, 10)
+  form.guest.payment_expire_minutes = numberValue(guest?.payment_expire_minutes, 5)
   applyRateLimit(form.guest.rate_limit, guest?.rate_limit, true)
 
   form.member.enabled = member?.enabled != null ? !!member.enabled : true
@@ -133,15 +162,34 @@ const normalizeLines = (value: string) => Array.from(new Set(value
   .filter((line: string) => line.length > 0)))
 
 const save = async () => {
+  const entries: RiskListEntry[] = []
+  for (const entry of form.common.settlement_list) {
+    const value = entry.value.trim()
+    const expiry = entry.expires_at?.trim()
+    if (!value || (expiry && !Number.isFinite(Date.parse(expiry)))) {
+      notifyError(t('admin.settings.orderRiskControl.listInvalid'))
+      return
+    }
+    entries.push({
+      kind: entry.kind, value, allow: canAllow(entry.kind) && entry.allow,
+      expires_at: expiry ? new Date(expiry).toISOString() : undefined,
+    })
+  }
   submitting.value = true
   try {
     await adminAPI.updateSettings({
       key: 'order_risk_control_config',
       value: {
         version: 2,
+        settlement_mode: form.settlement_mode,
+        alipay_risk_subject: form.alipay_risk_subject.trim(),
+        risky_email_domains: normalizeLines(form.risky_email_domains_text),
+        settlement_threshold: Number(form.settlement_threshold),
+        settlement_weights: { ...form.settlement_weights },
         enabled: form.enabled,
         common: {
           ip_blacklist: normalizeLines(form.common.ip_blacklist_text),
+          settlement_list: entries,
         },
         guest: {
           enabled: form.guest.enabled,
@@ -211,6 +259,43 @@ onMounted(loadConfig)
         </div>
       </div>
     </section>
+
+    <section class="space-y-4 rounded-xl border bg-card p-5">
+      <h2 class="font-semibold">{{ t('admin.settings.orderRiskControl.settlementTitle') }}</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="grid gap-2 text-sm">
+          {{ t('admin.settings.orderRiskControl.settlementMode') }}
+          <select v-model="form.settlement_mode" class="h-9 rounded-md border bg-background px-3">
+            <option value="shadow">{{ t('admin.settings.orderRiskControl.modeShadow') }}</option>
+            <option value="hold_notice">{{ t('admin.settings.orderRiskControl.modeNotice') }}</option>
+            <option value="silent_trap">{{ t('admin.settings.orderRiskControl.modeSilent') }}</option>
+          </select>
+        </label>
+        <label class="grid gap-2 text-sm">
+          {{ t('admin.settings.orderRiskControl.settlementThreshold') }}
+          <Input v-model.number="form.settlement_threshold" type="number" min="1" max="800" />
+        </label>
+      </div>
+      <p class="text-sm text-muted-foreground">{{ t('admin.settings.orderRiskControl.settlementHint') }}</p>
+      <label class="grid gap-2 text-sm">
+        {{ t('admin.settings.orderRiskControl.riskyDomains') }}
+        <Textarea v-model="form.risky_email_domains_text" rows="3" />
+      </label>
+      <label class="grid gap-2 text-sm">
+        {{ t('admin.settings.orderRiskControl.alipayRiskSubject') }}
+        <Input v-model="form.alipay_risk_subject" maxlength="80" />
+        <span class="text-xs text-muted-foreground">
+          {{ t('admin.settings.orderRiskControl.alipayRiskSubjectHint', { order: '{order_no}', amount: '{amount}' }) }}
+        </span>
+      </label>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label v-for="(_, key) in defaultSettlementWeights" :key="key" class="grid gap-2 text-sm">
+          {{ t('admin.settings.orderRiskControl.rules.' + key) }}
+          <Input v-model.number="form.settlement_weights[key]" type="number" min="0" max="100" />
+        </label>
+      </div>
+    </section>
+
 
     <section v-show="form.enabled" class="overflow-hidden rounded-xl border border-amber-200/70 bg-card shadow-sm dark:border-amber-900/60">
       <div class="border-b border-amber-200/70 bg-amber-50/70 p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
@@ -323,6 +408,34 @@ onMounted(loadConfig)
         <p class="mt-1 text-xs leading-5 text-muted-foreground">{{ t('admin.settings.orderRiskControl.ipBlacklist.subtitle') }}</p>
       </div>
       <Textarea v-model="form.common.ip_blacklist_text" :placeholder="t('admin.settings.orderRiskControl.ipBlacklist.placeholder')" rows="6" class="font-mono text-sm" />
+      <div class="mt-4 space-y-3 border-t pt-4">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-semibold">{{ t('admin.settings.orderRiskControl.listTitle') }}</h3>
+          <Button type="button" size="sm" variant="outline" @click="form.common.settlement_list.push({ kind: 'ip', value: '', allow: false })">
+            {{ t('admin.settings.orderRiskControl.listAdd') }}
+          </Button>
+        </div>
+        <div v-for="(entry, index) in form.common.settlement_list" :key="index"
+          class="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr_2fr_auto]">
+          <select v-model="entry.kind" class="h-9 rounded-md border bg-background px-2"
+            :aria-label="t('admin.settings.orderRiskControl.listKind')" @change="() => { if (!canAllow(entry.kind)) entry.allow = false }">
+            <option v-for="kind in riskListKinds" :key="kind" :value="kind">
+              {{ t('admin.settings.orderRiskControl.listKinds.' + kind) }}
+            </option>
+          </select>
+          <Input v-model="entry.value" :placeholder="t('admin.settings.orderRiskControl.listValue')" />
+          <select v-model="entry.allow" class="h-9 rounded-md border bg-background px-2"
+            :aria-label="t('admin.settings.orderRiskControl.listAction')">
+            <option :value="false">{{ t('admin.settings.orderRiskControl.listDeny') }}</option>
+            <option v-if="canAllow(entry.kind)" :value="true">{{ t('admin.settings.orderRiskControl.listAllow') }}</option>
+          </select>
+          <Input v-model="entry.expires_at" :aria-label="t('admin.settings.orderRiskControl.listExpiry')"
+            :placeholder="t('admin.settings.orderRiskControl.listExpiry')" />
+          <Button type="button" size="sm" variant="ghost" @click="form.common.settlement_list.splice(index, 1)">
+            {{ t('admin.settings.orderRiskControl.listRemove') }}
+          </Button>
+        </div>
+      </div>
     </section>
   </div>
 </template>

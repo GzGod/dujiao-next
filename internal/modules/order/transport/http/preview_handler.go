@@ -115,6 +115,8 @@ type CreateOrderItem struct {
 
 // CreateOrderInput 用户订单预览输入。
 type CreateOrderInput struct {
+	RiskDeviceHash      string
+	RiskUserAgent       string
 	UserID              uint
 	Tenant              resellermodule.TenantContext
 	Items               []CreateOrderItem
@@ -127,6 +129,8 @@ type CreateOrderInput struct {
 
 // CreateGuestOrderInput 游客订单预览输入。
 type CreateGuestOrderInput struct {
+	RiskDeviceHash      string
+	RiskUserAgent       string
 	Email               string
 	OrderPassword       string
 	Locale              string

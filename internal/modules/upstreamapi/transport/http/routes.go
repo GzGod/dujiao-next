@@ -150,7 +150,7 @@ type orderReferenceReader interface {
 
 // ownedProcurement resolves the credential-owned parent order to its single
 // delivered procurement. Multi-item/manual deliveries are not silently changed.
-func (h *Handler) ownedProcurement(c *gin.Context) *procurementdomain.Order {
+func (h *Handler) ownedProcurement(c *gin.Context, forRefund bool) *procurementdomain.Order {
 	userID, credentialID := getUpstreamUserID(c), getUpstreamCredentialID(c)
 	if userID == 0 || credentialID == 0 {
 		errorResponse(c, 401, "unauthorized", i18n.T(i18n.ResolveLocale(c), "error.downstream.unauthorized"))
@@ -180,6 +180,16 @@ func (h *Handler) ownedProcurement(c *gin.Context) *procurementdomain.Order {
 		errorResponse(c, 404, "order_not_found", i18n.T(i18n.ResolveLocale(c), "error.downstream.order_not_found"))
 		return nil
 	}
+	if !forRefund {
+		blocked := order.RiskBlocksFulfillment()
+		for _, child := range order.Children {
+			blocked = blocked || child.RiskBlocksFulfillment()
+		}
+		if blocked {
+			errorResponse(c, 409, "state_unavailable", i18n.T(i18n.ResolveLocale(c), "error.downstream.state_unavailable"))
+			return nil
+		}
+	}
 	localNo := order.OrderNo
 	if len(order.Children) == 1 {
 		localNo = order.Children[0].OrderNo
@@ -195,7 +205,7 @@ func (h *Handler) ownedProcurement(c *gin.Context) *procurementdomain.Order {
 	return proc
 }
 func (h *Handler) RedemptionState(c *gin.Context) {
-	proc := h.ownedProcurement(c)
+	proc := h.ownedProcurement(c, false)
 	if proc == nil {
 		return
 	}
@@ -211,7 +221,7 @@ func (h *Handler) RedemptionState(c *gin.Context) {
 	successResponse(c, gin.H{"ok": true, "redemption": result, "after_sale_kind": proc.AfterSaleKind, "after_sale_state": proc.AfterSaleState, "after_sale_request_id": proc.AfterSaleRequestID})
 }
 func (h *Handler) ReplaceCode(c *gin.Context) {
-	proc := h.ownedProcurement(c)
+	proc := h.ownedProcurement(c, false)
 	if proc == nil {
 		return
 	}
@@ -235,7 +245,7 @@ func (h *Handler) ReplaceCode(c *gin.Context) {
 	successResponse(c, gin.H{"ok": true, "order_id": c.Param("id"), "code": result.Code, "code_revision": result.Revision, "financial_status": result.Financial, "progress_status": result.Progress})
 }
 func (h *Handler) RequestRefund(c *gin.Context) {
-	proc := h.ownedProcurement(c)
+	proc := h.ownedProcurement(c, true)
 	if proc == nil {
 		return
 	}
@@ -326,7 +336,7 @@ func (h *Handler) InspectAdminRedemption(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeInternal, "error.downstream.state_unavailable", nil)
 		return
 	}
-	result, err := h.AfterSales.Inspect(c.Request.Context(), id)
+	result, err := h.AfterSales.InspectForAudit(c.Request.Context(), id)
 	if err != nil || result == nil {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.downstream.state_unavailable", nil)
 		return

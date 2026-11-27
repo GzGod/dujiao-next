@@ -2,6 +2,7 @@ package gormstore
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -9,9 +10,12 @@ import (
 	"time"
 
 	"github.com/dujiao-next/internal/constants"
+	cardsecretdomain "github.com/dujiao-next/internal/modules/cardsecret/domain"
+	cardsecretstore "github.com/dujiao-next/internal/modules/cardsecret/infrastructure/gormstore"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
 	ordercontract "github.com/dujiao-next/internal/modules/order/contract"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	orderriskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	"github.com/dujiao-next/internal/shared/money"
 	"github.com/shopspring/decimal"
 	"gorm.io/driver/postgres"
@@ -401,5 +405,114 @@ func TestBackfillGuestCredentialHashesOnPostgres(t *testing.T) {
 	got, err := repo.GetByOrderNoAndGuest("PG-GUEST-PLAINTEXT", "plain@example.com", "legacy-password")
 	if err != nil || got == nil {
 		t.Fatalf("migrated credential should still authenticate, got order=%v err=%v", got, err)
+	}
+}
+
+func TestPostgresSettlementDeviceLockSerializesConnectionPools(t *testing.T) {
+	first := openGuestCredentialPostgresDB(t)
+	if err := first.AutoMigrate(&orderriskdomain.LockKey{}); err != nil {
+		t.Fatal(err)
+	}
+	var schema string
+	if err := first.Raw("SELECT current_schema()").Scan(&schema).Error; err != nil {
+		t.Fatal(err)
+	}
+	second, err := gorm.Open(postgres.Open(os.Getenv("TEST_POSTGRES_DSN")), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool, err := second.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	key := "settlement:device:postgres-test-fixture"
+	secret := "test-guest-credential-secret-with-32-bytes"
+	// A second pool must hit PostgreSQL's lock timeout while an order in the
+	// first transaction owns the identity key, then acquire it after commit.
+	if err := first.Transaction(func(tx *gorm.DB) error {
+		if err := New(tx, secret).LockRiskKeys([]string{key}); err != nil {
+			return err
+		}
+		err := second.Transaction(func(other *gorm.DB) error {
+			if err := other.Exec("SET LOCAL search_path TO " + schema).Error; err != nil {
+				return err
+			}
+			if err := other.Exec("SET LOCAL lock_timeout = '200ms'").Error; err != nil {
+				return err
+			}
+			return New(other, secret).LockRiskKeys([]string{key})
+		})
+		var cause interface{ SQLState() string }
+		if !errors.As(err, &cause) || cause.SQLState() != "55P03" {
+			return fmt.Errorf("expected overlapping settlement to wait for the lock, got %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := second.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SET LOCAL search_path TO " + schema).Error; err != nil {
+			return err
+		}
+		return New(tx, secret).LockRiskKeys([]string{key})
+	}); err != nil {
+		t.Fatalf("expected settlement lock to be released after commit: %v", err)
+	}
+}
+
+func TestPostgresCardImportCannotRaceRiskVoid(t *testing.T) {
+	first := openGuestCredentialPostgresDB(t)
+	if err := first.AutoMigrate(&cardsecretdomain.Secret{}); err != nil {
+		t.Fatal(err)
+	}
+	var schema string
+	if err := first.Raw("SELECT current_schema()").Scan(&schema).Error; err != nil {
+		t.Fatal(err)
+	}
+	second, err := gorm.Open(postgres.Open(os.Getenv("TEST_POSTGRES_DSN")), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool, err := second.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	orderID := uint(17)
+	card := cardsecretdomain.Secret{ProductID: 1, Secret: "void-race-fixture", Status: cardsecretdomain.StatusReserved, OrderID: &orderID}
+	if err := first.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	importCopy := func() error {
+		return second.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SET LOCAL search_path TO " + schema).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("SET LOCAL lock_timeout = '200ms'").Error; err != nil {
+				return err
+			}
+			return cardsecretstore.New(tx).CreateBatch([]cardsecretdomain.Secret{
+				{ProductID: 2, Secret: card.Secret, Status: cardsecretdomain.StatusAvailable},
+			})
+		})
+	}
+	if err := first.Transaction(func(tx *gorm.DB) error {
+		if err := cardsecretstore.New(tx).VoidByOrders([]uint{orderID}, time.Now()); err != nil {
+			return err
+		}
+		err := importCopy()
+		var cause interface{ SQLState() string }
+		if !errors.As(err, &cause) || cause.SQLState() != "55P03" {
+			return fmt.Errorf("expected import to wait for void decision, got %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := importCopy(); err == nil || !strings.Contains(err.Error(), "voided code") {
+		t.Fatalf("expected import to reject the committed void, got %v", err)
 	}
 }

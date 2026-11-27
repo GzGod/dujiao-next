@@ -1,6 +1,9 @@
 package httpserver
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/dujiao-next/internal/app/container"
 	"github.com/dujiao-next/internal/app/httpserver/middleware"
 	affiliatebootstrap "github.com/dujiao-next/internal/bootstrap/affiliate"
@@ -30,6 +33,7 @@ import (
 	memberleveltransport "github.com/dujiao-next/internal/modules/memberlevel/transport/http"
 	notificationtransport "github.com/dujiao-next/internal/modules/notification/transport/http"
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
+	orderriskdomain "github.com/dujiao-next/internal/modules/orderrisk/domain"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
 	procurementtransport "github.com/dujiao-next/internal/modules/procurement/transport/http"
 	promotiontransport "github.com/dujiao-next/internal/modules/promotion/transport/http"
@@ -40,8 +44,11 @@ import (
 	broadcasthttp "github.com/dujiao-next/internal/modules/telegram/broadcast/transport/http"
 	uploadtransport "github.com/dujiao-next/internal/modules/upload/transport/http"
 	wallettransport "github.com/dujiao-next/internal/modules/wallet/transport/http"
+	"github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
 	systemtransport "github.com/dujiao-next/internal/platform/http/system"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -154,6 +161,7 @@ func registerAdminRoutes(
 
 	// 订单管理
 	ordertransport.RegisterAdminRoutes(authorized, adminOrderHandler)
+	authorized.GET("/order-risk/redemption-evidence", redemptionEvidenceListHandler(c.OrderStore))
 	ordertransport.RegisterAdminRefundWriteRoutes(authorized, adminOrderRefundHandler)
 	ordertransport.RegisterAdminRefundRoutes(authorized, adminOrderRefundHandler)
 	fulfillmenttransport.RegisterAdminRoutes(authorized, adminFulfillmentHandler)
@@ -203,4 +211,47 @@ func registerAdminRoutes(
 
 	// Telegram Bot 群发
 	broadcasthttp.RegisterAdminRoutes(authorized, broadcasthttp.NewAdminHandler(c.TelegramBroadcastService))
+}
+
+type redemptionEvidenceReader interface {
+	ListRedemptionEvidence(ctx context.Context, codeHash, orderNo string, page, size int) ([]orderriskdomain.RedemptionEvidence, int64, error)
+}
+
+func redemptionEvidenceListHandler(store any) gin.HandlerFunc {
+	reader, _ := store.(redemptionEvidenceReader)
+	return func(c *gin.Context) {
+		if !ginutil.IsSuperAdmin(c) {
+			c.Status(http.StatusForbidden)
+			return
+		}
+		if reader == nil {
+			c.Status(http.StatusServiceUnavailable)
+			return
+		}
+		codeHash := strings.TrimSpace(c.Query("code_hash"))
+		if codeHash != "" {
+			digest, err := hex.DecodeString(codeHash)
+			if err != nil || len(digest) != sha256.Size || codeHash != strings.ToLower(codeHash) {
+				c.Status(http.StatusBadRequest)
+				return
+			}
+		}
+		page, size := ginutil.ParsePaginationWithBounds(c, "page", "page_size", 20, 100)
+		if page > 10000 {
+			c.Status(http.StatusBadRequest)
+			return
+		}
+		orderNo := strings.TrimSpace(c.Query("order_no"))
+		if len(orderNo) > 64 {
+			c.Status(http.StatusBadRequest)
+			return
+		}
+		items, total, err := reader.ListRedemptionEvidence(c.Request.Context(), codeHash, orderNo, page, size)
+		if err != nil {
+			c.Status(http.StatusServiceUnavailable)
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		response.SuccessWithPage(c, items, response.BuildPagination(page, size, total))
+	}
 }

@@ -40,7 +40,10 @@ type updateRequest struct {
 
 // Get 获取设置。
 func (h *AdminHandler) Get(c *gin.Context) {
-	key := c.DefaultQuery("key", constants.SettingKeySiteConfig)
+	key := strings.TrimSpace(c.DefaultQuery("key", constants.SettingKeySiteConfig))
+	if !canManageOrderRiskSetting(c, key) {
+		return
+	}
 
 	value, err := h.settings.GetByKey(key)
 	if err != nil {
@@ -53,6 +56,14 @@ func (h *AdminHandler) Get(c *gin.Context) {
 	}
 
 	response.Success(c, value)
+}
+
+func canManageOrderRiskSetting(c *gin.Context, key string) bool {
+	if key != constants.SettingKeyOrderRiskControlConfig || ginutil.IsSuperAdmin(c) {
+		return true
+	}
+	ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+	return false
 }
 
 // settingFieldErrorKeys 复用分销站同名字段的文案，两边校验规则一致。
@@ -82,6 +93,9 @@ func (h *AdminHandler) Update(c *gin.Context) {
 		return
 	}
 	key := strings.TrimSpace(req.Key)
+	if !canManageOrderRiskSetting(c, key) {
+		return
+	}
 	if endpoint, ok := dedicatedSettingEndpoints[key]; ok {
 		ginutil.RespondErrorWithMsg(
 			c,

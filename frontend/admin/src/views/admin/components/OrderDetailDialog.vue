@@ -33,11 +33,13 @@ const props = defineProps<{
   order: AdminOrder | null
   siteCurrency: string
   maxRefundDays: number
+  allowRedemptionEvidence?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'refresh'): void
+  (e: 'openRedemptionEvidence', orderNo: string): void
   (e: 'openFulfillment', order: AdminOrder, parentId?: number): void
 }>()
 
@@ -628,6 +630,7 @@ const formatFeeRate = (channel: AdminPayment | { fee_rate: number | string; fixe
 const fetchOrderDetail = async (orderId: number) => {
   detailLoading.value = true
   detailError.value = ''
+  riskError.value = ''
   selectedOrder.value = null
   procurementOrder.value = null
   try {
@@ -647,6 +650,61 @@ const fetchOrderDetail = async (orderId: number) => {
     detailError.value = err?.message || t('admin.orders.detailFetchFailed')
   } finally {
     detailLoading.value = false
+  }
+}
+
+const riskWorking = ref(false)
+const riskListKinds = ref<string[]>([])
+const reviewKindLabel = (kind: string) => t(`admin.settings.orderRiskControl.listKinds.${kind}`)
+watch(() => [props.modelValue, props.order?.id], () => { riskListKinds.value = [] })
+const riskError = ref('')
+const fraudUpstream = ref<{ id: number; order_no: string; error?: boolean; state?: {
+  can_refund: boolean; financial_status: string; progress_status: string; release_status?: string;
+  pause?: { status: string; recovery_status: string }
+} }[]>([])
+watch(() => [props.modelValue, props.order?.id], () => { fraudUpstream.value = []; riskError.value = '' })
+const checkFraudUpstream = async (action: 'upstream_status' | 'upstream_pause' | 'upstream_refund', procurementId?: number) => {
+  const id = selectedOrder.value?.id
+  if (!id || riskWorking.value) return
+  riskWorking.value = true
+  riskError.value = ''
+  try {
+    if (action === 'upstream_refund' && !await confirmAction({ title: t('admin.orders.fraudUpstreamRefund'), description: t('admin.orders.fraudUpstreamRefundConfirm'), variant: 'destructive' })) return
+    const response = await adminAPI.reviewFraudUpstream(id, action, procurementId)
+    if (selectedOrder.value?.id !== id) return
+    const rows = response.data.data ?? []
+    fraudUpstream.value = procurementId ? fraudUpstream.value.map(row => rows.find((updated: typeof row) => row.id === updated.id) ?? row) : rows
+  } catch (err: any) {
+    riskError.value = err?.message || t('admin.orders.riskFailed')
+  } finally {
+    riskWorking.value = false
+  }
+}
+const reviewRisk = async (action: 'release' | 'reject') => {
+  const id = selectedOrder.value?.id
+  if (!id || riskWorking.value) return
+  riskWorking.value = true
+  riskError.value = ''
+  try {
+    const label = t(action === 'release' ? 'admin.orders.riskRelease' : 'admin.orders.riskReject')
+    const listKinds = [...riskListKinds.value]
+    const listDescription = listKinds.length ? t(action === 'release' ? 'admin.orders.riskAddAllow' : 'admin.orders.riskAddDeny', {
+      dimensions: listKinds.map(reviewKindLabel).join(' · '),
+    }) : ''
+    const description = [t(action === 'reject' ? 'admin.orders.riskRejectScope' : 'admin.orders.riskConfirm'), listDescription].filter(Boolean).join(' ')
+    if (!await confirmAction({ title: label, description, variant: 'destructive' })) return
+    const result = await adminAPI.reviewOrderRisk(id, action, listKinds)
+    if (action === 'reject') {
+      fraudUpstream.value = result.data.data?.upstream ?? []
+      if (result.data.data?.upstream_error) riskError.value = t('admin.orders.fraudUpstreamError')
+    }
+    riskListKinds.value = []
+    await fetchOrderDetail(id)
+    emit('refresh')
+  } catch (err: any) {
+    riskError.value = err?.message || t('admin.orders.riskFailed')
+  } finally {
+    riskWorking.value = false
   }
 }
 
@@ -784,6 +842,73 @@ watch(
           {{ detailError }}
         </div>
         <div v-else-if="selectedOrder" class="space-y-6">
+          <section v-if="selectedOrder.payment_risk_decision" class="space-y-2 rounded-lg border border-border p-3 text-sm">
+            <h3 class="font-semibold">{{ t('admin.orders.riskTitle') }}</h3>
+            <p>{{ t('admin.orders.riskScore', { score: selectedOrder.payment_risk_decision.score }) }}</p>
+            <p v-if="selectedOrder.payment_risk_decision.threshold != null">
+              {{ t('admin.orders.riskThreshold', { threshold: selectedOrder.payment_risk_decision.threshold }) }}
+            </p>
+            <p v-if="selectedOrder.payment_risk_decision.pay_delay_known === false">
+              {{ t('admin.orders.riskDelayUnknown') }}
+            </p>
+            <p v-else-if="selectedOrder.payment_risk_decision.pay_delay_seconds != null">
+              {{ t('admin.orders.riskDelay', { seconds: selectedOrder.payment_risk_decision.pay_delay_seconds }) }}
+            </p>
+            <template v-if="selectedOrder.payment_risk_decision.features">
+              <p v-if="selectedOrder.payment_risk_decision.features.paid_count_30m != null && selectedOrder.payment_risk_decision.features.paid_count_24h != null">
+                {{ t('admin.orders.riskPaidCounts', { short: selectedOrder.payment_risk_decision.features.paid_count_30m, day: selectedOrder.payment_risk_decision.features.paid_count_24h }) }}
+              </p>
+              <p v-if="selectedOrder.payment_risk_decision.features.unpaid_count_30m != null && selectedOrder.payment_risk_decision.features.unpaid_count_24h != null">
+                {{ t('admin.orders.riskUnpaidCounts', { short: selectedOrder.payment_risk_decision.features.unpaid_count_30m, day: selectedOrder.payment_risk_decision.features.unpaid_count_24h }) }}
+              </p>
+            </template>
+            <p v-if="selectedOrder.payment_risk_evaluated_at">
+              {{ t('admin.orders.riskEvaluatedAt', { time: formatDate(selectedOrder.payment_risk_evaluated_at) }) }}
+            </p>
+            <p v-if="selectedOrder.payment_risk_decision.reviewed_at">
+              {{ t(selectedOrder.risk_hold_status === 'released' ? 'admin.orders.riskReleased' : 'admin.orders.riskRejected') }}
+              · {{ t('admin.orders.riskReviewer', { id: selectedOrder.payment_risk_decision.review_admin_id, time: formatDate(selectedOrder.payment_risk_decision.reviewed_at) }) }}
+            </p>
+            <p v-if="selectedOrder.risk_hold_status === 'rejected'" class="text-muted-foreground">
+              {{ t('admin.orders.riskRejectedScope') }}
+            </p>
+            <div v-if="selectedOrder.risk_hold_status === 'rejected'" class="space-y-2">
+              <div class="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" :disabled="riskWorking" @click="checkFraudUpstream('upstream_status')">{{ t('admin.orders.fraudUpstreamStatus') }}</Button>
+                <Button size="sm" variant="outline" :disabled="riskWorking" @click="checkFraudUpstream('upstream_pause')">{{ t('admin.orders.fraudUpstreamPause') }}</Button>
+              </div>
+              <div v-for="row in fraudUpstream" :key="row.id" class="flex flex-wrap items-center gap-2">
+                <span class="font-mono">{{ row.order_no }}</span>
+                <span v-if="row.error">{{ t('admin.orders.fraudUpstreamError') }}</span>
+                <span v-if="row.state?.financial_status === 'refunded' && row.state.progress_status === 'destroyed'">{{ t('admin.orders.fraudUpstreamRefunded') }}</span>
+                <span v-else>{{ row.state?.release_status }} {{ row.state?.pause?.status }} {{ row.state?.pause?.recovery_status }}</span>
+                <Button v-if="!row.error && row.state?.release_status === 'released' && row.state.financial_status === 'paid' && row.state.can_refund" size="sm" variant="destructive" :disabled="riskWorking" @click="checkFraudUpstream('upstream_refund', row.id)">{{ t('admin.orders.fraudUpstreamRefund') }}</Button>
+              </div>
+            </div>
+            <ul class="list-inside list-disc font-mono text-xs">
+              <li v-for="rule in selectedOrder.payment_risk_decision.hard_rules || []" :key="rule">{{ rule }}</li>
+              <li v-for="(weight, rule) in selectedOrder.payment_risk_decision.signals || {}" :key="rule">{{ rule }} +{{ weight }}</li>
+            </ul>
+            <fieldset v-if="selectedOrder.risk_hold_status === 'pending_review' && selectedOrder.risk_review_list_kinds?.length"
+              class="space-y-2 rounded-md border border-border px-3 pb-3" :disabled="riskWorking">
+              <legend class="px-1 font-medium">{{ t('admin.orders.riskListOptions') }}</legend>
+              <p class="text-xs text-muted-foreground">{{ t('admin.orders.riskListHint') }}</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-2">
+                <label v-for="kind in selectedOrder.risk_review_list_kinds" :key="kind" class="inline-flex items-center gap-2">
+                  <input v-model="riskListKinds" type="checkbox" :value="kind" class="size-4 accent-primary" />
+                  {{ reviewKindLabel(kind) }}
+                </label>
+              </div>
+            </fieldset>
+            <div v-if="selectedOrder.risk_hold_status === 'pending_review'" class="flex flex-wrap gap-2">
+              <Button size="sm" :disabled="riskWorking" @click="reviewRisk('release')">{{ t('admin.orders.riskRelease') }}</Button>
+              <Button size="sm" variant="destructive" :disabled="riskWorking" @click="reviewRisk('reject')">{{ t('admin.orders.riskReject') }}</Button>
+            </div>
+            <Button v-if="allowRedemptionEvidence" size="sm" variant="outline" @click="emit('openRedemptionEvidence', selectedOrder.order_no)">
+              {{ t('admin.orders.evidence.title') }}
+            </Button>
+            <p v-if="riskError" role="alert" class="text-destructive">{{ riskError }}</p>
+          </section>
           <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 [&>*]:min-w-0">
             <Card class="min-w-0 rounded-lg border-border bg-background shadow-none">
               <CardContent class="p-3">

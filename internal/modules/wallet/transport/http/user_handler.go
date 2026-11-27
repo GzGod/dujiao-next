@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
 	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
@@ -355,6 +356,8 @@ func respondPaymentError(c *gin.Context, err error, fallbackCode int, fallbackKe
 		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_gateway_response_invalid", nil)
 	case errors.Is(err, ErrPaymentCurrencyMismatch):
 		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_currency_mismatch", nil)
+	case errors.Is(err, walletcontract.ErrRechargeRecentPayment):
+		ginutil.RespondError(c, response.CodeTooManyRequests, "error.wallet_recharge_recent_payment", nil)
 	case errors.Is(err, ErrPaymentChannelNotAllowedRecharge):
 		ginutil.RespondError(c, response.CodeBadRequest, "error.payment_channel_not_allowed_for_recharge", nil)
 	case !capture && errors.Is(err, ErrPaymentChannelNotAllowedProduct):

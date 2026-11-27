@@ -112,6 +112,19 @@ func TestCreateAutoFulfillmentRespectsSKUBoundary(t *testing.T) {
 		FulfillmentStore: fulfillmentgormstore.New(db),
 	})
 
+	if err := db.Model(order).Update("risk_hold_status", "pending_review").Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateAuto(order.ID); err != ErrOrderStatusInvalid {
+		t.Fatalf("held order auto delivery got %v", err)
+	}
+	if _, err := svc.CreateManual(CreateManualInput{OrderID: order.ID, AdminID: 1, Payload: "test"}); err != ErrOrderStatusInvalid {
+		t.Fatalf("held order manual delivery got %v", err)
+	}
+	if err := db.Model(order).Update("risk_hold_status", "released").Error; err != nil {
+		t.Fatal(err)
+	}
+
 	result, err := svc.CreateAuto(order.ID)
 	if err != nil {
 		t.Fatalf("create auto fulfillment failed: %v", err)

@@ -7,6 +7,7 @@ import (
 
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
 	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
@@ -384,4 +385,33 @@ func (h *AdminHandler) AdjustUserWallet(c *gin.Context) {
 		"account":     account,
 		"transaction": txn,
 	})
+}
+
+// ApproveRecharge releases a payment that is waiting for manual review.
+func (h *AdminHandler) ApproveRecharge(c *gin.Context) {
+	if !ginutil.IsSuperAdmin(c) {
+		ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	reviewer, ok := h.wallets.(interface{ ApproveRecharge(uint) error })
+	if !ok {
+		ginutil.RespondError(c, response.CodeInternal, "error.internal_error", nil)
+		return
+	}
+	err = reviewer.ApproveRecharge(id)
+	switch {
+	case errors.Is(err, walletcontract.ErrRechargeNotFound):
+		ginutil.RespondError(c, response.CodeNotFound, "error.bad_request", nil)
+	case errors.Is(err, walletcontract.ErrRechargeStatusInvalid):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+	case err != nil:
+		ginutil.RespondError(c, response.CodeInternal, "error.internal_error", err)
+	default:
+		response.Success(c, gin.H{"approved": true})
+	}
 }

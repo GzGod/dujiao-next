@@ -29,7 +29,15 @@ func (r *Reader) GetByID(id uint) (*downstreamcontract.OrderSnapshot, error) {
 	if err != nil || order == nil {
 		return nil, err
 	}
-	return projectOrder(order), nil
+	snapshot := projectOrder(order)
+	if !snapshot.RiskBlocked && order.ParentID != nil {
+		parent, err := r.source.GetByID(*order.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		snapshot.RiskBlocked = parent == nil || parent.RiskBlocksFulfillment()
+	}
+	return snapshot, nil
 }
 
 func projectOrder(order *orderdomain.Order) *downstreamcontract.OrderSnapshot {
@@ -37,12 +45,13 @@ func projectOrder(order *orderdomain.Order) *downstreamcontract.OrderSnapshot {
 		return nil
 	}
 	projection := &downstreamcontract.OrderSnapshot{
-		ID:       order.ID,
-		OrderNo:  order.OrderNo,
-		ParentID: order.ParentID,
-		Status:   order.Status,
+		RiskBlocked: order.RiskBlocksFulfillment(),
+		ID:          order.ID,
+		OrderNo:     order.OrderNo,
+		ParentID:    order.ParentID,
+		Status:      order.Status,
 	}
-	if order.Fulfillment != nil {
+	if !projection.RiskBlocked && order.Fulfillment != nil {
 		projection.Fulfillment = &downstreamcontract.Fulfillment{
 			Type:         order.Fulfillment.Type,
 			Status:       order.Fulfillment.Status,
