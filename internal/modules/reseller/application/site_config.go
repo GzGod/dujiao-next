@@ -67,12 +67,22 @@ type ResellerNavConfigInput struct {
 	CustomItems []ResellerFooterLinkInput `json:"custom_items"`
 }
 
+type ResellerSupportPetInput struct {
+	Mode        string `json:"mode"`
+	URL         string `json:"url"`
+	Name        string `json:"name"`
+	SourceURL   string `json:"source_url"`
+	FrameWidth  int    `json:"frame_width"`
+	FrameHeight int    `json:"frame_height"`
+}
+
 type ResellerThemeInput struct {
-	RedemptionTitle string `json:"redemption_title"`
-	RedemptionIntro string `json:"redemption_intro"`
-	RedemptionStyle string `json:"redemption_style"`
-	Template        string `json:"template"`
-	PrimaryColor    string `json:"primary_color"`
+	SupportPet      *ResellerSupportPetInput `json:"support_pet,omitempty"`
+	RedemptionTitle string                   `json:"redemption_title"`
+	RedemptionIntro string                   `json:"redemption_intro"`
+	RedemptionStyle string                   `json:"redemption_style"`
+	Template        string                   `json:"template"`
+	PrimaryColor    string                   `json:"primary_color"`
 }
 
 type ResellerSiteConfigInput struct {
@@ -515,7 +525,7 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 		// Only allowlisted values reach the browser, including legacy DB rows.
 		template, _ := cfg.ThemeJSON["template"].(string)
 		color, _ := cfg.ThemeJSON["primary_color"].(string)
-		if theme, err := normalizeResellerTheme(ResellerThemeInput{Template: template, PrimaryColor: color, RedemptionTitle: resellerThemeString(cfg.ThemeJSON, "redemption_title"), RedemptionIntro: resellerThemeString(cfg.ThemeJSON, "redemption_intro"), RedemptionStyle: resellerThemeString(cfg.ThemeJSON, "redemption_style")}); err == nil {
+		if theme, err := normalizeResellerTheme(ResellerThemeInput{Template: template, PrimaryColor: color, RedemptionTitle: resellerThemeString(cfg.ThemeJSON, "redemption_title"), RedemptionIntro: resellerThemeString(cfg.ThemeJSON, "redemption_intro"), RedemptionStyle: resellerThemeString(cfg.ThemeJSON, "redemption_style"), SupportPet: resellerThemePet(cfg.ThemeJSON)}); err == nil {
 			if template != "" && template != "inherit" {
 				out["storefront_template"] = template
 			}
@@ -917,7 +927,47 @@ func normalizeResellerTheme(input ResellerThemeInput) (jsonmap.JSON, error) {
 	if len([]rune(input.RedemptionTitle)) > 120 || len([]rune(input.RedemptionIntro)) > 1500 {
 		return nil, newResellerFieldError("theme")
 	}
-	return jsonmap.JSON{"template": template, "primary_color": strings.ToLower(color), "redemption_title": strings.TrimSpace(input.RedemptionTitle), "redemption_intro": strings.TrimSpace(input.RedemptionIntro), "redemption_style": style}, nil
+	result := jsonmap.JSON{"template": template, "primary_color": strings.ToLower(color), "redemption_title": strings.TrimSpace(input.RedemptionTitle), "redemption_intro": strings.TrimSpace(input.RedemptionIntro), "redemption_style": style}
+	if input.SupportPet != nil {
+		pet := *input.SupportPet
+		pet.Mode = strings.TrimSpace(pet.Mode)
+		pet.URL = strings.TrimSpace(pet.URL)
+		pet.Name = strings.TrimSpace(pet.Name)
+		pet.SourceURL = strings.TrimSpace(pet.SourceURL)
+		switch pet.Mode {
+		case "default", "hidden", "image", "spritesheet":
+		default:
+			return nil, newResellerFieldError("theme")
+		}
+		if len([]rune(pet.Name)) > 60 {
+			return nil, newResellerFieldError("theme")
+		}
+		if pet.Mode == "image" || pet.Mode == "spritesheet" || (pet.Mode == "hidden" && pet.URL != "") {
+			u, err := url.Parse(pet.URL)
+			if err != nil || u.IsAbs() || u.Host != "" || u.RawQuery != "" || u.Fragment != "" || !strings.HasPrefix(u.Path, "/uploads/reseller/") || strings.Contains(u.Path, "..") || strings.ContainsAny(u.Path, "\\\x00") {
+				return nil, newResellerFieldError("theme")
+			}
+			lower := strings.ToLower(u.Path)
+			if !strings.HasSuffix(lower, ".png") && !strings.HasSuffix(lower, ".webp") && !strings.HasSuffix(lower, ".gif") && !strings.HasSuffix(lower, ".jpg") && !strings.HasSuffix(lower, ".jpeg") {
+				return nil, newResellerFieldError("theme")
+			}
+			if pet.Mode == "spritesheet" && (pet.FrameWidth < 1 || pet.FrameWidth > 1024 || pet.FrameHeight < 1 || pet.FrameHeight > 1024) {
+				return nil, newResellerFieldError("theme")
+			}
+		} else {
+			pet.URL = ""
+			pet.FrameWidth = 0
+			pet.FrameHeight = 0
+		}
+		if pet.SourceURL != "" {
+			u, err := url.Parse(pet.SourceURL)
+			if err != nil || u.Scheme != "https" || u.Host != "petdex.dev" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || !strings.HasPrefix(u.Path, "/pets/") || strings.Contains(u.Path, "..") {
+				return nil, newResellerFieldError("theme")
+			}
+		}
+		result["support_pet"] = pet
+	}
+	return result, nil
 }
 
 func (s *FrontendService) requireFrontendDomain(resellerID uint) error {
@@ -975,4 +1025,20 @@ func resellerThemeColor(theme map[string]interface{}) string {
 func resellerThemeString(theme map[string]interface{}, key string) string {
 	v, _ := theme[key].(string)
 	return v
+}
+
+func resellerThemePet(theme jsonmap.JSON) *ResellerSupportPetInput {
+	value, ok := theme["support_pet"]
+	if !ok {
+		return nil
+	}
+	b, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	var pet ResellerSupportPetInput
+	if json.Unmarshal(b, &pet) != nil {
+		return nil
+	}
+	return &pet
 }

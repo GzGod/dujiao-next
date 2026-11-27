@@ -2438,5 +2438,28 @@
     "error": "待处理",
     "unavailable": "不适用",
     "marginHint": "客户售价减拿货价，未扣支付手续费及退款。"
-  }
+  },
+  "supportPet": {
+  "title": "客服宠物",
+  "hint": "给分站设置自己的悬浮客服宠物，点击后联系你配置的 Telegram 客服。",
+  "browse": "去 Petdex 挑选宠物",
+  "guide": "查看上传教程",
+  "downloadGuide": "下载教程",
+  "display": "显示方式",
+  "default": "使用默认 Jiyi",
+  "sheet": "Petdex 标准精灵图（8 列 × 9 行）",
+  "image": "普通图片 / GIF",
+  "hidden": "隐藏客服宠物",
+  "sheetHint": "在 Petdex 下载 ZIP 并解压，上传 spritesheet.webp 或 spritesheet.png，不要上传 ZIP 或 pet.json。",
+  "imageHint": "上传 PNG、WebP、JPG 或 GIF，GIF 会保留自身动画。",
+  "name": "宠物名称（可选）",
+  "source": "Petdex 宠物详情页（可选）",
+  "upload": "上传 / 替换宠物图片",
+  "uploading": "正在上传…",
+  "needImage": "请上传图片，再保存配置。",
+  "saveHint": "上传后请点击本页底部“保存配置”才会生效。请先配置你自己的 Telegram 客服；不会跳转主站客服。",
+  "invalidFile": "请选择有效的 PNG、WebP、JPG 或 GIF 图片，最大 10 MB，实际以站点限制为准。",
+  "invalidSheet": "这不是支持的 8 列 × 9 行精灵图。请上传 ZIP 中的 spritesheet 图片，或改选普通图片。",
+  "failed": "宠物图片上传失败，请重试。"
+}
 }

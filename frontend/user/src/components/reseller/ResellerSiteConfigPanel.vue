@@ -98,6 +98,7 @@
         </div>
 
         <div v-show="activeSection === 'support'" class="mt-0">
+      <ResellerSupportPetEditor v-if="form.theme?.support_pet" v-model="form.theme.support_pet" />
       <!-- 客服联系方式 -->
       <section class="rounded-2xl border bg-card p-4 sm:p-5">
         <div class="mb-4 flex items-center gap-3">
@@ -363,6 +364,7 @@
 
 <script setup lang="ts">
 import { onBeforeRouteLeave } from 'vue-router'
+import ResellerSupportPetEditor from './ResellerSupportPetEditor.vue'
 import RedemptionEditor from './RedemptionEditor.vue'
 import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, reactive, ref, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -502,7 +504,7 @@ const announcementTypeOptions = [
 ]
 
 const createBlankForm = (): ResellerSiteConfigPayload => ({
-    theme:{template:'inherit',primary_color:'#0071e3',redemption_title:'',redemption_intro:'',redemption_style:'glass'},
+    theme:{support_pet:{mode:'default',url:'',name:'',source_url:'',frame_width:192,frame_height:208},template:'inherit',primary_color:'#0071e3',redemption_title:'',redemption_intro:'',redemption_style:'glass'},
     site_name: '',
     logo: '',
     favicon: '',

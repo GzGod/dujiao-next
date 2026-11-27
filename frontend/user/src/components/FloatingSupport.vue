@@ -13,11 +13,11 @@
       </section>
     </Transition>
     <button v-if="pending.length" class="support-pending" type="button" @click="open = !open" :aria-expanded="open">{{ t('pendingOrders.badge', { count: pending.length }) }}</button>
-    <a v-if="supportUrl" :href="supportUrl" target="_blank" rel="noopener noreferrer" class="support-pet" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="cancelDrag" @click="petClick" @dragstart.prevent @keydown="moveWithKeyboard" :title="t('pendingOrders.dragHint')" :aria-label="t('floatingSupport.label')">
-      <span class="support-pet__frame" aria-hidden="true"><span class="support-pet__sprite" /></span>
+    <a v-if="supportUrl && pet?.mode !== 'hidden'" :href="supportUrl" target="_blank" rel="noopener noreferrer" class="support-pet" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="cancelDrag" @click="petClick" @dragstart.prevent @keydown="moveWithKeyboard" :title="t('pendingOrders.dragHint')" :aria-label="t('floatingSupport.label')">
+      <SupportPetVisual :pet="pet" />
       <span class="support-pet__label">{{ t('floatingSupport.title') }} ↗</span>
     </a>
-    <a class="support-credit" href="https://petdex.dev/pets/jiyi" target="_blank" rel="noopener noreferrer">Jiyi · Petdex</a>
+    <a v-if="supportUrl && pet?.mode !== 'hidden'" class="support-credit" :href="petCreditUrl" target="_blank" rel="noopener noreferrer">{{petName}} · Petdex</a>
   </aside>
   <ProductQuickBuy v-if="resuming" :key="resuming.orderNo" :product="resumeProduct" :resume-order="resuming" :visible="true" inline-checkout @update:visible="resuming = null" />
 </template>
@@ -27,6 +27,7 @@ import { computed, ref, onMounted, onBeforeUnmount, watch, defineAsyncComponent 
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 const ProductQuickBuy = defineAsyncComponent(() => import('./ProductQuickBuy.vue'))
+import SupportPetVisual from './SupportPetVisual.vue'
 import { X } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { useUserAuthStore } from '../stores/userAuth'
@@ -42,6 +43,9 @@ const rows = ref(readPendingOrders())
 const verified = ref(new Set<string>())
 const open = ref(true)
 const pending = computed(() => rows.value.filter(row => auth.isAuthenticated ? !row.guest && row.owner === String(auth.user?.id || '') : row.guest))
+const pet = computed(() => appStore.isResellerTenant ? appStore.config?.reseller_theme?.support_pet : undefined)
+const petName = computed(() => !pet.value || pet.value.mode === 'default' ? 'Jiyi' : pet.value.name || 'Petdex')
+const petCreditUrl = computed(() => !pet.value || pet.value.mode === 'default' ? 'https://petdex.dev/pets/jiyi' : /^https:\/\/petdex\.dev\/pets\/[a-z0-9-]+\/?$/i.test(pet.value.source_url || '') ? pet.value.source_url : 'https://petdex.dev/')
 const supportUrl = computed(() => {
   const configured = String(appStore.config?.contact?.telegram || '').trim()
   if (/^https:\/\/(?:t\.me|telegram\.me)\//i.test(configured)) return configured
@@ -163,12 +167,6 @@ onBeforeUnmount(() => {
 .floating-support--left .support-note { right: auto; left: 0; }
 .floating-support--top .support-note { bottom: auto; top: calc(100% + 12px); }
 .support-pet:hover { transform: translateY(-4px); }
-.support-pet__frame { display: block; width: 88px; height: 95px; overflow: hidden; filter: drop-shadow(0 5px 7px #0002); }
-/* Jiyi spritesheet: https://petdex.dev/pets/jiyi; original 192×208 frames. */
-.support-pet__sprite { display: block; width: 192px; height: 208px; transform: scale(.45833); transform-origin: top left; background: url('/images/support/jiyi.webp') 0 0 / 1536px auto no-repeat; image-rendering: pixelated; animation: jiyi-idle 1.1s steps(6) infinite; }
-.support-pet:hover .support-pet__sprite { animation: jiyi-wave .7s steps(4) infinite; }
-@keyframes jiyi-idle { to { background-position: -1152px 0; } }
-@keyframes jiyi-wave { from { background-position: 0 -624px; } to { background-position: -768px -624px; } }
 .support-pet__label, .support-pending { border: 1px solid var(--ui-border, #e2e5eb); border-radius: 30px; background: var(--ui-bg-elevated, #fff); color: var(--ui-text-primary, #20232b); box-shadow: 0 4px 20px #0001; font-size: 12px; padding: 6px 12px; font-weight: 600; }
 .support-pending { cursor: pointer; color: var(--ui-accent, #1768d8); }
 .support-credit { font-size: 9px; color: var(--ui-text-muted, #69707e); text-decoration: none; }
@@ -183,6 +181,6 @@ onBeforeUnmount(() => {
 .support-note-enter-active, .support-note-leave-active { transition: opacity .22s, transform .22s; }
 .support-note-enter-from, .support-note-leave-to { opacity: 0; transform: translateY(8px); }
 .support-pet:focus-visible, .support-pending:focus-visible { outline: 2px solid var(--ui-accent, #1768d8); outline-offset: 4px; }
-@media(max-width:640px) { .floating-support { right: 12px; bottom: calc(85px + env(safe-area-inset-bottom)); } .support-pet__frame { width: 68px; height: 74px; } .support-pet__sprite { transform: scale(.354); } }
-@media(prefers-reduced-motion:reduce) { .support-pet__sprite { animation: none!important; } .support-pet, .support-note-enter-active, .support-note-leave-active { transition: none; } }
+@media(max-width:640px) { .floating-support { right: 12px; bottom: calc(85px + env(safe-area-inset-bottom)); } }
+@media(prefers-reduced-motion:reduce) { .support-pet, .support-note-enter-active, .support-note-leave-active { transition: none; } }
 </style>

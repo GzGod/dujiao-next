@@ -2438,5 +2438,28 @@
     "error": "待處理",
     "unavailable": "不适用",
     "marginHint": "客戶售價減進貨價，未扣付款手續費及退款。"
-  }
+  },
+  "supportPet": {
+  "title": "客服寵物",
+  "hint": "替分站設定自己的懸浮客服寵物，點擊後聯絡你設定的 Telegram 客服。",
+  "browse": "去 Petdex 挑選寵物",
+  "guide": "查看上傳教學",
+  "downloadGuide": "下載教學",
+  "display": "顯示方式",
+  "default": "使用預設 Jiyi",
+  "sheet": "Petdex 標準精靈圖（8 欄 × 9 列）",
+  "image": "一般圖片 / GIF",
+  "hidden": "隱藏客服寵物",
+  "sheetHint": "在 Petdex 下載 ZIP 並解壓縮，上傳 spritesheet.webp 或 spritesheet.png，勿上傳 ZIP 或 pet.json。",
+  "imageHint": "上傳 PNG、WebP、JPG 或 GIF，GIF 會保留自身動畫。",
+  "name": "寵物名稱（選填）",
+  "source": "Petdex 寵物詳情頁（選填）",
+  "upload": "上傳 / 替換寵物圖片",
+  "uploading": "正在上傳…",
+  "needImage": "請上傳圖片，再儲存設定。",
+  "saveHint": "上傳後請點擊頁面底部「儲存配置」才會生效。請先設定自己的 Telegram 客服；不會跳轉主站客服。",
+  "invalidFile": "請選擇有效的 PNG、WebP、JPG 或 GIF，最大 10 MB，實際以站點限制為準。",
+  "invalidSheet": "此圖片不符合支援的 8 欄 × 9 列精靈圖。請上傳 ZIP 中的 spritesheet 圖片，或改選一般圖片。",
+  "failed": "寵物圖片上傳失敗，請重試。"
+}
 }

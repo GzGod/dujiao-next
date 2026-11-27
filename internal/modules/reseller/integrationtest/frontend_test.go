@@ -251,3 +251,53 @@ func TestRedemptionSiteAutoAccessAndRevocation(t *testing.T) {
 		t.Fatal("disabled profile authorized")
 	}
 }
+
+func TestResellerSupportPetValidationAndOverlay(t *testing.T) {
+	db := openResellerProductSettingServiceTestDB(t)
+	if err := db.AutoMigrate(&domain.SiteConfig{}, &domain.Domain{}); err != nil {
+		t.Fatal(err)
+	}
+	user, profile, _, _ := seedResellerProductSettingServiceData(t, db)
+	service := app.NewSiteConfigService(store.New(db))
+	good := app.ResellerSupportPetInput{Mode: "spritesheet", URL: "/uploads/reseller/2026/11/pet.webp", Name: "My pet", SourceURL: "https://petdex.dev/pets/jiyi", FrameWidth: 192, FrameHeight: 208}
+	for _, bad := range []app.ResellerSupportPetInput{
+		{Mode: "html", URL: good.URL},
+		{Mode: "image", URL: "https://other.example/pet.png"},
+		{Mode: "image", URL: "/uploads/reseller/../secret.png"},
+		{Mode: "image", URL: "/uploads/reseller/%2e%2e/secret.png"},
+		{Mode: "image", URL: "/uploads/reseller/pet.svg"},
+		{Mode: "image", URL: good.URL, SourceURL: "javascript:alert(1)"},
+		{Mode: "image", URL: good.URL, SourceURL: "https://petdex.dev.evil.test/pets/a"},
+		{Mode: "spritesheet", URL: good.URL, FrameWidth: 999999, FrameHeight: 208},
+	} {
+		if _, err := service.UpdateUserSiteConfig(context.Background(), user.ID, app.ResellerSiteConfigInput{Theme: &app.ResellerThemeInput{SupportPet: &bad}}); err == nil {
+			t.Fatalf("invalid pet accepted: %+v", bad)
+		}
+	}
+	theme := app.ResellerThemeInput{Template: "xgai", SupportPet: &good}
+	saved, err := service.UpdateUserSiteConfig(context.Background(), user.ID, app.ResellerSiteConfigInput{Theme: &theme})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.ThemeJSON["support_pet"] == nil {
+		t.Fatal("pet config not persisted")
+	}
+	tenant := contract.ResellerTenantContext("shop.test", profile.ID, profile.UserID, "shop.test")
+	overlay, err := service.ApplyPublicConfigOverlay(context.Background(), tenant, map[string]interface{}{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(overlay)
+	if !bytes.Contains(b, []byte(good.URL)) || !bytes.Contains(b, []byte("frame_width")) {
+		t.Fatalf("pet missing from public overlay: %s", b)
+	}
+	main, err := service.ApplyPublicConfigOverlay(context.Background(), contract.MainTenantContext("main.test"), map[string]interface{}{})
+	if err != nil || main["reseller_theme"] != nil {
+		t.Fatal("pet leaked into main site")
+	}
+	hidden := good
+	hidden.Mode = "hidden"
+	if _, err := service.UpdateUserSiteConfig(context.Background(), user.ID, app.ResellerSiteConfigInput{Theme: &app.ResellerThemeInput{SupportPet: &hidden}}); err != nil {
+		t.Fatal(err)
+	}
+}

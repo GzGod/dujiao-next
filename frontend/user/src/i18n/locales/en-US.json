@@ -2438,5 +2438,28 @@
     "error": "Needs attention",
     "unavailable": "Not applicable",
     "marginHint": "Customer price minus supply price, before payment fees and refunds."
-  }
+  },
+  "supportPet": {
+  "title": "Support pet",
+  "hint": "Choose your storefront's floating support pet. It opens your own Telegram support link.",
+  "browse": "Browse pets on Petdex",
+  "guide": "Read upload guide",
+  "downloadGuide": "Download guide",
+  "display": "Display mode",
+  "default": "Default Jiyi",
+  "sheet": "Standard Petdex sheet (8 columns × 9 rows)",
+  "image": "Image / GIF",
+  "hidden": "Hide support pet",
+  "sheetHint": "Download and extract the Petdex ZIP, then upload spritesheet.webp or spritesheet.png, not the ZIP or pet.json.",
+  "imageHint": "Upload PNG, WebP, JPG or GIF. GIF keeps its own animation.",
+  "name": "Pet name (optional)",
+  "source": "Petdex pet page (optional)",
+  "upload": "Upload / replace pet image",
+  "uploading": "Uploading…",
+  "needImage": "Upload an image before saving.",
+  "saveHint": "Click Save configuration below after uploading. Configure your own Telegram support link first; the main store's support is not used.",
+  "invalidFile": "Choose a valid PNG, WebP, JPG or GIF up to 10 MB. The site's upload limit still applies.",
+  "invalidSheet": "Unsupported sheet layout. Use the 8-column, 9-row spritesheet from the ZIP, or choose Image mode.",
+  "failed": "Pet upload failed. Retry."
+}
 }
