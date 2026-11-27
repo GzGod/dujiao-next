@@ -4312,6 +4312,7 @@ const messages = {
         },
       },
     },
+    deliveryBot: {"title": "雪糕发货机器人", "description": "管理自有 Telegram 订单绑定、管理员通知与人工发货。", "refresh": "刷新状态", "open": "打开机器人", "orders": "前往订单管理", "configured": "后端配置", "connection": "Telegram 连接", "webhook": "消息回调", "admin": "管理员发货权限", "yes": "正常", "no": "待检查", "pending": "待处理消息", "error": "Telegram 曾记录回调错误，请检查服务状态。", "help": "使用方法", "step1": "客户付款后，通过订单专属入口启动机器人并绑定订单。", "step2": "管理员在机器人中查看未发货订单，选择发货，粘贴内容并确认；也可在网站订单详情中发货。", "step3": "发货、退款状态会同步到管理员通知；客户可通过交付消息联系客服。", "security": "机器人密钥由服务器环境变量管理，本页面不显示或修改凭据。管理员菜单仅向指定管理员开放。", "failed": "获取机器人状态失败"},
     telegramBot: {
       overview: {
         title: 'Telegram Bot',
@@ -8944,6 +8945,7 @@ const messages = {
         },
       },
     },
+    deliveryBot: {"title": "雪糕發貨機器人", "description": "管理自有 Telegram 訂單綁定、管理員通知與人工發貨。", "refresh": "重新整理狀態", "open": "開啟機器人", "orders": "前往訂單管理", "configured": "後端設定", "connection": "Telegram 連線", "webhook": "訊息回呼", "admin": "管理員發貨權限", "yes": "正常", "no": "待檢查", "pending": "待處理訊息", "error": "Telegram 曾記錄回呼錯誤，請檢查服務狀態。", "help": "使用方法", "step1": "客戶付款後，透過訂單專屬入口啟動機器人並綁定訂單。", "step2": "管理員在機器人中查看未發貨訂單，選擇發貨，貼上內容並確認；也可在網站訂單詳情中發貨。", "step3": "發貨、退款狀態會同步至管理員通知；客戶可透過交付訊息聯絡客服。", "security": "機器人密鑰由伺服器環境變數管理，本頁不顯示或修改憑據。管理員選單僅向指定管理員開放。", "failed": "取得機器人狀態失敗"},
     telegramBot: {
       overview: {
         title: 'Telegram Bot',
@@ -13576,6 +13578,7 @@ const messages = {
         },
       },
     },
+    deliveryBot: {"title": "XUEGAO Delivery Bot", "description": "Manage your Telegram order binding, administrator notifications and manual delivery.", "refresh": "Refresh status", "open": "Open bot", "orders": "Manage orders", "configured": "Server configuration", "connection": "Telegram connection", "webhook": "Webhook", "admin": "Administrator delivery access", "yes": "Ready", "no": "Check required", "pending": "Pending updates", "error": "Telegram has recorded a webhook error. Check the service status.", "help": "How to use", "step1": "After payment, customers start the bot using their order-specific link to bind the order.", "step2": "Administrators view pending orders in the bot, select delivery, paste the content and confirm. Delivery is also available from order details on the website.", "step3": "Delivery and refund status update administrator notifications. Customers can contact support from their delivery message.", "security": "Bot credentials are managed through server environment variables and are never shown or edited here. Administrator menus are restricted to the designated administrator.", "failed": "Unable to load bot status"},
     telegramBot: {
       overview: {
         title: 'Telegram Bot',

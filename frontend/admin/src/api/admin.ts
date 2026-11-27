@@ -322,6 +322,7 @@ export interface ComplianceAcknowledgePayload {
 }
 
 export const adminAPI = {
+ getDeliveryBotStatus: () => api.get('/admin/telegram-delivery/status'),
   login: (data: AdminLoginRequest) => api.post('/admin/login', data),
   verify2FA: (data: Verify2FAPayload) => api.post('/admin/login/verify-2fa', data),
   // 合规声明

@@ -131,3 +131,53 @@ func (c *Client) EditDelivery(ctx context.Context, id int64, m contract.Telegram
 	}
 	return nil
 }
+
+// ConnectionStatus reads bot identity and webhook health without returning credentials.
+func (c *Client) ConnectionStatus(ctx context.Context, expectedUsername, expectedWebhook string) map[string]interface{} {
+	result := map[string]interface{}{"connected": false, "webhook_ok": false, "pending_updates": 0, "has_webhook_error": false}
+	client := c.HTTP
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	}
+	read := func(method string, dest interface{}) bool {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.telegram.org/bot"+c.Token+"/"+method, nil)
+		if err != nil {
+			return false
+		}
+		res, err := client.Do(req)
+		if err != nil {
+			return false
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			return false
+		}
+		var envelope struct {
+			OK     bool            `json:"ok"`
+			Result json.RawMessage `json:"result"`
+		}
+		if json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&envelope) != nil || !envelope.OK {
+			return false
+		}
+		return json.Unmarshal(envelope.Result, dest) == nil
+	}
+	var identity struct {
+		Username string `json:"username"`
+		IsBot    bool   `json:"is_bot"`
+	}
+	if !read("getMe", &identity) || !identity.IsBot || identity.Username != expectedUsername {
+		return result
+	}
+	result["connected"] = true
+	var webhook struct {
+		URL           string `json:"url"`
+		Pending       int    `json:"pending_update_count"`
+		LastErrorDate int64  `json:"last_error_date"`
+	}
+	if read("getWebhookInfo", &webhook) {
+		result["webhook_ok"] = webhook.URL == expectedWebhook
+		result["pending_updates"] = webhook.Pending
+		result["has_webhook_error"] = webhook.LastErrorDate > 0
+	}
+	return result
+}

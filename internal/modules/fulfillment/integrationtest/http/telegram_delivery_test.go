@@ -1,9 +1,14 @@
 package fulfillmenthttp_test
 
 import (
+	"context"
+	"encoding/json"
 	application "github.com/dujiao-next/internal/modules/fulfillment/application"
+	telegramapi "github.com/dujiao-next/internal/modules/fulfillment/infrastructure/telegramapi"
 	fulfillmenthttp "github.com/dujiao-next/internal/modules/fulfillment/transport/http"
 	"github.com/gin-gonic/gin"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -52,5 +57,45 @@ func TestCustomerCannotInvokeAdministratorButtonsOrSpoofChat(t *testing.T) {
 			t.Fatal(w.Code)
 		}
 		// No Store or Sender is provided: any unauthorized dispatch would panic.
+	}
+}
+
+type botStatusRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f botStatusRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestNativeBotStatusRequiresAdminAndRedactsSecrets(t *testing.T) {
+	calls := 0
+	h := &fulfillmenthttp.TelegramDeliveryHandler{Overview: func(context.Context) map[string]interface{} { calls++; return map[string]interface{}{"enabled": true} }}
+	for _, authorized := range []bool{false, true} {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		ctx.Request = httptest.NewRequest("GET", "/telegram-delivery/status", nil)
+		if authorized {
+			ctx.Set("admin_id", uint(1))
+		}
+		h.BotOverview(ctx)
+		if authorized && (w.Code != 200 || calls != 1) {
+			t.Fatal("admin status failed")
+		}
+		if !authorized && calls != 0 {
+			t.Fatal("public request reached provider")
+		}
+	}
+	client := &telegramapi.Client{Token: "private-test-token", HTTP: &http.Client{Transport: botStatusRoundTripper(func(r *http.Request) (*http.Response, error) {
+		body := `{"ok":true,"result":{"username":"xuegaoaibot","is_bot":true}}`
+		if strings.HasSuffix(r.URL.Path, "/getWebhookInfo") {
+			body = `{"ok":true,"result":{"url":"https://shop.example/webhook","pending_update_count":0,"last_error_message":"sensitive upstream detail"}}`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+	})}}
+	status := client.ConnectionStatus(context.Background(), "xuegaoaibot", "https://shop.example/webhook")
+	encoded, _ := json.Marshal(status)
+	if status["connected"] != true || status["webhook_ok"] != true || strings.Contains(string(encoded), "private-test-token") || strings.Contains(string(encoded), "sensitive") {
+		t.Fatal("status response incorrect or sensitive")
+	}
+	wrong := client.ConnectionStatus(context.Background(), "differentbot", "https://shop.example/webhook")
+	if wrong["connected"] != false {
+		t.Fatal("accepted wrong bot identity")
 	}
 }

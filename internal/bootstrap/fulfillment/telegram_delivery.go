@@ -33,7 +33,21 @@ func NewTelegramDeliveryHandler(c *container.Container) *transport.TelegramDeliv
 		}
 		return admin.ID, nil
 	}
-	return &transport.TelegramDeliveryHandler{Service: service, Orders: c.OrderService, WebhookSecret: os.Getenv("DELIVERY_TELEGRAM_WEBHOOK_SECRET")}
+	handler := &transport.TelegramDeliveryHandler{Service: service, Orders: c.OrderService, WebhookSecret: os.Getenv("DELIVERY_TELEGRAM_WEBHOOK_SECRET")}
+	handler.Overview = func(ctx context.Context) map[string]interface{} {
+		state := map[string]interface{}{"enabled": service.Enabled(), "connected": false, "admin_enabled": false, "username": service.BotUsername, "bot_url": "https://t.me/" + service.BotUsername, "support_url": service.SupportURL}
+		if service.AdminEnabled() {
+			id, err := service.AuthorizeAdmin()
+			state["admin_enabled"] = err == nil && id > 0
+		}
+		if token != "" {
+			for key, value := range (&api.Client{Token: token}).ConnectionStatus(ctx, service.BotUsername, service.SiteURL+"/api/v1/telegram-delivery/webhook") {
+				state[key] = value
+			}
+		}
+		return state
+	}
+	return handler
 }
 
 var deliveryPollOnce sync.Once

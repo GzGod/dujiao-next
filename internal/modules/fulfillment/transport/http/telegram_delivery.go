@@ -22,6 +22,7 @@ type DeliveryOrderReader interface {
 	GetOrderForAdmin(uint) (*domain.Order, error)
 }
 type TelegramDeliveryHandler struct {
+	Overview      func(context.Context) map[string]interface{}
 	Service       *app.TelegramDeliveryService
 	Orders        DeliveryOrderReader
 	WebhookSecret string
@@ -34,6 +35,7 @@ func (h *TelegramDeliveryHandler) RegisterUser(routes gin.IRoutes) {
 	routes.POST("/orders/:order_no/telegram-delivery", h.UserLink)
 }
 func (h *TelegramDeliveryHandler) RegisterAdmin(routes gin.IRoutes) {
+	routes.GET("/telegram-delivery/status", h.BotOverview)
 	routes.GET("/orders/:id/telegram-delivery", h.Status)
 	routes.POST("/orders/:id/telegram-delivery", h.Send)
 }
@@ -209,4 +211,17 @@ func (h *TelegramDeliveryHandler) Webhook(c *gin.Context) {
 		}
 	}
 	c.Status(http.StatusOK)
+}
+
+func (h *TelegramDeliveryHandler) BotOverview(c *gin.Context) {
+	if _, ok := ginutil.GetAdminID(c); !ok {
+		return
+	}
+	if h.Overview == nil {
+		response.Success(c, gin.H{"enabled": false, "connected": false})
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 12*time.Second)
+	defer cancel()
+	response.Success(c, h.Overview(ctx))
 }

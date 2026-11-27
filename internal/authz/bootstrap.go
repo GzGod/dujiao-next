@@ -253,6 +253,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/settings/order-email-template/reset", Action: "POST"},
 				{Object: "/admin/settings/affiliate", Action: "*"},
 				{Object: "/admin/settings/telegram-bot", Action: "*"},
+				{Object: "/admin/telegram-delivery/status", Action: "GET"},
 				{Object: "/admin/settings/telegram-bot/runtime-status", Action: "GET"},
 				// 权限管理（仅 system_admin 可操作）
 				{Object: "/admin/authz/me", Action: "GET"},
