@@ -38,6 +38,7 @@ import (
 	notifyapp "github.com/dujiao-next/internal/modules/telegram/notify/application"
 	notifybotapi "github.com/dujiao-next/internal/modules/telegram/notify/infrastructure/botapi"
 	"github.com/dujiao-next/internal/platform/database/gormdb"
+	agentapproval "github.com/dujiao-next/internal/workflows/agentapproval/infrastructure/gormuow"
 )
 
 // initIntegrationServices 装配通知、站点对接、支付、采购、渠道与 Telegram 集成。
@@ -58,6 +59,7 @@ func (c *Container) initIntegrationServices() {
 		notificationfeishu.New(),
 	)
 	c.ApiCredentialService = apicredentialapp.NewService(c.ApiCredentialRepo)
+	c.ApiCredentialService.AgentApprover = (&agentapproval.Approver{DB: gormdb.DB}).Approve
 	c.ApiCredentialService.AgentEligible = func(userID uint) (bool, error) {
 		user, err := c.MemberLevelUserRepo.GetByID(userID)
 		if err != nil || user == nil {

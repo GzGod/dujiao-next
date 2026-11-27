@@ -2,6 +2,8 @@ package httpserver
 
 import (
 	"fmt"
+	auditlogapp "github.com/dujiao-next/internal/modules/auditlog/application"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"net"
 	"net/http"
 	"path"
@@ -137,6 +139,9 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	channelWalletHandler := walletHandlers.Channel
 	channelMemberLevelHandler := memberleveltransport.NewChannelHandler(c.MemberLevelService)
 	adminApiCredentialHandler := apicredentialtransport.NewAdminHandler(c.ApiCredentialService)
+	adminApiCredentialHandler.AuditApproval = func(adminID, credentialID, levelID uint) {
+		_ = c.AuthzAuditService.Record(auditlogapp.AuthzRecord{OperatorAdminID: adminID, Action: "agent_api_approve", Object: "/admin/api-credentials/:id/approve-agent", Method: "POST", Detail: jsonmap.JSON{"credential_id": credentialID, "requested_member_level_id": levelID}})
+	}
 	userApiCredentialHandler := apicredentialtransport.NewUserHandler(c.ApiCredentialService)
 	adminAuditLogHandler := auditlogtransport.NewAdminHandler(c.AuthzAuditService, c.UserLoginLogService)
 	adminCardSecretHandler := cardsecrettransport.NewAdminHandler(c.CardSecretService)

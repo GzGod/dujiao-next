@@ -94,7 +94,39 @@ func (h *AdminManagementHandler) ListProfiles(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", err)
 		return
 	}
-	response.SuccessWithPage(c, rows, response.BuildPagination(page, pageSize, total))
+	items := make([]*dto.AdminResellerProfileResp, 0, len(rows))
+	ids := make([]uint, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	var domains []resellerdomain.Domain
+	var sites []resellerdomain.SiteConfig
+	if reader, ok := h.directory.(interface {
+		ListStorefrontMetadata([]uint) ([]resellerdomain.Domain, []resellerdomain.SiteConfig, error)
+	}); ok {
+		domains, sites, err = reader.ListStorefrontMetadata(ids)
+		if err != nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", nil)
+			return
+		}
+	}
+	for i := range rows {
+		item := dto.NewAdminResellerProfileResp(&rows[i])
+		item.Domains = []dto.ResellerDomainResp{}
+		for _, domain := range domains {
+			if domain.ResellerID == item.ID {
+				item.Domains = append(item.Domains, dto.NewResellerDomainResp(&domain))
+			}
+		}
+		for _, site := range sites {
+			if site.ResellerID == item.ID {
+				item.SiteName = site.SiteName
+				break
+			}
+		}
+		items = append(items, item)
+	}
+	response.SuccessWithPage(c, items, response.BuildPagination(page, pageSize, total))
 }
 
 // ListDomains 管理端分销域名列表。

@@ -13,6 +13,7 @@ import (
 
 // Service API 凭证服务
 type Service struct {
+	AgentApprover func(uint, uint) (*apicredentialdomain.ApiCredential, error)
 	provisionMu   sync.Mutex
 	AgentEligible func(uint) (bool, error)
 	credRepo      apicredentialcontract.Repository
@@ -101,6 +102,12 @@ func (s *Service) Approve(id uint) (*apicredentialdomain.ApiCredential, string, 
 		return nil, "", apicredentialcontract.ErrNotFound
 	}
 
+	if cred.Status == constants.ApiCredentialStatusApproved {
+		return cred, "", nil
+	}
+	if cred.Status != constants.ApiCredentialStatusPendingReview {
+		return nil, "", apicredentialcontract.ErrNotApproved
+	}
 	apiKey, err := generateRandomHex(32)
 	if err != nil {
 		return nil, "", err
@@ -118,8 +125,16 @@ func (s *Service) Approve(id uint) (*apicredentialdomain.ApiCredential, string, 
 	cred.IsActive = true
 	cred.RejectReason = ""
 
-	if err := s.credRepo.Update(cred); err != nil {
+	changed, err := s.credRepo.ApprovePending(cred)
+	if err != nil {
 		return nil, "", err
+	}
+	if !changed {
+		current, err := s.credRepo.GetByID(id)
+		if err == nil && current != nil && current.Status == constants.ApiCredentialStatusApproved {
+			return current, "", nil
+		}
+		return nil, "", apicredentialcontract.ErrNotApproved
 	}
 
 	return cred, apiSecret, nil
@@ -271,4 +286,11 @@ func (s *Service) EnsureAgentAccess(userID uint) error {
 	}
 	_, _, err = s.Approve(cred.ID)
 	return err
+}
+
+func (s *Service) ApproveAgent(id, levelID uint) (*apicredentialdomain.ApiCredential, error) {
+	if s.AgentApprover == nil {
+		return nil, apicredentialcontract.ErrAgentApprovalInvalid
+	}
+	return s.AgentApprover(id, levelID)
 }

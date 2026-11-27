@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getLocalizedText } from '@/utils/format'
+import { isSupplyProductAllowed } from '@/utils/resellerReadiness'
 import { notifyError, notifySuccess } from '@/utils/notify'
 const props = defineProps<{ profile: AdminResellerProfile }>()
 const emit = defineEmits<{ saved: [] }>()
@@ -19,8 +20,10 @@ const loaded = ref(false)
 const products = ref<any[]>([])
 const search = ref('')
 const blockedProductIDs = ref<number[]>([...(props.profile.supply_pricing?.blocked_product_ids || [])])
-const canSell = (id: number) => !blockedProductIDs.value.includes(id)
+const allowedProductIDs = ref<number[] | undefined>(props.profile.supply_pricing?.allowed_product_ids == null ? undefined : [...props.profile.supply_pricing.allowed_product_ids])
+const canSell = (id: number) => isSupplyProductAllowed({ allowed_product_ids: allowedProductIDs.value, blocked_product_ids: blockedProductIDs.value }, id)
 const setCanSell = (id: number, enabled: boolean) => {
+ if (allowedProductIDs.value != null) allowedProductIDs.value = enabled ? [...new Set([...allowedProductIDs.value, id])] : allowedProductIDs.value.filter(value => value !== id)
  blockedProductIDs.value = enabled ? blockedProductIDs.value.filter(value => value !== id) : [...new Set([...blockedProductIDs.value, id])]
 }
 const catalogRows = computed(() => products.value.flatMap(p => (p.skus?.length ? p.skus : [{ id: 0, sku_code: '', price_amount: p.price_amount, cost_price_amount: p.cost_price_amount }]).map((sku: any) => ({ product: p, sku }))).filter(row => `${title(row.product)} ${row.sku.sku_code}`.toLowerCase().includes(search.value.toLowerCase())))
@@ -53,7 +56,7 @@ const save = async () => {
    default_markup_percent: props.profile.default_markup_percent,
    max_markup_percent: props.profile.max_markup_percent,
    settlement_status: props.profile.settlement_status,
-   supply_pricing: { blocked_product_ids: blockedProductIDs.value, default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
+   supply_pricing: { allowed_product_ids: allowedProductIDs.value, blocked_product_ids: blockedProductIDs.value, default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
   })
   notifySuccess(t(`${key}.saved`)); emit('saved')
  } catch (e: any) { notifyError(e?.message || t(`${key}.failed`)) }

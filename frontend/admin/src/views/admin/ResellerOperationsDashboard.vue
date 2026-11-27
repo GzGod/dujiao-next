@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AgentManagementOverview from '@/components/admin/AgentManagementOverview.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RefreshCw } from 'lucide-vue-next'
@@ -139,6 +140,7 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
+    <AgentManagementOverview />
     <div class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <h1 class="text-2xl font-semibold tracking-normal">{{ t('admin.resellerOperations.title') }}</h1>

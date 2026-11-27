@@ -131,3 +131,9 @@ func (r *Store) List(filter apicredentialcontract.ListFilter) ([]apicredentialdo
 }
 
 var _ apicredentialcontract.Repository = (*Store)(nil)
+
+// ApprovePending prevents concurrent/repeated approvals from rotating active keys.
+func (r *Store) ApprovePending(cred *apicredentialdomain.ApiCredential) (bool, error) {
+	result := r.db.Model(&apicredentialdomain.ApiCredential{}).Where("id = ? AND status = ? AND deleted_at IS NULL", cred.ID, "pending_review").Updates(map[string]interface{}{"api_key": cred.ApiKey, "api_secret": cred.ApiSecret, "status": cred.Status, "approved_at": cred.ApprovedAt, "is_active": cred.IsActive, "reject_reason": "", "updated_at": time.Now()})
+	return result.RowsAffected == 1, result.Error
+}

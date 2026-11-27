@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import { canVisitResellerDomain, domainConnectionState } from '@/utils/resellerReadiness'
 import type { AdminResellerDomain } from '@/api/types'
 import {
   RESELLER_DOMAIN_STATUS_ACTIVE,
@@ -122,20 +123,6 @@ const statusClass = (status?: string) => {
   return 'border-border bg-muted/30 text-muted-foreground'
 }
 
-const verificationLabel = (status?: string) => {
-  if (status === RESELLER_DOMAIN_VERIFICATION_PENDING) return t('admin.resellerDomains.verification.pending')
-  if (status === RESELLER_DOMAIN_VERIFICATION_VERIFIED) return t('admin.resellerDomains.verification.verified')
-  if (status === RESELLER_DOMAIN_VERIFICATION_FAILED) return t('admin.resellerDomains.verification.failed')
-  return status || '-'
-}
-
-const verificationClass = (status?: string) => {
-  if (status === RESELLER_DOMAIN_VERIFICATION_PENDING) return 'border-amber-200 bg-amber-50 text-amber-700'
-  if (status === RESELLER_DOMAIN_VERIFICATION_VERIFIED) return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (status === RESELLER_DOMAIN_VERIFICATION_FAILED) return 'border-rose-200 bg-rose-50 text-rose-700'
-  return 'border-border bg-muted/30 text-muted-foreground'
-}
-
 const approveDomain = async (row: AdminResellerDomain) => {
   const confirmed = await confirmAction({ description: t('admin.resellerDomains.actions.approveConfirm', { id: row.id }) })
   if (!confirmed) return
@@ -248,10 +235,10 @@ onMounted(() => {
             <TableHead class="min-w-[180px] px-6 py-3">{{ t('admin.resellerDomains.table.reseller') }}</TableHead>
             <TableHead class="min-w-[220px] px-6 py-3">{{ t('admin.resellerDomains.table.domain') }}</TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.resellerDomains.table.type') }}</TableHead>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerDomains.table.verificationStatus') }}</TableHead>
+            <TableHead class="px-6 py-3">{{t('resellerWorkspace.domainConnection')}}</TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.resellerDomains.table.status') }}</TableHead>
             <TableHead class="px-6 py-3">{{ t('admin.resellerDomains.table.primary') }}</TableHead>
-            <TableHead class="min-w-[140px] px-6 py-3">{{ t('admin.resellerDomains.table.verifiedAt') }}</TableHead>
+            <TableHead class="min-w-[140px] px-6 py-3">{{t('resellerWorkspace.lastCheck')}}</TableHead>
             <TableHead class="min-w-[140px] px-6 py-3">{{ t('admin.resellerDomains.table.createdAt') }}</TableHead>
             <TableHead class="min-w-[140px] px-6 py-3 text-right">{{ t('admin.resellerDomains.table.action') }}</TableHead>
           </TableRow>
@@ -288,8 +275,8 @@ onMounted(() => {
             <TableCell class="min-w-[220px] px-6 py-4 font-mono text-xs break-all">{{ item.domain }}</TableCell>
             <TableCell class="px-6 py-4 text-xs text-foreground">{{ typeLabel(item.type) }}</TableCell>
             <TableCell class="px-6 py-4 text-xs">
-              <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="verificationClass(item.verification_status)">
-                {{ verificationLabel(item.verification_status) }}
+              <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="domainConnectionState(item) === 'ready' ? 'border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400'">
+                {{t('resellerWorkspace.connection.'+domainConnectionState(item))}}
               </span>
             </TableCell>
             <TableCell class="px-6 py-4 text-xs">
@@ -297,8 +284,8 @@ onMounted(() => {
                 {{ statusLabel(item.status) }}
               </span>
             </TableCell>
-            <TableCell class="px-6 py-4 text-xs text-muted-foreground">{{ item.is_primary ? t('admin.common.yes') : t('admin.common.no') }}</TableCell>
-            <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.verified_at) || '-' }}</TableCell>
+            <TableCell class="px-6 py-4 text-xs text-muted-foreground">{{ item.is_primary && canVisitResellerDomain(item,item.profile?.status) ? t('admin.common.yes') : t('admin.common.no') }}</TableCell>
+            <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.dns?.updated_at || item.verified_at) || '-' }}</TableCell>
             <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.created_at) }}</TableCell>
             <TableCell class="min-w-[140px] px-6 py-4 text-right">
               <div class="flex flex-wrap items-center justify-end gap-2">

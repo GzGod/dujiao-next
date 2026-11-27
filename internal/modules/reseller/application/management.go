@@ -146,6 +146,10 @@ func (s *ManagementService) ApproveProfile(ctx context.Context, adminID, profile
 			}
 			profile.SupplyPricing.AllowedProductIDs = &ids
 		}
+		if profile.SupplyPricing.DefaultMarkupPercent == nil {
+			percent := "1"
+			profile.SupplyPricing.DefaultMarkupPercent = &percent
+		}
 		now := time.Now()
 		profile.Status = resellerdomain.ProfileStatusActive
 		profile.RejectReason = ""

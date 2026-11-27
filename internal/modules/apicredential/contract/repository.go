@@ -15,6 +15,7 @@ type ListFilter struct {
 }
 
 type Repository interface {
+	ApprovePending(*apicredentialdomain.ApiCredential) (bool, error)
 	GetByID(id uint) (*apicredentialdomain.ApiCredential, error)
 	GetByUserID(userID uint) (*apicredentialdomain.ApiCredential, error)
 	GetAnyByUserID(userID uint) (*apicredentialdomain.ApiCredential, error)

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
+import AgentManagementOverview from '@/components/admin/AgentManagementOverview.vue'
+import { getLocalizedText } from '@/utils/format'
 import { useDebounceFn } from '@vueuse/core'
 import { adminAPI } from '@/api/admin'
-import type { AdminApiCredential } from '@/api/types'
+import type { AdminApiCredential, AdminMemberLevel } from '@/api/types'
 import IdCell from '@/components/IdCell.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +32,14 @@ const pagination = reactive({
 })
 const jumpPage = ref('')
 
-const filterStatus = ref('__all__')
+const route = useRoute()
+const filterStatus = ref(String(route.query.status || 'pending_review'))
+const agentLevels = ref<AdminMemberLevel[]>([])
+const selectedLevel = ref('')
+const approving = ref<AdminApiCredential | null>(null)
+const submittingApproval = ref(false)
+const approvalRefresh = ref(0)
+const selectedAgentLevel = computed(() => agentLevels.value.find(l => String(l.id) === selectedLevel.value))
 const searchQuery = ref('')
 const userDetailLink = (userId: number) => adminUrl(`/users/${userId}`)
 
@@ -57,6 +67,7 @@ const fetchCredentials = async (page = 1, options: ListFetchOptions = {}) => {
     if (searchQuery.value.trim()) params.search = searchQuery.value.trim()
     const res = await adminAPI.getApiCredentials(params)
     credentials.value = Array.isArray(res.data?.data) ? res.data.data : []
+    approvalRefresh.value++
     const pg = res.data?.pagination
     if (pg) {
       pagination.page = pg.page
@@ -92,16 +103,26 @@ const openDetail = (cred: AdminApiCredential) => {
   showDetail.value = true
 }
 
-const handleApprove = async (id: number) => {
-  const ok = await confirmAction(t('apiCredentials.approve.confirm'))
-  if (!ok) return
+const handleApprove = async (cred: AdminApiCredential) => {
   try {
-    await adminAPI.approveApiCredential(id)
-    notifySuccess(t('apiCredentials.approve.success'))
-    fetchCredentials(pagination.page)
-  } catch (e: any) {
-    notifyError(e?.response?.data?.message || e.message)
-  }
+    const response = await adminAPI.getMemberLevels({ is_active: true, page_size: 100 })
+    agentLevels.value = (response.data.data as AdminMemberLevel[]).filter(l => l.is_active && l.requires_approval).sort((a,b) => a.sort_order-b.sort_order || a.id-b.id)
+    const current = agentLevels.value.find(l => l.id === cred.user?.member_level_id)
+    selectedLevel.value = String((current || agentLevels.value[0])?.id || '')
+    approving.value = cred
+  } catch (e: any) { notifyError(e.message) }
+}
+const submitAgentApproval = async () => {
+  if (!approving.value || !selectedAgentLevel.value || submittingApproval.value) return
+  submittingApproval.value = true
+  try {
+    await adminAPI.approveAgentCredential(approving.value.id, selectedAgentLevel.value.id)
+    approving.value = null
+    approvalRefresh.value++
+    notifySuccess(t('agentApproval.success'))
+    await fetchCredentials(pagination.page)
+  } catch (e: any) { notifyError(e.message) }
+  finally { submittingApproval.value = false }
 }
 
 const openReject = (id: number) => {
@@ -162,15 +183,22 @@ const handleJump = () => {
   jumpPage.value = ''
 }
 
-onMounted(() => fetchCredentials())
+watch(() => route.query.status, status => {
+  filterStatus.value = String(status || 'pending_review')
+  void fetchCredentials(1)
+})
+onMounted(async () => {
+  await Promise.allSettled([fetchCredentials(), adminAPI.getMemberLevels({ is_active: true, page_size: 100 }).then(r => {agentLevels.value = r.data.data.filter((l: AdminMemberLevel) => l.is_active && l.requires_approval)})])
+})
 </script>
 
 <template>
   <div class="space-y-4 p-4 md:p-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-bold">{{ t('apiCredentials.title') }}</h1>
+      <h1 class="text-2xl font-bold">{{ t('agentApproval.title') }}</h1>
     </div>
 
+    <AgentManagementOverview :refresh-token="approvalRefresh" />
     <!-- Filters -->
     <div class="flex flex-wrap gap-3 items-center">
       <Select v-model="filterStatus" @update:model-value="handleSearch">
@@ -202,7 +230,7 @@ onMounted(() => fetchCredentials())
           <TableRow>
             <TableHead>{{ t('apiCredentials.columns.id') }}</TableHead>
             <TableHead class="min-w-[160px]">{{ t('apiCredentials.columns.user') }}</TableHead>
-            <TableHead class="min-w-[100px]">{{ t('apiCredentials.columns.apiKey') }}</TableHead>
+            <TableHead class="min-w-[100px]">{{ t('agentApproval.grade') }}</TableHead>
             <TableHead class="min-w-[100px]">{{ t('apiCredentials.columns.status') }}</TableHead>
             <TableHead class="min-w-[90px]">{{ t('apiCredentials.columns.isActive') }}</TableHead>
             <TableHead class="min-w-[100px]">{{ t('apiCredentials.columns.lastUsedAt') }}</TableHead>
@@ -217,7 +245,7 @@ onMounted(() => fetchCredentials())
             </TableCell>
           </TableRow>
           <TableRow v-else-if="credentials.length === 0">
-            <TableCell :colspan="8" class="text-center py-8 text-muted-foreground">{{ t('apiCredentials.empty') }}</TableCell>
+            <TableCell :colspan="8" class="text-center py-8 text-muted-foreground">{{ t('agentApproval.empty') }}</TableCell>
           </TableRow>
           <TableRow v-for="cred in credentials" :key="cred.id">
             <TableCell><IdCell :value="cred.id" /></TableCell>
@@ -238,7 +266,7 @@ onMounted(() => fetchCredentials())
                 </div>
               </div>
             </TableCell>
-            <TableCell class="min-w-[100px] font-mono text-xs"><div class="break-all">{{ cred.api_key || '-' }}</div></TableCell>
+            <TableCell class="min-w-[100px] text-sm">{{ agentLevels.find(l => l.id === cred.user?.member_level_id) ? getLocalizedText(agentLevels.find(l => l.id === cred.user?.member_level_id)!.name) : t('agentApproval.unassigned') }}</TableCell>
             <TableCell class="min-w-[100px]">
               <Badge :variant="statusVariant(cred.status)">
                 {{ t(`apiCredentials.status.${cred.status}`, cred.status) }}
@@ -260,7 +288,7 @@ onMounted(() => fetchCredentials())
                   v-if="cred.status === 'pending_review'"
                   size="xs"
                   variant="default"
-                  @click="handleApprove(cred.id)"
+                  @click="handleApprove(cred)"
                 >
                   {{ t('apiCredentials.actions.approve') }}
                 </Button>
@@ -371,5 +399,17 @@ onMounted(() => fetchCredentials())
       </DialogScrollContent>
     </Dialog>
 
+    <Dialog :open="!!approving" @update:open="v => { if (!v && !submittingApproval) approving = null }">
+      <DialogScrollContent class="sm:max-w-lg">
+        <DialogHeader><DialogTitle>{{ t('agentApproval.approve') }}</DialogTitle></DialogHeader>
+        <div class="space-y-5 py-3">
+          <div class="rounded-xl border border-border bg-muted/30 p-4"><p class="font-medium">{{ approving?.user?.display_name || approving?.user?.email }}</p><p class="mt-1 text-sm text-muted-foreground">{{ approving?.user?.email }}</p></div>
+          <div class="space-y-2"><Label>{{t('agentApproval.grade')}}</Label><Select v-model="selectedLevel" :disabled="submittingApproval"><SelectTrigger><SelectValue :placeholder="t('agentApproval.chooseGrade')" /></SelectTrigger><SelectContent><SelectItem v-for="level in agentLevels" :key="level.id" :value="String(level.id)">{{getLocalizedText(level.name)}}</SelectItem></SelectContent></Select></div>
+          <p v-if="!agentLevels.length" class="text-sm text-destructive">{{t('agentApproval.noLevels')}}</p>
+          <div class="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-7">{{t('agentApproval.explanation')}}</div>
+          <div class="flex justify-end gap-2"><Button variant="outline" :disabled="submittingApproval" @click="approving = null">{{t('admin.common.cancel')}}</Button><Button :disabled="submittingApproval || !selectedAgentLevel" @click="submitAgentApproval">{{t('agentApproval.confirm')}}</Button></div>
+        </div>
+      </DialogScrollContent>
+    </Dialog>
   </div>
 </template>

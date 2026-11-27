@@ -695,7 +695,7 @@ export interface AdminApiCredential {
   created_at: string
   updated_at: string
   user_email?: string
-  user?: { id: number; email: string; display_name?: string }
+  user?: { id: number; email: string; display_name?: string; member_level_id?: number }
 }
 
 // --- Dashboard ---
@@ -841,12 +841,15 @@ export interface AdminResellerProfileRef {
 }
 
 export interface ResellerSupplyPricing {
+  allowed_product_ids?: number[]
   blocked_product_ids?: number[]
   default_markup_percent: string | null
   overrides: { product_id: number; sku_id: number; mode: string; value: string }[]
 }
 
 export interface AdminResellerProfile {
+  site_name?: string
+  domains?: AdminResellerDomain[]
   supply_pricing?: ResellerSupplyPricing | null
   id: number
   user_id: number
@@ -864,7 +867,7 @@ export interface AdminResellerProfile {
 }
 
 export interface AdminResellerDomain {
- dns?: { cname: string; record_name: string; txt_host: string; txt_value: string; status: string; updated_at: string }
+ dns?: { error_code?: string; cname: string; record_name: string; txt_host: string; txt_value: string; status: string; updated_at: string }
   id: number
   reseller_id: number
   domain: string

@@ -23,7 +23,8 @@ type AdminService interface {
 }
 
 type AdminHandler struct {
-	service AdminService
+	AuditApproval func(uint, uint, uint)
+	service       AdminService
 }
 
 func NewAdminHandler(service AdminService) *AdminHandler {
@@ -178,4 +179,47 @@ func (h *AdminHandler) DeleteApiCredential(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"deleted": true})
+}
+
+func (h *AdminHandler) ApproveAgent(c *gin.Context) {
+	adminID, ok := ginutil.GetAdminID(c)
+	if !ok {
+		return
+	}
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	var req struct {
+		MemberLevelID uint `json:"member_level_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	approver, ok := h.service.(interface {
+		ApproveAgent(uint, uint) (*apicredentialdomain.ApiCredential, error)
+	})
+	if !ok {
+		ginutil.RespondError(c, response.CodeInternal, "error.api_credential_approve_failed", nil)
+		return
+	}
+	cred, err := approver.ApproveAgent(id, req.MemberLevelID)
+	if err != nil {
+		if errors.Is(err, apicredentialcontract.ErrAgentApprovalInvalid) {
+			ginutil.RespondError(c, response.CodeBadRequest, "error.agent_approval_invalid", nil)
+			return
+		}
+		if errors.Is(err, apicredentialcontract.ErrNotFound) {
+			ginutil.RespondError(c, response.CodeNotFound, "error.api_credential_not_found", nil)
+			return
+		}
+		ginutil.RespondError(c, response.CodeInternal, "error.api_credential_approve_failed", nil)
+		return
+	}
+	if h.AuditApproval != nil {
+		h.AuditApproval(adminID, id, req.MemberLevelID)
+	}
+	response.Success(c, gin.H{"credential": cred, "approved": true})
 }

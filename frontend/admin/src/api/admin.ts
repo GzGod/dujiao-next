@@ -640,6 +640,7 @@ export const adminAPI = {
   // API 凭证管理
   getApiCredentials: (params?: Record<string, unknown>) => api.get('/admin/api-credentials', { params }),
   getApiCredential: (id: number) => api.get(`/admin/api-credentials/${id}`),
+  approveAgentCredential: (id: number, member_level_id: number) => api.post(`/admin/api-credentials/${id}/approve-agent`, { member_level_id }),
   approveApiCredential: (id: number) => api.post(`/admin/api-credentials/${id}/approve`),
   rejectApiCredential: (id: number, data: { reason: string }) => api.post(`/admin/api-credentials/${id}/reject`, data),
   updateApiCredentialStatus: (id: number, data: { is_active: boolean }) => api.put(`/admin/api-credentials/${id}/status`, data),

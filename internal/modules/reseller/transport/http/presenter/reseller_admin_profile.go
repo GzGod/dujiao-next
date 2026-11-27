@@ -15,6 +15,8 @@ type AdminResellerProfileUserResp struct {
 }
 
 type AdminResellerProfileResp struct {
+	SiteName             string                        `json:"site_name,omitempty"`
+	Domains              []ResellerDomainResp          `json:"domains"`
 	SupplyPricing        *resellerdomain.SupplyPricing `json:"supply_pricing"`
 	ID                   uint                          `json:"id"`
 	UserID               uint                          `json:"user_id"`

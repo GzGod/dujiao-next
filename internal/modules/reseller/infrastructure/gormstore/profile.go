@@ -115,3 +115,19 @@ func (r *Store) IsActiveRelatedAccount(resellerID uint, userID uint) (bool, erro
 	}
 	return count > 0, nil
 }
+
+// ListStorefrontMetadata loads list-page metadata in two bounded queries.
+func (r *Store) ListStorefrontMetadata(ids []uint) ([]resellerdomain.Domain, []resellerdomain.SiteConfig, error) {
+	domains := []resellerdomain.Domain{}
+	sites := []resellerdomain.SiteConfig{}
+	if len(ids) == 0 {
+		return domains, sites, nil
+	}
+	if err := r.db.Where("reseller_id IN ? AND deleted_at IS NULL", ids).Order("is_primary DESC, id ASC").Find(&domains).Error; err != nil {
+		return nil, nil, err
+	}
+	if err := r.db.Where("reseller_id IN ? AND deleted_at IS NULL", ids).Find(&sites).Error; err != nil {
+		return nil, nil, err
+	}
+	return domains, sites, nil
+}

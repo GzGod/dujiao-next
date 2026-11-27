@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import ResellerDomainDNS from '@/components/admin/ResellerDomainDNS.vue'
 import ResellerSupplyPricing from '@/components/admin/ResellerSupplyPricing.vue'
 import { adminAPI } from '@/api/admin'
+import { canVisitResellerDomain, domainConnectionState, preferredResellerDomain, resellerTasks, supplyRuleSummary } from '@/utils/resellerReadiness'
 import type { AdminResellerDomain, AdminResellerProfileDetail } from '@/api/types'
 import {
-  RESELLER_DOMAIN_STATUS_ACTIVE,
   RESELLER_DOMAIN_TYPE_CUSTOM,
   RESELLER_DOMAIN_TYPE_SUBDOMAIN,
-  RESELLER_DOMAIN_VERIFICATION_VERIFIED,
   RESELLER_PROFILE_STATUS_ACTIVE,
   RESELLER_PROFILE_STATUS_DISABLED,
   RESELLER_PROFILE_STATUS_PENDING_REVIEW,
@@ -42,19 +41,17 @@ const saving = ref(false)
 const savingSystemDomain = ref(false)
 const operatingDomainId = ref<number | null>(null)
 const detail = ref<AdminResellerProfileDetail | null>(null)
-const currentTab = ref('overview')
+const tabNames = ['overview','profile','domains','site','products','finance']
+const currentTab = ref(tabNames.includes(String(route.query.tab)) ? String(route.query.tab) : 'overview')
 const showEditDialog = ref(false)
 
 const profileId = computed(() => Number(route.params.id || 0))
 const profile = computed(() => detail.value?.profile || null)
 const domains = computed(() => detail.value?.domains || [])
-const isActiveVerifiedDomain = (item: AdminResellerDomain) =>
-  item.status === RESELLER_DOMAIN_STATUS_ACTIVE &&
-  item.verification_status === RESELLER_DOMAIN_VERIFICATION_VERIFIED
-const activeVerifiedDomains = computed(() =>
-  domains.value.filter(isActiveVerifiedDomain),
-)
-const primaryDomain = computed(() => activeVerifiedDomains.value.find((item) => item.is_primary) || null)
+const isActiveVerifiedDomain = (item: AdminResellerDomain) => canVisitResellerDomain(item,profile.value?.status)
+const primaryDomain = computed(() => preferredResellerDomain(domains.value))
+const tasks = computed(() => profile.value ? resellerTasks({...profile.value,site_name:detail.value?.site_config?.site_name,domains:domains.value}) : [])
+
 const systemDomain = computed(() => domains.value.find((item) => item.type === RESELLER_DOMAIN_TYPE_SUBDOMAIN) || null)
 
 const editForm = reactive({
@@ -205,12 +202,6 @@ const domainTypeLabel = (type?: string) => {
   return type || '-'
 }
 
-const verificationLabel = (status?: string) => {
-  if (status === 'pending') return t('admin.resellerProfileDetail.verification.pending')
-  if (status === 'verified') return t('admin.resellerProfileDetail.verification.verified')
-  if (status === 'failed') return t('admin.resellerProfileDetail.verification.failed')
-  return status || '-'
-}
 
 const userDetailLink = computed(() => (profile.value?.user_id ? adminUrl(`/users/${profile.value.user_id}`) : ''))
 const siteConfigLink = computed(() => adminUrl(`/resellers/site-configs?reseller_id=${profileId.value}`))
@@ -218,6 +209,8 @@ const productSettingsLink = computed(() => adminUrl(`/resellers/product-settings
 const ledgerLink = computed(() => adminUrl(`/resellers/ledger-entries?reseller_id=${profileId.value}`))
 const withdrawLink = computed(() => adminUrl(`/resellers/withdraws?reseller_id=${profileId.value}`))
 
+watch(() => route.query.tab,tab => {currentTab.value = tabNames.includes(String(tab)) ? String(tab) : 'overview'})
+watch(() => route.params.id,()=>{void fetchDetail()})
 onMounted(fetchDetail)
 </script>
 
@@ -229,12 +222,14 @@ onMounted(fetchDetail)
           <Button size="sm" variant="outline" @click="router.back()">{{ t('admin.resellerProfileDetail.back') }}</Button>
           <span class="font-mono text-xs text-muted-foreground">R#{{ profileId }}</span>
         </div>
-        <h1 class="text-2xl font-semibold">{{ t('admin.resellerProfileDetail.title') }}</h1>
+        <h1 class="text-2xl font-semibold">{{detail?.site_config?.site_name || t('resellerWorkspace.detailTitle')}}</h1>
         <p class="mt-1 text-sm text-muted-foreground">
           {{ profile?.user?.display_name || profile?.user?.email || t('admin.common.loading') }}
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
+        <Button v-if="canVisitResellerDomain(primaryDomain,profile?.status)" as-child><a :href="'https://'+primaryDomain!.domain" target="_blank" rel="noopener noreferrer">{{t('resellerWorkspace.visitStore')}}</a></Button>
+        <Button variant="outline" :disabled="!profile" @click="currentTab = 'products'">{{t('resellerWorkspace.editSupply')}}</Button>
         <Button variant="outline" :disabled="loading" @click="fetchDetail">{{ t('admin.common.refresh') }}</Button>
         <Button :disabled="!profile" @click="openEditDialog">{{ t('admin.resellerProfileDetail.editOperations') }}</Button>
       </div>
@@ -243,6 +238,10 @@ onMounted(fetchDetail)
     <div v-if="loading" class="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{{ t('admin.common.loading') }}</div>
     <div v-else-if="!detail || !profile" class="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">{{ t('admin.resellerProfileDetail.notFound') }}</div>
     <template v-else>
+      <section v-if="tasks.length" class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+        <h2 class="text-sm font-semibold">{{t('resellerWorkspace.todo')}}</h2>
+        <div class="mt-2 flex flex-wrap gap-2"><Button v-for="task in tasks" :key="task" variant="outline" size="sm" @click="currentTab = task === 'configureSite' ? 'site' : task === 'settlementFrozen' ? 'finance' : task === 'review' || task === 'rejected' || task === 'disabled' ? 'profile' : 'domains'">{{t('resellerWorkspace.tasks.'+task)}}</Button></div>
+      </section>
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-xl border border-border bg-card p-4">
           <div class="text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.profileStatus') }}</div>
@@ -256,18 +255,18 @@ onMounted(fetchDetail)
           </div>
         </div>
         <div class="rounded-xl border border-border bg-card p-4">
-          <div class="text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.markup') }}</div>
-          <div class="mt-3 font-mono text-xl font-semibold">{{ profile.default_markup_percent || '0.00' }}% / {{ profile.max_markup_percent || '0.00' }}%</div>
-          <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.markupHint') }}</p>
+          <div class="text-xs text-muted-foreground">{{t('resellerWorkspace.supplyRule')}}</div>
+          <div class="mt-3 text-lg font-semibold">{{t('resellerWorkspace.'+supplyRuleSummary(profile.supply_pricing).key,{percent:supplyRuleSummary(profile.supply_pricing).percent})}}</div>
+          <p class="mt-2 text-xs text-muted-foreground">{{profile.supply_pricing?.overrides?.length ? t('resellerWorkspace.overrides',{count:profile.supply_pricing.overrides.length}) : t('resellerWorkspace.retailIndependent')}}</p>
         </div>
         <div class="rounded-xl border border-border bg-card p-4">
           <div class="text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.primaryDomain') }}</div>
           <div class="mt-3 truncate font-mono text-sm font-medium">{{ primaryDomain?.domain || t('admin.resellerProfileDetail.unset') }}</div>
-          <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.domainCount', { count: domains.length }) }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">{{t('resellerWorkspace.connection.'+domainConnectionState(primaryDomain))}} · {{ t('admin.resellerProfileDetail.cards.domainCount', { count: domains.length }) }}</p>
         </div>
         <div class="rounded-xl border border-border bg-card p-4">
-          <div class="text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.productRules') }}</div>
-          <div class="mt-3 text-xl font-semibold">{{ detail.product_summary.configured_products }}</div>
+          <div class="text-xs text-muted-foreground">{{t('resellerWorkspace.authorizedProducts')}}</div>
+          <div class="mt-3 text-xl font-semibold">{{profile.supply_pricing?.allowed_product_ids?.length ?? t('resellerWorkspace.byBlocklist')}}</div>
           <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.resellerProfileDetail.cards.productRulesHint', { hidden: detail.product_summary.hidden_products, sku: detail.product_summary.sku_overrides }) }}</p>
         </div>
       </div>
@@ -276,9 +275,9 @@ onMounted(fetchDetail)
         <TabsList class="h-auto flex-wrap gap-1">
           <TabsTrigger value="overview">{{ t('admin.resellerProfileDetail.tabs.overview') }}</TabsTrigger>
           <TabsTrigger value="profile">{{ t('admin.resellerProfileDetail.tabs.profile') }}</TabsTrigger>
-          <TabsTrigger value="domains">{{ t('admin.resellerProfileDetail.tabs.domains') }}</TabsTrigger>
-          <TabsTrigger value="site">{{ t('admin.resellerProfileDetail.tabs.site') }}</TabsTrigger>
-          <TabsTrigger value="products">{{ t('admin.resellerProfileDetail.tabs.products') }}</TabsTrigger>
+          <TabsTrigger value="domains">{{t('resellerWorkspace.domainsTab')}}</TabsTrigger>
+          <TabsTrigger value="site">{{t('resellerWorkspace.siteTab')}}</TabsTrigger>
+          <TabsTrigger value="products">{{t('resellerWorkspace.productsTab')}}</TabsTrigger>
           <TabsTrigger value="finance">{{ t('admin.resellerProfileDetail.tabs.finance') }}</TabsTrigger>
         </TabsList>
 
@@ -390,10 +389,10 @@ onMounted(fetchDetail)
                 <TableRow>
                   <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.domain') }}</TableHead>
                   <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.type') }}</TableHead>
-                  <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.verification') }}</TableHead>
+                  <TableHead class="px-4 py-3">{{t('resellerWorkspace.domainConnection')}}</TableHead>
                   <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.status') }}</TableHead>
                   <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.primary') }}</TableHead>
-                  <TableHead class="px-4 py-3">{{ t('admin.resellerProfileDetail.domainTable.verifiedAt') }}</TableHead>
+                  <TableHead class="px-4 py-3">{{t('resellerWorkspace.lastCheck')}}</TableHead>
                   <TableHead class="px-4 py-3 text-right">{{ t('admin.resellerProfileDetail.domainTable.action') }}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -401,10 +400,10 @@ onMounted(fetchDetail)
                 <TableRow v-for="domain in domains" :key="domain.id">
                   <TableCell class="px-4 py-3 font-mono text-xs">{{ domain.domain }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ domainTypeLabel(domain.type) }}</TableCell>
-                  <TableCell class="px-4 py-3 text-xs">{{ verificationLabel(domain.verification_status) }}</TableCell>
+                  <TableCell class="px-4 py-3 text-xs">{{t('resellerWorkspace.connection.'+domainConnectionState(domain))}}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ domainStatusLabel(domain.status) }}</TableCell>
                   <TableCell class="px-4 py-3 text-xs">{{ domain.is_primary && isActiveVerifiedDomain(domain) ? t('admin.common.yes') : t('admin.common.no') }}</TableCell>
-                  <TableCell class="px-4 py-3 text-xs text-muted-foreground">{{ formatDate(domain.verified_at) || '-' }}</TableCell>
+                  <TableCell class="px-4 py-3 text-xs text-muted-foreground">{{ formatDate(domain.dns?.updated_at || domain.verified_at) || '-' }}</TableCell>
                   <TableCell class="px-4 py-3 text-right">
                     <Button size="sm" variant="outline" :disabled="operatingDomainId === domain.id || !canSetPrimary(domain)" @click="setPrimaryDomain(domain)">
                       {{ t('admin.resellerProfileDetail.domainTable.setPrimary') }}
@@ -460,6 +459,7 @@ onMounted(fetchDetail)
         </TabsContent>
 
         <TabsContent value="products" class="mt-0 space-y-4">
+          <p class="rounded-xl border border-border bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">{{t('resellerWorkspace.priceLayers')}}</p>
           <ResellerSupplyPricing v-if="profile" :key="profile.updated_at" :profile="profile" @saved="fetchDetail" />
           <div class="rounded-xl border border-border bg-card p-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -363,9 +363,10 @@ const navGroups = computed<NavGroup[]>(() => {
     },
     {
       id: 'reseller',
-      label: t('admin.navGroups.resellerManagement'),
+      label: t('agentManagement.title'),
       icon: Users,
       items: [
+        { label: t('agentApproval.title'), to: '/api-credentials', icon: KeyRound, permission: 'GET:/admin/api-credentials' },
         {
           label: t('admin.navItems.resellerOperations'),
           to: '/resellers/operations',
@@ -373,7 +374,7 @@ const navGroups = computed<NavGroup[]>(() => {
           permission: 'GET:/admin/resellers/operations/overview',
         },
         {
-          label: t('admin.navItems.resellerProfiles'),
+          label: t('agentManagement.sites'),
           to: '/resellers/profiles',
           icon: Users,
           permission: 'GET:/admin/resellers/profiles',
@@ -444,12 +445,6 @@ const navGroups = computed<NavGroup[]>(() => {
           to: '/reconciliation',
           icon: ClipboardCheck,
           permission: 'GET:/admin/reconciliation/jobs',
-        },
-        {
-          label: t('admin.navItems.apiCredentials'),
-          to: '/api-credentials',
-          icon: KeyRound,
-          permission: 'GET:/admin/api-credentials',
         },
       ],
     },

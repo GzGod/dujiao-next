@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import AgentManagementOverview from '@/components/admin/AgentManagementOverview.vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { adminAPI } from '@/api/admin'
 import type { AdminResellerProfile } from '@/api/types'
 import {
@@ -12,7 +14,7 @@ import {
   RESELLER_SETTLEMENT_STATUS_FROZEN,
   RESELLER_SETTLEMENT_STATUS_NORMAL,
 } from '@/constants/reseller'
-import IdCell from '@/components/IdCell.vue'
+import { canVisitResellerDomain, domainConnectionState, preferredResellerDomain, resellerTasks, supplyRuleSummary } from '@/utils/resellerReadiness'
 import ResellerSupplyPricing from '@/components/admin/ResellerSupplyPricing.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from '@/components/ui/dialog'
@@ -31,6 +33,8 @@ import { getResellerProfileActionState, getResellerProfileStatusKey } from '@/ut
 import { adminUrl } from '@/utils/adminBase'
 
 const { t } = useI18n()
+const route = useRoute()
+const overviewVersion = ref(0)
 const loading = ref(true)
 const { refreshing, refreshList } = useListRefresh()
 const operatingId = ref<number | null>(null)
@@ -71,7 +75,7 @@ const pagination = ref({
 const filters = reactive({
   keyword: '',
   userId: '',
-  status: '__all__',
+  status: String(route.query.status || '__all__'),
   settlementStatus: '__all__',
   createdFrom: '',
   createdTo: '',
@@ -110,6 +114,7 @@ const fetchRows = async (page = 1, options: ListFetchOptions = {}) => {
       created_to: toRFC3339(filters.createdTo),
     })
     rows.value = response.data.data || []
+    overviewVersion.value++
     pagination.value = response.data.pagination || pagination.value
   } catch {
     if (!options.preserveRows) rows.value = []
@@ -154,11 +159,6 @@ const settlementLabel = (status?: string) => {
   return status || '-'
 }
 
-const settlementClass = (status?: string) => {
-  if (status === RESELLER_SETTLEMENT_STATUS_NORMAL) return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (status === RESELLER_SETTLEMENT_STATUS_FROZEN) return 'border-amber-200 bg-amber-50 text-amber-700'
-  return 'border-border bg-muted/30 text-muted-foreground'
-}
 
 const openApproveDialog = (row: AdminResellerProfile) => {
   selectedProfile.value = row
@@ -279,6 +279,10 @@ const restoreProfile = async (row: AdminResellerProfile) => {
   }
 }
 
+watch(() => route.query.status, status => {
+  filters.status = String(status || '__all__')
+  void fetchRows(1)
+})
 onMounted(() => {
   fetchRows()
 })
@@ -286,8 +290,9 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
+    <AgentManagementOverview :refresh-token="overviewVersion" />
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold">{{ t('admin.resellerProfiles.title') }}</h1>
+      <h1 class="text-2xl font-semibold">{{ t('resellerWorkspace.listTitle') }}</h1>
     </div>
 
     <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -336,66 +341,48 @@ onMounted(() => {
     </div>
 
     <div class="rounded-xl border border-border bg-card overflow-x-auto">
-      <Table class="min-w-[1280px]">
-        <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
-          <TableRow>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerProfiles.table.id') }}</TableHead>
-            <TableHead class="min-w-[200px] px-6 py-3">{{ t('admin.resellerProfiles.table.user') }}</TableHead>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerProfiles.table.status') }}</TableHead>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerProfiles.table.settlement') }}</TableHead>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerProfiles.table.defaultMarkup') }}</TableHead>
-            <TableHead class="px-6 py-3">{{ t('admin.resellerProfiles.table.maxMarkup') }}</TableHead>
-            <TableHead class="min-w-[180px] px-6 py-3">{{ t('admin.resellerProfiles.table.applyReason') }}</TableHead>
-            <TableHead class="min-w-[180px] px-6 py-3">{{ t('admin.resellerProfiles.table.rejectReason') }}</TableHead>
-            <TableHead class="min-w-[140px] px-6 py-3">{{ t('admin.resellerProfiles.table.reviewedAt') }}</TableHead>
-            <TableHead class="min-w-[140px] px-6 py-3">{{ t('admin.resellerProfiles.table.createdAt') }}</TableHead>
-            <TableHead class="min-w-[220px] px-6 py-3 text-right">{{ t('admin.resellerProfiles.table.action') }}</TableHead>
-          </TableRow>
-        </TableHeader>
+      <Table class="min-w-[1060px]">
+        <TableHeader class="border-b border-border bg-muted/40 text-xs uppercase"><TableRow>
+          <TableHead v-for="key in ['storeOwner','openingStatus','domainConnection','supplyRule','todo','actions']" :key="key" class="px-4 py-3">{{t('resellerWorkspace.'+key)}}</TableHead>
+        </TableRow></TableHeader>
         <TableBody class="divide-y divide-border">
-          <TableRow v-if="loading">
-            <TableCell :colspan="11" class="p-0">
-              <TableSkeleton :columns="11" :rows="5" />
+          <TableRow v-if="loading"><TableCell colspan="6" class="p-0"><TableSkeleton :columns="6" :rows="5" /></TableCell></TableRow>
+          <TableRow v-else-if="!rows.length"><TableCell colspan="6" class="py-10 text-center text-muted-foreground">{{t('admin.resellerProfiles.empty')}}</TableCell></TableRow>
+          <TableRow v-for="item in rows" :key="item.id" class="hover:bg-muted/20">
+            <TableCell class="min-w-[210px] px-4 py-4 align-top">
+              <a :href="profileDetailLink(item.id)" class="font-semibold text-foreground hover:text-primary">{{item.site_name || t('resellerWorkspace.unnamedSite',{id:item.id})}}</a>
+              <div class="mt-2 text-sm">{{item.user?.display_name || '—'}}</div>
+              <div class="mt-1 max-w-[230px] break-all text-xs text-muted-foreground">{{item.user?.email}}</div>
+              <a :href="userDetailLink(item.user_id)" class="mt-1 inline-block text-xs text-primary">{{t('resellerWorkspace.ownerId',{id:item.user_id})}}</a>
             </TableCell>
-          </TableRow>
-          <TableRow v-else-if="rows.length === 0">
-            <TableCell colspan="11" class="px-6 py-8 text-center text-muted-foreground">{{ t('admin.resellerProfiles.empty') }}</TableCell>
-          </TableRow>
-          <TableRow v-for="item in rows" :key="item.id" class="hover:bg-muted/30">
-            <TableCell class="px-6 py-4">
-              <IdCell :value="item.id" />
+            <TableCell class="px-4 py-4 align-top">
+              <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="statusClass(item.status)">{{statusLabel(item.status)}}</span>
+              <div v-if="item.settlement_status === 'frozen'" class="mt-2 text-xs text-destructive">{{settlementLabel(item.settlement_status)}}</div>
+              <div class="mt-3 text-xs text-muted-foreground">{{formatDate(item.updated_at) || '—'}}</div>
             </TableCell>
-            <TableCell class="min-w-[200px] px-6 py-4 text-xs text-muted-foreground">
-              <div class="text-foreground break-words">{{ item.user?.display_name || '-' }}</div>
-              <div v-if="item.user?.email" class="mt-0.5 break-all">{{ item.user.email }}</div>
-              <a
-                v-if="item.user_id"
-                :href="userDetailLink(item.user_id)"
-                target="_blank"
-                rel="noopener"
-                class="mt-0.5 inline-block font-mono text-primary underline-offset-4 hover:underline"
-              >
-                #{{ item.user_id }}
-              </a>
-              <div class="mt-2"><Button size="sm" :disabled="pricingLoading" @click="openPricingDialog(item)">{{ t('admin.resellerSupply.entry') }}</Button></div>
+            <TableCell class="min-w-[190px] px-4 py-4 align-top">
+              <template v-if="preferredResellerDomain(item.domains)">
+                <a v-if="canVisitResellerDomain(preferredResellerDomain(item.domains),item.status)" :href="'https://'+preferredResellerDomain(item.domains)!.domain" target="_blank" rel="noopener noreferrer" class="break-all font-mono text-sm text-primary hover:underline">{{preferredResellerDomain(item.domains)!.domain}} ↗</a>
+                <p v-else class="break-all font-mono text-sm">{{preferredResellerDomain(item.domains)!.domain}}</p>
+                <div class="mt-2 text-xs" :class="domainConnectionState(preferredResellerDomain(item.domains)) === 'ready' ? 'text-green-600 dark:text-green-400':'text-amber-600 dark:text-amber-400'">{{t('resellerWorkspace.connection.'+domainConnectionState(preferredResellerDomain(item.domains)))}}</div>
+              </template>
+              <span v-else class="text-sm text-muted-foreground">{{t('resellerWorkspace.connection.unbound')}}</span>
             </TableCell>
-            <TableCell class="px-6 py-4 text-xs">
-              <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="statusClass(item.status)">
-                {{ statusLabel(item.status) }}
-              </span>
+            <TableCell class="min-w-[180px] px-4 py-4 align-top">
+              <div class="text-sm font-medium">{{t('resellerWorkspace.'+supplyRuleSummary(item.supply_pricing).key,{percent:supplyRuleSummary(item.supply_pricing).percent})}}</div>
+              <p v-if="item.supply_pricing?.overrides?.length" class="mt-1 text-xs text-primary">{{t('resellerWorkspace.overrides',{count:item.supply_pricing.overrides.length})}}</p>
+              <p class="mt-2 text-xs text-muted-foreground">{{item.supply_pricing?.allowed_product_ids ? t('resellerWorkspace.authorizedCount',{count:item.supply_pricing.allowed_product_ids.length}) : t('resellerWorkspace.blockedCount',{count:item.supply_pricing?.blocked_product_ids?.length || 0})}}</p>
+              <Button variant="link" size="sm" class="mt-1 h-auto px-0 text-xs" :disabled="pricingLoading" @click="openPricingDialog(item)">{{t('resellerWorkspace.editSupply')}}</Button>
             </TableCell>
-            <TableCell class="px-6 py-4 text-xs">
-              <span class="inline-flex rounded-full border px-2.5 py-1 text-xs" :class="settlementClass(item.settlement_status)">
-                {{ settlementLabel(item.settlement_status) }}
-              </span>
+            <TableCell class="min-w-[160px] px-4 py-4 align-top">
+              <div v-if="!resellerTasks(item).length" class="text-xs text-green-600 dark:text-green-400">{{t('resellerWorkspace.noTodo')}}</div>
+              <div v-for="task in resellerTasks(item)" :key="task" class="mb-1 text-xs text-amber-600 dark:text-amber-400">
+                <button v-if="task === 'review'" type="button" class="hover:underline" @click="openApproveDialog(item)">{{t('resellerWorkspace.tasks.'+task)}}</button>
+                <a v-else :href="profileDetailLink(item.id)+'?tab='+(task === 'configureSite' ? 'site' : task === 'settlementFrozen' ? 'finance' : task === 'rejected' || task === 'disabled' ? 'profile' : 'domains')" class="hover:underline">{{t('resellerWorkspace.tasks.'+task)}}</a>
+              </div>
+              <p v-if="item.reject_reason" class="mt-2 max-w-[180px] break-words text-xs text-muted-foreground">{{item.reject_reason}}</p>
             </TableCell>
-            <TableCell class="px-6 py-4 font-mono text-xs">{{ item.default_markup_percent || '0.00' }}</TableCell>
-            <TableCell class="px-6 py-4 font-mono text-xs">{{ item.max_markup_percent || '0.00' }}</TableCell>
-            <TableCell class="min-w-[180px] px-6 py-4 text-xs text-muted-foreground break-words">{{ item.apply_reason || '-' }}</TableCell>
-            <TableCell class="min-w-[180px] px-6 py-4 text-xs text-muted-foreground break-words">{{ item.reject_reason || '-' }}</TableCell>
-            <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.reviewed_at) || '-' }}</TableCell>
-            <TableCell class="min-w-[140px] px-6 py-4 text-xs text-muted-foreground">{{ formatDate(item.created_at) }}</TableCell>
-            <TableCell class="min-w-[220px] px-6 py-4 text-right">
+            <TableCell class="min-w-[180px] px-4 py-4 text-right">
               <div class="flex flex-wrap items-center justify-end gap-2">
                 <Button
                   size="sm"
@@ -477,15 +464,7 @@ onMounted(() => {
           <DialogTitle>{{ t('admin.resellerProfiles.actions.approveDialogTitle', { id: selectedProfile?.id || '-' }) }}</DialogTitle>
         </DialogHeader>
         <div class="space-y-4">
-          <div class="grid gap-2">
-            <Label>{{ t('admin.resellerProfiles.table.defaultMarkup') }}</Label>
-            <Input v-model="approveForm.defaultMarkup" inputmode="decimal" placeholder="0.00" />
-          </div>
-          <div class="grid gap-2">
-            <Label>{{ t('admin.resellerProfiles.table.maxMarkup') }}</Label>
-            <Input v-model="approveForm.maxMarkup" inputmode="decimal" placeholder="0.00" />
-            <p class="text-xs text-muted-foreground">{{ t('admin.resellerProfiles.actions.maxMarkupZeroHint') }}</p>
-          </div>
+          <div class="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-7">{{t('agentManagement.sitePolicy')}}</div>
           <div class="flex justify-end gap-2">
             <Button variant="outline" @click="showApproveDialog = false">{{ t('admin.common.cancel') }}</Button>
             <Button :disabled="operatingId === selectedProfile?.id" @click="submitApproveProfile">{{ t('admin.resellerProfiles.actions.approveConfirm') }}</Button>
