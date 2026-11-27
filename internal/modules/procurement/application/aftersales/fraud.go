@@ -66,8 +66,19 @@ func FraudOperation(ctx context.Context, remote FraudRemote, orderNo, action str
 			return observed, nil
 		}
 		return current, errors.Join(errors.New("upstream destruction and refund unconfirmed"), err, inspectErr)
+	case "upstream_status":
+		state := *current
+		state.CanRefund = false
+		if current.Financial == "paid" && current.ReleaseStatus == "released" && current.CanRefund && current.Revision > 0 {
+			enabled, err := remote.HasRedemptionOperation(ctx, "refund_released_order")
+			if err != nil {
+				return &state, err
+			}
+			state.CanRefund = enabled
+		}
+		return &state, nil
 	default:
-		return current, nil
+		return nil, ErrUnsupported
 	}
 }
 

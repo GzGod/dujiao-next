@@ -129,3 +129,16 @@ func TestFraudRefundLostResponseUsesReadBack(t *testing.T) {
 		t.Fatalf("refund state=%+v err=%v calls=%d", state, err, remote.refunds)
 	}
 }
+
+func TestFraudStatusRequiresRefundCapability(t *testing.T) {
+	remote := &fraudTestRemote{state: contract.RedemptionState{
+		ReleaseStatus: "released", Financial: "paid", CanRefund: true, Revision: 3,
+	}}
+	for _, enabled := range []bool{false, true} {
+		remote.allowed = enabled
+		state, err := FraudOperation(context.Background(), remote, "purchase", "upstream_status")
+		if err != nil || state == nil || state.CanRefund != enabled || remote.pauses != 0 || remote.refunds != 0 {
+			t.Fatalf("capability enabled=%v, state=%+v err=%v", enabled, state, err)
+		}
+	}
+}

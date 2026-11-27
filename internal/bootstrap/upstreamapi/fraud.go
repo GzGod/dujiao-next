@@ -59,6 +59,12 @@ func NewFraudUpstream(c *container.Container) func(context.Context, uint, string
 			if err == nil {
 				if remote, ok := adapter.(aftersales.FraudRemote); ok {
 					row.State, err = aftersales.FraudOperation(ctx, remote, p.UpstreamOrderNo, action)
+					if action == "upstream_pause" && row.State != nil {
+						// Refund eligibility is verified separately on refresh.
+						publicState := *row.State
+						publicState.CanRefund = false
+						row.State = &publicState
+					}
 				} else {
 					err = errors.New("unsupported fraud operation")
 				}
