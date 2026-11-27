@@ -90,6 +90,20 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 	if err != nil {
 		return nil, err
 	}
+	var verifiedPaymentID uint
+	if s.ConfirmQRExpiry != nil {
+		snapshot, err := s.orderRepo.GetByID(input.OrderID)
+		if err != nil {
+			return nil, err
+		}
+		if snapshot != nil && snapshot.QRWaitPaymentID != 0 && snapshot.QRAlipaySaveCount < 3 {
+			expired, err := s.ConfirmQRExpiry(input.OrderID)
+			if err != nil || !expired {
+				return nil, ErrPaymentInvalid
+			}
+			verifiedPaymentID = snapshot.QRWaitPaymentID
+		}
+	}
 	err = s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
 		preloaded, err := tx.Orders().GetByIDForUpdateWithChildren(input.OrderID)
 		if err != nil {
@@ -99,6 +113,12 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			return orderapp.ErrOrderNotFound
 		}
 		lockedOrder := *preloaded
+		if lockedOrder.QRWaitPaymentID != 0 && lockedOrder.QRWaitPaymentID != verifiedPaymentID {
+			return ErrPaymentInvalid
+		}
+		if lockedOrder.QRAlipaySaveCount >= 3 {
+			return ErrPaymentInvalid
+		}
 		if lockedOrder.ParentID != nil {
 			return ErrPaymentInvalid
 		}
@@ -118,6 +138,19 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			return ErrPaymentInvalid
 		}
 		paymentRepo := tx.Payments()
+		if lockedOrder.QRWaitPaymentID != 0 {
+			old, err := paymentRepo.GetByIDForUpdate(verifiedPaymentID)
+			if err != nil || old == nil || old.OrderID != lockedOrder.ID || old.Status != constants.PaymentStatusPending {
+				return ErrPaymentInvalid
+			}
+			old.Status = constants.PaymentStatusExpired
+			if err := paymentRepo.Update(old); err != nil {
+				return err
+			}
+			if err := tx.Orders().UpdateFields(lockedOrder.ID, map[string]interface{}{"qr_wait_payment_id": 0}); err != nil {
+				return err
+			}
+		}
 		channelRepo := tx.PaymentChannels()
 		if input.ChannelID != 0 {
 			if channel == nil {

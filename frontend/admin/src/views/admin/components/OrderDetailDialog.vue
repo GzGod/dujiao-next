@@ -842,6 +842,7 @@ watch(
           {{ detailError }}
         </div>
         <div v-else-if="selectedOrder" class="space-y-6">
+          <p v-if="selectedOrder.qr_save_email" class="text-sm">{{ t('admin.orders.qrSaveEmail') }} · {{ selectedOrder.qr_save_email }}</p>
           <section v-if="selectedOrder.payment_risk_decision" class="space-y-2 rounded-lg border border-border p-3 text-sm">
             <h3 class="font-semibold">{{ t('admin.orders.riskTitle') }}</h3>
             <p>{{ t('admin.orders.riskScore', { score: selectedOrder.payment_risk_decision.score }) }}</p>

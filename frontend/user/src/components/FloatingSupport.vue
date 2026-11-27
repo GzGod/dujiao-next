@@ -1,48 +1,21 @@
 <template>
   <aside ref="floater" class="floating-support" :class="{ 'floating-support--dragging': dragging, 'floating-support--left': position && position.x < 320, 'floating-support--top': position && position.y < 300 }" :style="position ? { left: position.x + 'px', top: position.y + 'px', right: 'auto', bottom: 'auto' } : undefined" :aria-label="t('floatingSupport.title')">
-    <Transition name="support-note">
-      <section v-if="open && pending.length" class="support-note" aria-live="polite">
-        <div class="support-note__head"><strong>{{ t('pendingOrders.title') }}</strong><button type="button" @click="open = false" :aria-label="t('pendingOrders.dismiss')"><X :size="16" /></button></div>
-        <p>{{ t('pendingOrders.hint', { count: pending.length }) }}</p>
-        <div v-for="item in pending.slice(0, 3)" :key="item.orderNo" class="support-note__order">
-          <small>{{ item.orderNo }}</small>
-          <span>{{ t(verified.has(item.orderNo) ? 'pendingOrders.unpaid' : 'pendingOrders.unconfirmed') }}</span>
-          <button type="button" class="support-note__resume" @click="resume(item)">{{ t(verified.has(item.orderNo) ? 'pendingOrders.resume' : 'pendingOrders.check') }} →</button>
-        </div>
-        <small class="support-note__privacy">{{ t('pendingOrders.authHint') }}</small>
-      </section>
-    </Transition>
-    <button v-if="pending.length" class="support-pending" type="button" @click="open = !open" :aria-expanded="open">{{ t('pendingOrders.badge', { count: pending.length }) }}</button>
-    <a v-if="supportUrl && pet?.mode !== 'hidden'" :href="supportUrl" target="_blank" rel="noopener noreferrer" class="support-pet" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="cancelDrag" @click="petClick" @dragstart.prevent @keydown="moveWithKeyboard" :title="t('pendingOrders.dragHint')" :aria-label="t('floatingSupport.label')">
+    <a v-if="supportUrl && pet?.mode !== 'hidden'" :href="supportUrl" target="_blank" rel="noopener noreferrer" class="support-pet" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="endDrag" @pointercancel="cancelDrag" @click="petClick" @dragstart.prevent @keydown="moveWithKeyboard" :title="t('floatingSupport.dragHint')" :aria-label="t('floatingSupport.label')">
       <SupportPetVisual :pet="pet" />
       <span class="support-pet__label">{{ t('floatingSupport.title') }} ↗</span>
     </a>
     <a v-if="supportUrl && pet?.mode !== 'hidden'" class="support-credit" :href="petCreditUrl" target="_blank" rel="noopener noreferrer">{{petName}} · Petdex</a>
   </aside>
-  <ProductQuickBuy v-if="resuming" :key="resuming.orderNo" :product="resumeProduct" :resume-order="resuming" :visible="true" inline-checkout @update:visible="resuming = null" />
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
-const ProductQuickBuy = defineAsyncComponent(() => import('./ProductQuickBuy.vue'))
 import SupportPetVisual from './SupportPetVisual.vue'
-import { X } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
-import { useUserAuthStore } from '../stores/userAuth'
-import { guestOrderAPI, userOrderAPI } from '../api/order'
-import { loadGuestOrderAuth } from '../utils/guestOrderAuth'
-import { readPendingOrders, reconcilePendingOrder, PENDING_ORDERS_EVENT, type PendingOrder } from '../utils/pendingOrders'
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const auth = useUserAuthStore()
-const route = useRoute()
-const rows = ref(readPendingOrders())
-const verified = ref(new Set<string>())
-const open = ref(true)
-const pending = computed(() => rows.value.filter(row => auth.isAuthenticated ? !row.guest && row.owner === String(auth.user?.id || '') : row.guest))
 const pet = computed(() => appStore.isResellerTenant ? appStore.config?.reseller_theme?.support_pet : undefined)
 const petName = computed(() => !pet.value || pet.value.mode === 'default' ? 'Jiyi' : pet.value.name || 'Petdex')
 const petCreditUrl = computed(() => !pet.value || pet.value.mode === 'default' ? 'https://petdex.dev/pets/jiyi' : /^https:\/\/petdex\.dev\/pets\/[a-z0-9-]+\/?$/i.test(pet.value.source_url || '') ? pet.value.source_url : 'https://petdex.dev/')
@@ -51,9 +24,6 @@ const supportUrl = computed(() => {
   if (/^https:\/\/(?:t\.me|telegram\.me)\//i.test(configured)) return configured
   return appStore.isResellerTenant ? '' : 'https://t.me/xuegaozhanshen'
 })
-const resuming = ref<PendingOrder | null>(null)
-const resumeProduct = computed(() => ({ title: { 'zh-CN': t('pendingOrders.restoreTitle'), 'zh-TW': t('pendingOrders.restoreTitle'), 'en-US': t('pendingOrders.restoreTitle') }, price_amount: '0', stock_status: 'in_stock' }))
-const resume = (row: PendingOrder) => { resuming.value = row }
 const floater = ref<HTMLElement | null>(null)
 const position = ref<{ x: number; y: number } | null>(null)
 const dragging = ref(false)
@@ -108,56 +78,12 @@ const endDrag = (event: PointerEvent) => {
 }
 const cancelDrag = () => { drag = null; dragging.value = false }
 const petClick = (event: MouseEvent) => { if (suppressClick) { event.preventDefault(); suppressClick = false } }
-const sync = () => {
-  const next = readPendingOrders()
-  if (next.some(row => !rows.value.some(old => old.orderNo === row.orderNo))) open.value = true
-  rows.value = next
-}
-let busy = false
-let disposed = false
-let timer: ReturnType<typeof setInterval> | undefined
-const refresh = async () => {
-  sync()
-  if (busy || document.visibilityState === 'hidden') return
-  busy = true
-  try {
-    const guestAuth = loadGuestOrderAuth()
-    for (const row of pending.value.slice(0, 5)) {
-      if (disposed) break
-      if (row.guest && (!guestAuth.email || !guestAuth.order_password)) continue
-      try {
-        const response = row.guest
-          ? await guestOrderAPI.detail(row.orderNo, guestAuth, { silentBusinessError: true })
-          : await userOrderAPI.detail(row.orderNo, { silentBusinessError: true })
-        if (disposed) break
-        reconcilePendingOrder(row.orderNo, response.data.data)
-        if (response.data.data?.status === 'pending_payment') verified.value = new Set([...verified.value, row.orderNo])
-      } catch { /* Unauthenticated/offline references remain explicitly unconfirmed. */ }
-    }
-  } finally { busy = false; if (!disposed) sync() }
-}
-const onStorage = () => { sync(); void refresh() }
-watch(() => [auth.isAuthenticated, auth.user?.id], () => { verified.value = new Set(); void refresh() })
-watch(() => route.fullPath, () => { void refresh() })
 onMounted(() => {
+  try { localStorage.removeItem('xuegaoai_pending_orders_v1') } catch { /* Storage unavailable. */ }
   restorePosition()
   window.addEventListener('resize', restorePosition)
-  window.addEventListener(PENDING_ORDERS_EVENT, sync)
-  window.addEventListener('storage', onStorage)
-  window.addEventListener('focus', refresh)
-  document.addEventListener('visibilitychange', refresh)
-  timer = setInterval(refresh, 30000)
-  void refresh()
 })
-onBeforeUnmount(() => {
-  disposed = true
-  window.removeEventListener('resize', restorePosition)
-  clearInterval(timer)
-  window.removeEventListener(PENDING_ORDERS_EVENT, sync)
-  window.removeEventListener('storage', onStorage)
-  window.removeEventListener('focus', refresh)
-  document.removeEventListener('visibilitychange', refresh)
-})
+onBeforeUnmount(() => window.removeEventListener('resize', restorePosition))
 </script>
 
 <style scoped>

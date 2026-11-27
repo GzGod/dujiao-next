@@ -107,3 +107,10 @@ func (r *PriceStore) DeleteByProductInTx(tx *gorm.DB, productID uint) error {
 }
 
 var _ memberlevelcontract.PriceRepository = (*PriceStore)(nil)
+
+// ListByLevel loads an immutable identity-pricing snapshot on the caller's DB handle.
+func (r *PriceStore) ListByLevel(levelID uint) ([]memberleveldomain.MemberLevelPrice, error) {
+	var rows []memberleveldomain.MemberLevelPrice
+	err := r.db.Where("deleted_at IS NULL AND member_level_id = ?", levelID).Find(&rows).Error
+	return rows, err
+}

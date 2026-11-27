@@ -1277,6 +1277,8 @@
     }
   },
   "payment": {
+    "qrIssueWaiting": "等待支付管道確認舊碼過期後換碼。",
+    "qrIssuePaused": "已暫停出碼，正在核對付款狀態。",
     "ipDeliveryHint": "付款成功。請聯絡 Telegram 客服，提供訂單號領取美國家寬 IP。",
     "inlineGmCashier": "GMwallet 選鏈與代幣收銀台",
     "gptRedeemHint": "核銷碼已發放。複製後前往核銷，依提示提交帳號資料。核銷完成後再確認充值結果。",
@@ -2349,27 +2351,9 @@
     "dismiss": "我知道了"
   },
   "floatingSupport": {
+    "dragHint": "拖曳調整位置，點擊聯絡客服；亦可用方向鍵移動",
     "title": "聯絡客服",
     "label": "聯絡 Telegram 客服（新視窗開啟）"
-  },
-  "pendingOrders": {
-    "dragHint": "拖曳調整位置，點擊聯絡客服；亦可用方向鍵移動",
-    "restoreTitle": "繼續原訂單付款",
-    "restoreError": "暫時無法恢復訂單，請確認查單資訊或稍後重試。",
-    "sameOrder": "這是已建立的原訂單。切換付款方式不會建立新訂單，請勿重複付款。",
-    "title": "有訂單尚未付款",
-    "hint": "你有 {count} 筆訂單尚未確認付款，可繼續查看，避免重複下單。",
-    "unpaid": "待付款",
-    "unconfirmed": "待確認付款狀態",
-    "resume": "繼續付款",
-    "check": "查看訂單",
-    "dismiss": "稍後提醒",
-    "badge": "{count} 筆待付款",
-    "authHint": "重新開啟瀏覽器後，訪客需用下單信箱和訂單密碼查單。",
-    "newTitle": "還有訂單未付款",
-    "newMessage": "你還有尚未確認付款的訂單。新訂單不會取代或取消原訂單，請先確認，避免重複付款。",
-    "createAnyway": "仍建立新訂單",
-    "reviewFirst": "先不建立"
   },
   "gmInline": {
     "exactAmount": "準確轉帳金額",

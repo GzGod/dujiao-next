@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/dujiao-next/internal/shared/tradepricing"
 	"strconv"
 	"sync"
 	"time"
@@ -146,8 +147,8 @@ func (s *Service) SyncProduct(mappingID uint) error {
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, mapping.EffectiveMarkupPercent(conn.PriceMarkupPercent), conn.PriceRoundingMode)
 				localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
-				localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			}
+			localSKU.CostPriceAmount = money.FromDecimal(tradepricing.PricingCost(convertCurrency(upPrice, conn.ExchangeRate)))
 			_ = s.skus.Update(localSKU)
 		}
 	}
@@ -165,7 +166,7 @@ func (s *Service) SyncProduct(mappingID uint) error {
 			SKUCode:         upSKU.SKUCode,
 			SpecValuesJSON:  upSKU.SpecValues,
 			PriceAmount:     money.FromDecimal(localPrice.Round(2)),
-			CostPriceAmount: money.FromDecimal(convertCurrency(skuPrice, conn.ExchangeRate).Round(2)), // 成本价 = 上游价格 × 汇率（本地币种）
+			CostPriceAmount: money.FromDecimal(tradepricing.PricingCost(convertCurrency(skuPrice, conn.ExchangeRate))), // 成本价 = 上游价格 × 汇率（本地币种）
 			IsActive:        upSKU.IsActive,
 			SortOrder:       0,
 		}
@@ -186,8 +187,8 @@ func (s *Service) SyncProduct(mappingID uint) error {
 	}
 
 	// ── 2c. 如果启用了自动同步价格，更新 Product.PriceAmount 为最低 SKU 价格 ──
-	if conn.AutoSyncPrice && localProduct != nil {
-		s.recalcProductPrice(localProduct)
+	if localProduct != nil {
+		s.recalcProductPrice(localProduct, conn.AutoSyncPrice)
 	}
 
 	// 上游未返回批发价时不覆盖本地配置，避免运营手动配置被同步任务清空。
@@ -691,8 +692,8 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, mapping.EffectiveMarkupPercent(conn.PriceMarkupPercent), conn.PriceRoundingMode)
 				localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
-				localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(upPrice, conn.ExchangeRate).Round(2))
 			}
+			localSKU.CostPriceAmount = money.FromDecimal(tradepricing.PricingCost(convertCurrency(upPrice, conn.ExchangeRate)))
 			_ = s.skus.Update(localSKU)
 		}
 	}
@@ -717,7 +718,7 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 			SKUCode:         upSKU.SKUCode,
 			SpecValuesJSON:  upSKU.SpecValues,
 			PriceAmount:     money.FromDecimal(localPrice.Round(2)),
-			CostPriceAmount: money.FromDecimal(convertCurrency(skuPrice, conn.ExchangeRate).Round(2)),
+			CostPriceAmount: money.FromDecimal(tradepricing.PricingCost(convertCurrency(skuPrice, conn.ExchangeRate))),
 			IsActive:        upSKU.IsActive,
 			SortOrder:       0,
 		}
@@ -737,8 +738,8 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 	}
 
 	// 同步价格
-	if conn.AutoSyncPrice && localProduct != nil {
-		s.recalcProductPrice(localProduct)
+	if localProduct != nil {
+		s.recalcProductPrice(localProduct, conn.AutoSyncPrice)
 	}
 
 	if len(upProduct.WholesalePrices) > 0 {

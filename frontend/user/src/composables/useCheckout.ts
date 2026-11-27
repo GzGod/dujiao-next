@@ -13,8 +13,6 @@ import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
 import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
 import { getAffiliateCode, getAffiliateVisitorKey } from '../utils/affiliate'
-import { readPendingOrders, rememberPendingOrder } from '../utils/pendingOrders'
-import { useConfirmDialog } from './useConfirmDialog'
 import { saveGuestOrderAuth } from '../utils/guestOrderAuth'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../components/captcha/TurnstileCaptcha.vue'
@@ -802,7 +800,6 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
     }
   }
 
-  const { confirm: confirmNewOrder } = useConfirmDialog()
   const handleSubmit = async () => {
     submitAttempted.value = true
     error.value = ''
@@ -823,11 +820,6 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
         await options.onCreated?.({ ...response.data.data, order_no: existing.order_no, order: existing.order }, !userAuthStore.isAuthenticated)
         return
       }
-      const priorOrders = readPendingOrders().filter(row => userAuthStore.isAuthenticated ? !row.guest && row.owner === String(userAuthStore.user?.id || '') : row.guest)
-      if (priorOrders.length && !await confirmNewOrder({
-        title: t('pendingOrders.newTitle'), message: t('pendingOrders.newMessage'),
-        confirmText: t('pendingOrders.createAnyway'), cancelText: t('pendingOrders.reviewFirst'),
-      })) return
       await loadPreviewNow()
       if (previewError.value) {
         error.value = previewError.value
@@ -867,11 +859,6 @@ export function useCheckout(options: { buyNow?: boolean; requireAgreement?: bool
         throw new Error(t('checkout.errors.submitFailed'))
       }
 
-      if (!responseData.order_paid && (!responseData.order?.status || responseData.order.status === 'pending_payment')) {
-        rememberPendingOrder({ orderNo: responseData.order_no, guest: !userAuthStore.isAuthenticated,
-          owner: userAuthStore.isAuthenticated ? String(userAuthStore.user?.id || '') : '',
-          expiresAt: String(responseData.order?.expires_at || responseData.expires_at || ''), createdAt: Date.now() })
-      }
       if (options.onCreated) {
         await options.onCreated(responseData, !userAuthStore.isAuthenticated)
         return

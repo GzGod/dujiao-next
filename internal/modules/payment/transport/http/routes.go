@@ -7,6 +7,7 @@ func RegisterGuestLatestRoute(guest gin.IRoutes, handler *LatestHandler) {
 	if guest == nil || handler == nil {
 		panic("payment guest latest route: required dependency is nil")
 	}
+	guest.POST("/payments/qr-event", handler.QRSave(true))
 	guest.GET("/payments/latest", handler.GetGuestLatestPayment)
 	guest.GET("/payments/gm-cashier", handler.GuestCashier)
 }
@@ -16,6 +17,7 @@ func RegisterUserLatestRoute(user gin.IRoutes, handler *LatestHandler) {
 	if user == nil || handler == nil {
 		panic("payment user latest route: required dependency is nil")
 	}
+	user.POST("/payments/qr-event", handler.QRSave(false))
 	user.GET("/payments/latest", handler.GetLatestPayment)
 	user.GET("/payments/gm-cashier", handler.UserCashier)
 }

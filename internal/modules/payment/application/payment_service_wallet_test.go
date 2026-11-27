@@ -2281,3 +2281,45 @@ func TestReleasedAffiliateRecoveryContinuesAfterDelivery(t *testing.T) {
 		t.Fatalf("successful commission must not be retried again: %v / %d", err, affiliate.calls)
 	}
 }
+
+func TestQRSaveThirdGesturePausesAlipayOnly(t *testing.T) {
+	for _, provider := range []string{constants.PaymentProviderXorpay, constants.PaymentProviderBepusdt} {
+		t.Run(provider, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			if err := db.AutoMigrate(&paymentdomain.QRSaveEvent{}); err != nil {
+				t.Fatal(err)
+			}
+			o := orderdomain.Order{GuestEmail: "qr-test@example.invalid", OrderNo: "QR-TEST", Status: constants.OrderStatusPendingPayment}
+			if err := db.Create(&o).Error; err != nil {
+				t.Fatal(err)
+			}
+			p := paymentdomain.Payment{OrderID: o.ID, ProviderType: provider, ChannelType: "alipay", Status: constants.PaymentStatusPending}
+			if err := db.Create(&p).Error; err != nil {
+				t.Fatal(err)
+			}
+			store := paymentgormstore.New(db, "test-guest-credential-secret-with-32-bytes")
+			for i := 1; i <= 3; i++ {
+				count, alert, email, err := store.RecordQRSave(context.Background(), o.ID, p.ID, strconv.Itoa(i), "contextmenu")
+				if err != nil || count != i || alert != (i == 3) || email != o.GuestEmail {
+					t.Fatalf("event %d: %d %v %q %v", i, count, alert, email, err)
+				}
+			}
+			if err := db.First(&o, o.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if o.QRSaveEmail != o.GuestEmail || o.Status != constants.OrderStatusPendingPayment {
+				t.Fatal("unexpected order after gesture")
+			}
+			if provider == constants.PaymentProviderXorpay {
+				if o.QRAlipaySaveCount != 3 || o.QRWaitPaymentID != p.ID {
+					t.Fatal("missing QR hold")
+				}
+				if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: o.ID, ChannelID: 1}); !errors.Is(err, ErrPaymentInvalid) {
+					t.Fatalf("expected payment blocked: %v", err)
+				}
+			} else if o.QRAlipaySaveCount != 0 || o.QRWaitPaymentID != 0 || o.ExpiresAt != nil {
+				t.Fatal("crypto payment was restricted")
+			}
+		})
+	}
+}

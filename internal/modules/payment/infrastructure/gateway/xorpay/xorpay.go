@@ -287,3 +287,44 @@ func postForm(ctx context.Context, endpoint string, form url.Values) ([]byte, er
 	}
 	return body, nil
 }
+
+// ConfirmExpired checks the exact QR issuance identified by the provider's AOID.
+// Pending, missing, paid and ambiguous responses cannot authorize replacement.
+func ConfirmExpired(ctx context.Context, cfg *Config, aoid string) (bool, error) {
+	if err := ValidateConfig(cfg); err != nil {
+		return false, err
+	}
+	if aoid == "" || aoid == "." || aoid == ".." || strings.ContainsAny(aoid, "/?#") {
+		return false, ErrResponseInvalid
+	}
+	ctx, cancel := common.WithDefaultTimeout(ctx)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.APIBaseURL+"/api/query/"+url.PathEscape(aoid), nil)
+	if err != nil {
+		return false, err
+	}
+	client := http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	res, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return false, ErrRequestFailed
+	}
+	var result struct {
+		Status string `json:"status"`
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, 65537))
+	if err != nil || len(body) > 65536 || json.Unmarshal(body, &result) != nil {
+		return false, ErrResponseInvalid
+	}
+	switch result.Status {
+	case "expire":
+		return true, nil
+	case "new", "payed", "success":
+		return false, nil
+	default:
+		return false, ErrResponseInvalid
+	}
+}

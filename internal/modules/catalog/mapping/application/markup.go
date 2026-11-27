@@ -1,6 +1,7 @@
 package application
 
 import (
+	"github.com/dujiao-next/internal/shared/tradepricing"
 	"strconv"
 
 	"github.com/shopspring/decimal"
@@ -42,7 +43,7 @@ func (s *Service) ReapplyMarkup(connectionID uint) (int, error) {
 				continue
 			}
 			localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
-			localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(sm.UpstreamPrice.Decimal, conn.ExchangeRate).Round(2)) // 成本价 = 上游价格 × 汇率（本地币种）
+			localSKU.CostPriceAmount = money.FromDecimal(tradepricing.PricingCost(convertCurrency(sm.UpstreamPrice.Decimal, conn.ExchangeRate))) // 成本价 = 上游价格 × 汇率（本地币种）
 			_ = s.skus.Update(localSKU)
 		}
 
@@ -58,7 +59,7 @@ func (s *Service) ReapplyMarkup(connectionID uint) (int, error) {
 }
 
 // recalcProductPrice 重新计算商品基准价格和成本价为最低活跃 SKU 价格
-func (s *Service) recalcProductPrice(product *productdomain.Product) {
+func (s *Service) recalcProductPrice(product *productdomain.Product, updateRetail ...bool) {
 	allSKUs, err := s.skus.ListByProduct(product.ID, true)
 	if err != nil || len(allSKUs) == 0 {
 		return
@@ -73,7 +74,9 @@ func (s *Service) recalcProductPrice(product *productdomain.Product) {
 			minCostPrice = sku.CostPriceAmount.Decimal
 		}
 	}
-	product.PriceAmount = money.FromDecimal(minPrice.Round(2))
+	if len(updateRetail) == 0 || updateRetail[0] {
+		product.PriceAmount = money.FromDecimal(minPrice.Round(2))
+	}
 	product.CostPriceAmount = money.FromDecimal(minCostPrice.Round(2))
 	_ = s.products.Update(product)
 }
@@ -118,7 +121,7 @@ func (s *Service) SetMarkup(id uint, markupPercent *decimal.Decimal) error {
 			continue
 		}
 		localSKU.PriceAmount = money.FromDecimal(CalculateLocalPrice(sm.UpstreamPrice.Decimal, conn.ExchangeRate, markup, conn.PriceRoundingMode).Round(2))
-		localSKU.CostPriceAmount = money.FromDecimal(convertCurrency(sm.UpstreamPrice.Decimal, conn.ExchangeRate).Round(2))
+		localSKU.CostPriceAmount = money.FromDecimal(tradepricing.PricingCost(convertCurrency(sm.UpstreamPrice.Decimal, conn.ExchangeRate)))
 		if err := s.skus.Update(localSKU); err != nil {
 			return err
 		}

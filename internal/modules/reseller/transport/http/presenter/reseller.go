@@ -60,6 +60,7 @@ type ResellerDashboardResp struct {
 }
 
 type ResellerManagementProfileResp struct {
+	SupplyGrade          string     `json:"supply_grade,omitempty"`
 	ID                   uint       `json:"id"`
 	Status               string     `json:"status"`
 	ApplyReason          string     `json:"apply_reason,omitempty"`
@@ -246,6 +247,7 @@ func NewResellerManagementProfileResp(profile *resellerdomain.Profile) *Reseller
 		return nil
 	}
 	return &ResellerManagementProfileResp{
+		SupplyGrade:          supplyGrade(profile),
 		ID:                   profile.ID,
 		Status:               profile.Status,
 		ApplyReason:          profile.ApplyReason,
@@ -632,4 +634,11 @@ func NewResellerDashboardResp(opened bool, profile *resellerdomain.Profile, bala
 		WithdrawEnabled:        withdrawEnabled,
 		WithdrawDisabledReason: withdrawDisabledReason,
 	}
+}
+
+func supplyGrade(profile *resellerdomain.Profile) string {
+	if profile != nil && profile.SupplyPricing != nil {
+		return profile.SupplyPricing.Grade
+	}
+	return ""
 }

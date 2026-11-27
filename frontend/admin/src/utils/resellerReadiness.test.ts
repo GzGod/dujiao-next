@@ -30,3 +30,12 @@ describe('storefront product authorization', () => {
   expect(isSupplyProductAllowed(null,31)).toBe(true)
  })
 })
+
+describe('independent storefront grades', () => {
+ it('uses the assigned supply grade before legacy markup without changing agent membership', () => {
+  expect(supplyRuleSummary({grade:'basic',default_markup_percent:'1',overrides:[]}).percent).toBe('3')
+  expect(supplyRuleSummary({grade:'intermediate',default_markup_percent:'1',overrides:[]}).percent).toBe('2')
+  expect(supplyRuleSummary({grade:'advanced',default_markup_percent:'3',overrides:[]}).percent).toBe('1')
+  expect(supplyRuleSummary({default_markup_percent:'1',overrides:[]}).percent).toBe('1')
+ })
+})

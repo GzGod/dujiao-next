@@ -151,6 +151,9 @@ func (s *ManagementService) ApproveProfile(ctx context.Context, adminID, profile
 			profile.SupplyPricing.DefaultMarkupPercent = &percent
 		}
 		now := time.Now()
+		if profile.SupplyPricing.Grade == "" {
+			profile.SupplyPricing.Grade = "basic"
+		}
 		profile.Status = resellerdomain.ProfileStatusActive
 		profile.RejectReason = ""
 		profile.DefaultMarkupPercent = money.FromDecimal(input.DefaultMarkupPercent)

@@ -17,6 +17,7 @@ export function preferredResellerDomain(domains: AdminResellerDomain[] = []): Ad
 }
 
 export function supplyRuleSummary(config?: ResellerSupplyPricing | null): { key: string; percent?: string } {
+  if (config?.grade) {const percent=({basic:'3',intermediate:'2',advanced:'1'} as Record<string,string>)[config.grade];if(percent)return {key:'costMarkup',percent}}
   if (config?.default_markup_percent != null) return {key:'costMarkup',percent:config.default_markup_percent}
   return {key:'retailBase'}
 }

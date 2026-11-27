@@ -2,6 +2,7 @@ package upstreamhttp
 
 import (
 	"errors"
+	"github.com/shopspring/decimal"
 	"net/http"
 	"time"
 
@@ -135,7 +136,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 
 	items := make([]upstreamProduct, 0, len(products))
 	for _, p := range products {
-		items = append(items, h.toUpstreamProductWithMemberPrice(p, memberLevelID, fulfillmentTypeMap))
+		items = append(items, h.toUpstreamProductWithMemberPrice(p, memberLevelID, fulfillmentTypeMap, userID))
 	}
 
 	successResponse(c, gin.H{
@@ -195,7 +196,7 @@ func (h *Handler) GetProduct(c *gin.Context) {
 
 	successResponse(c, gin.H{
 		"ok":      true,
-		"product": h.toUpstreamProductWithMemberPrice(products[0], memberLevelID, fulfillmentTypeMap),
+		"product": h.toUpstreamProductWithMemberPrice(products[0], memberLevelID, fulfillmentTypeMap, userID),
 	})
 }
 
@@ -247,7 +248,11 @@ func (h *Handler) resolveEffectiveFulfillmentTypes(products []productdomain.Prod
 	return result
 }
 
-func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memberLevelID uint, fulfillmentTypeMap map[uint]string) upstreamProduct {
+func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memberLevelID uint, fulfillmentTypeMap map[uint]string, userIDs ...uint) upstreamProduct {
+	var userID uint
+	if len(userIDs) > 0 {
+		userID = userIDs[0]
+	}
 	skus := make([]upstreamSKU, 0, len(p.SKUs))
 	for _, s := range p.SKUs {
 		if !s.IsActive {
@@ -263,8 +268,13 @@ func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memb
 			StockQuantity: stockQuantity,
 			IsActive:      s.IsActive,
 		}
-		if memberLevelID > 0 && h.MemberLevels != nil {
+		if (memberLevelID > 0 || userID > 0) && h.MemberLevels != nil {
 			mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, s.ID, s.PriceAmount.Decimal, s.CostPriceAmount.Decimal)
+			if resolver, ok := h.MemberLevels.(interface {
+				ResolveUserPrice(uint, uint, uint, uint, decimal.Decimal, decimal.Decimal) (decimal.Decimal, decimal.Decimal)
+			}); ok && userID > 0 {
+				mp, _ = resolver.ResolveUserPrice(userID, memberLevelID, p.ID, s.ID, s.PriceAmount.Decimal, s.CostPriceAmount.Decimal)
+			}
 			if mp.LessThan(s.PriceAmount.Decimal) {
 				si.OriginalPrice = si.PriceAmount
 				si.MemberPrice = money.FromDecimal(mp).StringFixed(2)
@@ -300,8 +310,13 @@ func (h *Handler) toUpstreamProductWithMemberPrice(p productdomain.Product, memb
 		UpdatedAt:        p.UpdatedAt,
 	}
 
-	if memberLevelID > 0 && h.MemberLevels != nil {
+	if (memberLevelID > 0 || userID > 0) && h.MemberLevels != nil {
 		mp, _ := h.MemberLevels.ResolveMemberPrice(memberLevelID, p.ID, 0, p.PriceAmount.Decimal, p.CostPriceAmount.Decimal)
+		if resolver, ok := h.MemberLevels.(interface {
+			ResolveUserPrice(uint, uint, uint, uint, decimal.Decimal, decimal.Decimal) (decimal.Decimal, decimal.Decimal)
+		}); ok && userID > 0 {
+			mp, _ = resolver.ResolveUserPrice(userID, memberLevelID, p.ID, 0, p.PriceAmount.Decimal, p.CostPriceAmount.Decimal)
+		}
 		if mp.LessThan(p.PriceAmount.Decimal) {
 			result.OriginalPrice = result.PriceAmount
 			result.MemberPrice = money.FromDecimal(mp).StringFixed(2)

@@ -10,7 +10,7 @@
     <Transition name="gm-content" mode="out-in">
       <div v-if="selected && network===selected.network && token===selected.token" key="payment" class="gm-inline__payment">
         <div class="gm-inline__amount"><span>{{ t('gmInline.exactAmount') }}</span><strong>{{ selected.actual_amount }}<small>{{ selected.token }}</small></strong></div>
-        <div class="gm-inline__qr-wrap"><img v-if="qr" class="gm-inline__qr" :src="qr" :alt="t('gmInline.qr')" /><span class="gm-inline__scan-line" aria-hidden="true" /></div>
+        <div class="gm-inline__qr-wrap"><img v-if="qr" class="gm-inline__qr" @contextmenu.prevent="emit('gesture', $event)" @dragstart.prevent="emit('gesture', $event)" :src="qr" :alt="t('gmInline.qr')" /><span class="gm-inline__scan-line" aria-hidden="true" /></div>
         <p class="gm-inline__route"><span class="gm-inline__chain-dot" :style="{background:chainColor(selected.network)}" />{{ networkName(selected.network) }} · {{ selected.token }}</p>
         <button type="button" class="gm-inline__address" @click="copy" :aria-label="t('payment.copyWalletAddress')"><code>{{ selected.receive_address }}</code><Check v-if="copied" :size="15" /><Copy v-else :size="15" /></button>
         <div class="gm-inline__source"><button type="button" :aria-pressed="source==='wallet'" @click="source='wallet'">{{ t('gmInline.wallet') }}</button><span>·</span><button type="button" :aria-pressed="source==='exchange'" @click="source='exchange'">{{ t('gmInline.exchange') }}</button></div>
@@ -30,7 +30,7 @@ import QRCode from 'qrcode'
 import { ChevronDown, Check, Copy, ArrowRight } from 'lucide-vue-next'
 import { gmCashierAPI } from '../../../api/order'
 const props = defineProps<{orderNo:string;guest:boolean;email:string;password:string}>()
-const emit = defineEmits<{ready:[]}>()
+const emit = defineEmits<{ready:[]; gesture:[event: Event]}>()
 const { t } = useI18n()
 let disposed = false
 onBeforeUnmount(() => { disposed = true })

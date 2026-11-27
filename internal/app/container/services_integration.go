@@ -130,6 +130,7 @@ func (c *Container) initIntegrationServices() {
 		PaymentProviderRegistry: c.PaymentProviderRegistry,
 		ResellerAccounting:      c.ResellerAccountingLedger,
 	})
+	c.PaymentService.ConfirmQRExpiry = c.OrderService.ConfirmQRExpiry
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
 		Orders:             procurementorder.New(c.OrderStore),

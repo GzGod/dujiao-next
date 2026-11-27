@@ -1277,6 +1277,8 @@
     }
   },
   "payment": {
+    "qrIssueWaiting": "Waiting for the payment provider to confirm expiry before replacing the code.",
+    "qrIssuePaused": "New codes are paused while payment is checked.",
     "ipDeliveryHint": "Payment confirmed. Contact Telegram support with your order number to receive your US residential IP.",
     "inlineGmCashier": "GMwallet network and token checkout",
     "gptRedeemHint": "Your code is ready. Copy it and open redemption to submit the required account details, then confirm the top-up result.",
@@ -2349,27 +2351,9 @@
     "dismiss": "Got it"
   },
   "floatingSupport": {
+    "dragHint": "Drag to move, click for support; arrow keys also move it",
     "title": "Get help",
     "label": "Contact Telegram support (opens a new tab)"
-  },
-  "pendingOrders": {
-    "dragHint": "Drag to move, click for support; arrow keys also move it",
-    "restoreTitle": "Resume your order",
-    "restoreError": "Unable to restore this order. Check your lookup details or try again later.",
-    "sameOrder": "This is your existing order. Changing payment methods does not create another order. Please do not pay twice.",
-    "title": "An order needs your attention",
-    "hint": "You have {count} orders without confirmed payment. Check them to avoid duplicate purchases.",
-    "unpaid": "Awaiting payment",
-    "unconfirmed": "Payment status unconfirmed",
-    "resume": "Continue payment",
-    "check": "View order",
-    "dismiss": "Remind me later",
-    "badge": "{count} pending",
-    "authHint": "Guests need their checkout email and order password after reopening the browser.",
-    "newTitle": "An earlier order may be unpaid",
-    "newMessage": "You have orders without confirmed payment. A new order does not replace or cancel an earlier one. Please check to avoid paying twice.",
-    "createAnyway": "Create another order",
-    "reviewFirst": "Do not create yet"
   },
   "gmInline": {
     "exactAmount": "Exact transfer amount",

@@ -50,7 +50,7 @@
             shadow-2xl
             md:max-w-md md:max-h-[75vh]
           "
-          :class="{ 'quick-buy-checkout': inlineCheckout, 'quick-buy-checkout--paying': inlineCheckout && (paymentCreated || resumeOrder) }"
+          :class="{ 'quick-buy-checkout': inlineCheckout, 'quick-buy-checkout--paying': inlineCheckout && paymentCreated }"
           @click.stop
         >
           <!-- Mobile drag handle -->
@@ -98,7 +98,7 @@
                   {{ productTitle }}
                 </h3>
 
-                <div v-if="!resumeOrder" class="mt-1.5 flex flex-wrap items-center gap-1">
+                <div class="mt-1.5 flex flex-wrap items-center gap-1">
                   <Badge :variant="product.fulfillment_type === 'auto' ? 'info' : 'neutral'" size="xs">
                     {{ getFulfillmentTypeLabel(product.fulfillment_type) }}
                   </Badge>
@@ -114,7 +114,7 @@
                 </div>
 
                 <!-- Price -->
-                <div v-if="!resumeOrder || loadedProduct" class="mt-auto pt-1">
+                <div class="mt-auto pt-1">
                   <template v-if="selectedSku && hasSelectedSkuWholesalePrice">
                     <span
                       class="text-lg md:text-xl font-bold"
@@ -294,15 +294,14 @@
 
 
             <!-- Warning -->
-            <p v-if="!resumeOrder && stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+            <p v-if="stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {{ t('productDetail.stockBelowMinPurchase', { count: effectiveMin }) }}
             </p>
-            <p v-else-if="!resumeOrder && purchaseWarning" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+            <p v-else-if="purchaseWarning" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {{ purchaseWarning }}
             </p>
             </div>
-            <ResumeOrderPayment v-if="inlineCheckout && resumeOrder" :reference="resumeOrder" @busy="checkoutBusy = $event" @loaded="restoreOrderProduct" />
-            <XgaiCheckout v-show="!loginVisible" @login="loginVisible = true" v-else-if="inlineCheckout && canPurchase && !requiresLogin && buyNowStore.hasItem" embedded @busy="checkoutBusy = $event" @payment="paymentCreated = $event">
+            <XgaiCheckout v-show="!loginVisible" @login="loginVisible = true" v-if="inlineCheckout && canPurchase && !requiresLogin && buyNowStore.hasItem" embedded @busy="checkoutBusy = $event" @payment="paymentCreated = $event">
               <template #quantity>
             <!-- Quantity -->
             <div v-if="inlineCheckout" class="mb-4 flex items-center gap-3" :class="{ 'quick-buy-checkout__quantity': inlineCheckout }">
@@ -346,7 +345,7 @@
           </div>
 
           <!-- Actions (sticky bottom) -->
-          <div v-if="!resumeOrder && (!inlineCheckout || requiresLogin || !canPurchase)" class="shrink-0 px-4 md:px-5 pt-3 pb-3 md:pb-5 border-t theme-safe-bottom">
+          <div v-if="(!inlineCheckout || requiresLogin || !canPurchase)" class="shrink-0 px-4 md:px-5 pt-3 pb-3 md:pb-5 border-t theme-safe-bottom">
             <Button
               v-if="requiresLogin"
               class="w-full py-3 h-auto min-h-[44px] rounded-xl text-sm font-semibold"
@@ -412,14 +411,12 @@ import XgaiCheckout from '../templates/xgai/Checkout.vue'
 import XgaiLogin from '../templates/xgai/auth/Login.vue'
 import { getProductGuide, productGuideLabels } from '../utils/productGuide'
 import { processHtmlForDisplay } from '../utils/content'
-import ResumeOrderPayment from '../templates/xgai/components/ResumeOrderPayment.vue'
 import { productAPI } from '../api/product'
 
 const props = defineProps<{
   product: any
   visible: boolean
   sourceElement?: HTMLElement
-  resumeOrder?: import('../utils/pendingOrders').PendingOrder
   inlineCheckout?: boolean
 }>()
 
@@ -429,13 +426,6 @@ const emit = defineEmits<{
 
 const loadedProduct = ref<any>(null)
 const product = computed(() => loadedProduct.value || props.product)
-const restoreOrderProduct = (order: any) => {
-  const item = order.items?.[0]
-  if (!item) return
-  loadedProduct.value = { ...props.product, title: item.title || item.product_title || props.product.title,
-    images: item.images || [], price_amount: item.unit_price || item.price || order.total_amount,
-    description: { 'zh-CN': t('pendingOrders.sameOrder'), 'zh-TW': t('pendingOrders.sameOrder'), 'en-US': t('pendingOrders.sameOrder') } }
-}
 let detailRequest = 0
 watch(() => [props.product, props.visible], async () => {
   const request = ++detailRequest
@@ -737,7 +727,7 @@ const syncSelectedSku = () => {
 watch(() => [props.product, props.visible], () => {
   if (props.visible && product.value) {
     paymentCreated.value = false
-    hasCreatedOrder.value = !!props.resumeOrder
+    hasCreatedOrder.value = false
     purchaseWarning.value = ''
     quantity.value = effectiveMin.value
     syncSelectedSku()
@@ -1050,7 +1040,7 @@ const handleBuyNow = () => {
 }
 
 watch(() => [props.visible, product.value, selectedSkuId.value, quantity.value], () => {
-  if (props.inlineCheckout && props.visible && !props.resumeOrder) prepareBuyNow()
+  if (props.inlineCheckout && props.visible) prepareBuyNow()
 }, { immediate: true })
 
 const goLogin = () => {

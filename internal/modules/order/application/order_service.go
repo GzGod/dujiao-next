@@ -33,6 +33,7 @@ import (
 
 // OrderService 订单服务
 type OrderService struct {
+	ConfirmQRExpiry         func(uint) (bool, error)
 	orderStore              ordercontract.Store
 	userRepo                usercontract.Store
 	productRepo             productcontract.Repository

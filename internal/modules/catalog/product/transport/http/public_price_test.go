@@ -211,3 +211,22 @@ func TestCatalogPricesOnlyExposeCurrentMembership(t *testing.T) {
 		t.Fatalf("own pricing missing or another tier leaked: %+v err=%v", own, err)
 	}
 }
+
+func (*privacyMemberPrices) ResolveUserPrice(userID, level, product, sku uint, base, cost decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
+	if userID == 7 {
+		return decimal.NewFromInt(85), base.Sub(decimal.NewFromInt(85))
+	}
+	return base, decimal.Zero
+}
+func TestCatalogIncludesStorefrontIdentityWithoutAgentMembership(t *testing.T) {
+	prices := &privacyMemberPrices{}
+	h := &PublicHandler{memberLevels: prices}
+	product := &productdomain.Product{ID: 1, PriceAmount: money.FromDecimal(decimal.NewFromInt(100)), SKUs: []productdomain.ProductSKU{{ID: 11, IsActive: true, PriceAmount: money.FromDecimal(decimal.NewFromInt(100))}}}
+	quote, err := h.decoratePublicProduct(product, nil, 0, 7)
+	if err != nil || quote.SKUs[0].MemberPriceAmount == nil || quote.SKUs[0].MemberPriceAmount.StringFixed(2) != "85.00" {
+		t.Fatalf("missing storefront-only quote: %+v %v", quote, err)
+	}
+	if prices.reads != 0 || len(quote.MemberPrices) != 0 {
+		t.Fatal("other identity rules exposed")
+	}
+}

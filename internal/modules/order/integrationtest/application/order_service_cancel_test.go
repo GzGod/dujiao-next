@@ -116,6 +116,26 @@ func TestCancelExpiredOrderExpiresPendingPayments(t *testing.T) {
 		CouponStore:      coupongormstore.New(db),
 		CouponUsageStore: coupongormstore.NewUsageStore(db),
 	})
+	// A third gesture pauses issuance immediately. Closure requires a positive gateway result.
+	held := orderdomain.Order{OrderNo: "TEST-QR-CLOSE", Status: constants.OrderStatusPendingPayment, QRAlipaySaveCount: 3, ExpiresAt: &expiresAt}
+	if err := db.Create(&held).Error; err != nil {
+		t.Fatal(err)
+	}
+	verified := false
+	svc.ConfirmQRExpiry = func(id uint) (bool, error) { return id == held.ID && verified, nil }
+	if _, err := svc.CancelExpiredOrder(held.ID); err != ErrOrderCancelNotAllowed {
+		t.Fatalf("unverified gateway result authorized closure: %v", err)
+	}
+	if err := db.First(&held, held.ID).Error; err != nil || held.Status != constants.OrderStatusPendingPayment {
+		t.Fatalf("unexpected state: %s %v", held.Status, err)
+	}
+	verified = true
+	if _, err := svc.CancelExpiredOrder(held.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&held, held.ID).Error; err != nil || held.Status != constants.OrderStatusCanceled {
+		t.Fatalf("unpaid order not closed: %s %v", held.Status, err)
+	}
 	future := now.Add(time.Hour)
 	active := orderdomain.Order{OrderNo: "RECOVERY-NOT-DUE", Status: constants.OrderStatusPendingPayment, ExpiresAt: &future}
 	if err := db.Create(&active).Error; err != nil {

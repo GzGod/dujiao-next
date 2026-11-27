@@ -33,6 +33,11 @@ func (r *Store) GetProfileByID(id uint) (*resellerdomain.Profile, error) {
 		}
 		return nil, err
 	}
+	if r.ProfilePricingEnricher != nil {
+		if err := r.ProfilePricingEnricher(r.db, &profile); err != nil {
+			return nil, err
+		}
+	}
 	return &profile, nil
 }
 
@@ -49,6 +54,11 @@ func (r *Store) GetProfileByUserID(userID uint) (*resellerdomain.Profile, error)
 			return nil, nil
 		}
 		return nil, err
+	}
+	if r.ProfilePricingEnricher != nil {
+		if err := r.ProfilePricingEnricher(r.db, &profile); err != nil {
+			return nil, err
+		}
 	}
 	return &profile, nil
 }

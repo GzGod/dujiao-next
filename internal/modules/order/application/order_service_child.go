@@ -20,6 +20,17 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 	if order == nil {
 		return ErrOrderNotFound
 	}
+	// A provider lookup must stay outside the order transaction.
+	checkedCount := order.QRAlipaySaveCount
+	if checkedCount > 0 {
+		if s.ConfirmQRExpiry == nil {
+			return ErrOrderCancelNotAllowed
+		}
+		expired, err := s.ConfirmQRExpiry(order.ID)
+		if err != nil || !expired {
+			return ErrOrderCancelNotAllowed
+		}
+	}
 	now := time.Now()
 	err := s.orderStore.WithinTransaction(func(tx ordercontract.Transaction) error {
 		orderStore := tx.Orders()
@@ -34,6 +45,9 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 			return ErrOrderNotFound
 		}
 		// 只有未支付订单可以取消：已支付订单取消会退回钱包、释放已消耗库存，必须走退款流程
+		if locked.QRAlipaySaveCount != checkedCount {
+			return ErrOrderCancelNotAllowed
+		}
 		if locked.Status != order.Status || locked.Status != constants.OrderStatusPendingPayment {
 			return ErrOrderCancelNotAllowed
 		}

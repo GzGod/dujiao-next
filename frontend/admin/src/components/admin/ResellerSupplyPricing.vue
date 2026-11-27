@@ -15,6 +15,7 @@ const props = defineProps<{ profile: AdminResellerProfile }>()
 const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const key = 'admin.resellerSupply'
+const grade = ref(props.profile.supply_pricing?.grade || 'custom')
 const saving = ref(false)
 const loaded = ref(false)
 const products = ref<any[]>([])
@@ -56,7 +57,7 @@ const save = async () => {
    default_markup_percent: props.profile.default_markup_percent,
    max_markup_percent: props.profile.max_markup_percent,
    settlement_status: props.profile.settlement_status,
-   supply_pricing: { allowed_product_ids: allowedProductIDs.value, blocked_product_ids: blockedProductIDs.value, default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
+   supply_pricing: { grade: grade.value === 'custom' ? '' : grade.value as ResellerSupplyPricing['grade'], allowed_product_ids: allowedProductIDs.value, blocked_product_ids: blockedProductIDs.value, default_markup_percent: defaultMarkup.value === '' ? null : defaultMarkup.value, overrides: rules.value },
   })
   notifySuccess(t(`${key}.saved`)); emit('saved')
  } catch (e: any) { notifyError(e?.message || t(`${key}.failed`)) }
@@ -95,7 +96,8 @@ const changeProduct = async (rule: ResellerSupplyPricing['overrides'][number], v
 <template>
  <section class="rounded-xl border border-border bg-card p-4 space-y-4">
   <div><h3 class="text-sm font-medium">{{ t(`${key}.title`) }}</h3><p class="mt-1 text-sm text-muted-foreground">{{ t(`${key}.hint`) }}</p></div>
-  <div class="max-w-md space-y-2"><Label>{{ t(`${key}.default`) }}</Label><Input v-model="defaultMarkup" type="number" min="0" step="0.01" :placeholder="t(`${key}.inherit`)" /><p class="text-xs text-muted-foreground">{{ t(`${key}.unknownCost`) }}</p></div>
+  <div class="max-w-md space-y-2"><Label>{{t('admin.resellerGrade.title')}}</Label><Select v-model="grade"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="value in ['','basic','intermediate','advanced']" :key="value" :value="value || 'custom'">{{t('admin.resellerGrade.'+(value||'custom'))}}</SelectItem></SelectContent></Select><p class="text-xs text-muted-foreground">{{t('admin.resellerGrade.hint')}}</p></div>
+  <div v-if="!grade || grade === 'custom'" class="max-w-md space-y-2"><Label>{{ t(`${key}.default`) }}</Label><Input v-model="defaultMarkup" type="number" min="0" step="0.01" :placeholder="t(`${key}.inherit`)" /><p class="text-xs text-muted-foreground">{{ t(`${key}.unknownCost`) }} {{t('admin.resellerGrade.basis')}}</p></div>
   <p class="text-sm font-medium">{{ t(`${key}.owner`, { id: profile.user_id, email: profile.user?.email || '' }) }}</p>
   <Input v-model="search" :placeholder="t(`${key}.search`)" :aria-label="t(`${key}.search`)" />
   <div class="overflow-auto rounded-lg border border-border max-h-[560px]">

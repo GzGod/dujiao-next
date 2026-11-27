@@ -10,10 +10,11 @@ import (
 
 // Service 会员等级服务
 type Service struct {
-	EnsureAgentAPI func(uint) error
-	levelRepo      memberlevelcontract.LevelRepository
-	priceRepo      memberlevelcontract.PriceRepository
-	userRepo       memberlevelcontract.UserRepository
+	EnsureAgentAPI      func(uint) error
+	IdentitySupplyPrice func(userID, productID, skuID uint, retail, cost decimal.Decimal) (decimal.Decimal, bool)
+	levelRepo           memberlevelcontract.LevelRepository
+	priceRepo           memberlevelcontract.PriceRepository
+	userRepo            memberlevelcontract.UserRepository
 }
 
 // NewService 创建会员等级服务
@@ -159,7 +160,7 @@ func (s *Service) ResolveMemberPrice(levelID, productID, skuID uint, basePrice, 
 
 	// 使用等级成本加价（如高级代理固定只赚 1 个点）
 	if level.CostMarkupPercent.Valid && costPrice.GreaterThan(decimal.Zero) {
-		mp := costPrice.Mul(decimal.NewFromInt(1).Add(level.CostMarkupPercent.Decimal.Div(decimal.NewFromInt(100)))).Round(2)
+		mp := costPrice.Mul(decimal.NewFromInt(1).Add(level.CostMarkupPercent.Decimal.Div(decimal.NewFromInt(100)))).RoundCeil(2)
 		return capMemberPrice(mp, basePrice)
 	}
 
@@ -394,4 +395,15 @@ func capMemberPrice(memberPrice, basePrice decimal.Decimal) (decimal.Decimal, de
 		return memberPrice, basePrice.Sub(memberPrice).Round(2)
 	}
 	return basePrice, decimal.Zero
+}
+
+// ResolveUserPrice compares independent identities without changing either assigned grade.
+func (s *Service) ResolveUserPrice(userID, levelID, productID, skuID uint, retail, cost decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
+	price, _ := s.ResolveMemberPrice(levelID, productID, skuID, retail, cost)
+	if userID > 0 && s.IdentitySupplyPrice != nil {
+		if supply, ok := s.IdentitySupplyPrice(userID, productID, skuID, retail, cost); ok && supply.IsPositive() && supply.LessThan(price) {
+			price = supply
+		}
+	}
+	return price, retail.Sub(price).Round(2)
 }

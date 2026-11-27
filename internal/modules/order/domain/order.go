@@ -10,6 +10,9 @@ import (
 
 // Order 订单表
 type Order struct {
+	QRWaitPaymentID         uint         `gorm:"not null;default:0" json:"-"`
+	QRSaveEmail             string       `gorm:"type:text" json:"-"`
+	QRAlipaySaveCount       int          `gorm:"not null;default:0" json:"-"`
 	RiskSubnet              string       `gorm:"type:varchar(48);index" json:"-"`
 	RiskUserAgent           string       `gorm:"type:text" json:"-"`
 	RiskAlertRetryAt        *time.Time   `gorm:"index" json:"-"`

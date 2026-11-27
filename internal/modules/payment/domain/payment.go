@@ -46,3 +46,15 @@ type Payment struct {
 func (Payment) TableName() string {
 	return "payments"
 }
+
+// QRSaveEvent records a browser gesture on the QR image, not a confirmed screenshot.
+type QRSaveEvent struct {
+	ID         uint   `gorm:"primarykey"`
+	OrderID    uint   `gorm:"index;uniqueIndex:idx_qr_gesture"`
+	EventID    string `gorm:"size:36;uniqueIndex:idx_qr_gesture"`
+	PaymentID  uint
+	Kind       string `gorm:"size:20"`
+	Provider   string
+	OrderEmail string
+	CreatedAt  time.Time
+}

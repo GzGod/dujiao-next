@@ -1,6 +1,12 @@
 package paymenthttp
 
 import (
+	order "github.com/dujiao-next/internal/modules/order/domain"
+	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/dujiao-next/internal/shared/money"
+	"github.com/shopspring/decimal"
+	"strings"
+
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -107,5 +113,15 @@ func assertErrorResponse(t *testing.T, recorder *httptest.ResponseRecorder, want
 	}
 	if body.Msg != wantMsg {
 		t.Fatalf("msg = %q, want %q; body=%s", body.Msg, wantMsg, recorder.Body.String())
+	}
+}
+
+func TestQRAlertDetails(t *testing.T) {
+	o := order.Order{OrderNo: "TEST-QR", Currency: "CNY", TotalAmount: money.FromDecimal(decimal.RequireFromString("12.34")), Items: []order.OrderItem{{TitleJSON: jsonmap.JSON{"zh-CN": "联调测试商品"}, Quantity: 1}}}
+	msg := qrAlertDetails(&o, "qr-test@example.invalid", 3)["message"].(string)
+	for _, required := range []string{"联调测试商品 × 1", "12.34 CNY", "qr-test@example.invalid", "3 次"} {
+		if !strings.Contains(msg, required) {
+			t.Fatal("missing " + required)
+		}
 	}
 }

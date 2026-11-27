@@ -5,13 +5,14 @@
     <div v-else class="inline-pay__method"><img v-if="isAlipay" src="/images/payments/alipay.ico" alt="" /><span v-else class="inline-pay__coins"><img src="/images/payments/usdt.svg" alt="" /><img src="/images/payments/usdc.svg" alt="" /></span><b>{{ currentChannel?.name || payment.channel_name || '—' }}</b></div>
     <h2>{{ paid ? t('payment.inlineSuccess') : expired ? t('payment.orderExpired') : t(isRedirect ? 'payment.redirectTitle' : 'payment.inlineScan') }}</h2>
     <strong>{{ formatPrice(payable.amount, payable.currency) }}</strong>
-    <GmInlineCashier v-if="embeddedCashier && !paid && !expired" :order-no="result.order_no" :guest="guest" :email="email" :password="password" @ready="emit('ready')" />
+    <GmInlineCashier @gesture="recordGesture" v-if="embeddedCashier && !paid && !expired" :order-no="result.order_no" :guest="guest" :email="email" :password="password" @ready="emit('ready')" />
     <Transition v-if="!embeddedCashier || paid || expired" name="qr-reveal" appear mode="out-in">
       <div v-if="paid && deliveryUnderReview" class="inline-pay__result" key="review"><CheckCircle2 /><p>{{ t('payment.deliveryUnderReview') }}</p></div>
       <div v-else-if="paid" class="inline-pay__result" key="paid"><CheckCircle2 /><p>{{ t(isIp ? 'payment.ipDeliveryHint' : isClaude ? 'payment.claudeBotHint' : isGpt ? (deliveryCode ? 'payment.gptRedeemHint' : 'payment.gptDeliveryPending') : 'payment.inlineSuccessHint') }}</p><template v-if="isGpt && deliveryCode"><code class="inline-pay__code">{{ deliveryCode }}</code><button type="button" class="x-btn x-btn--ghost" @click="copyCode">{{ t(codeCopied ? 'payment.gptCodeCopied' : 'payment.gptCopyCode') }}</button></template><a v-if="isGpt" :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.gptRedeemOpen') }} →</a><a v-if="isIp" href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('floatingSupport.title') }} →</a><a v-if="isClaude && botUrl" :href="botUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.claudeBotOpen') }} →</a><button v-else-if="isClaude" type="button" class="x-btn x-btn--primary" :disabled="botLoading" @click="loadBot">{{ t(botLoading ? 'common.loading' : 'payment.claudeBotRetry') }}</button></div>
+      <div v-else-if="waitingForExpiry" class="inline-pay__result" key="qr-review"><Clock3 /><p>{{ t(gestureCount >= 3 ? 'payment.qrIssuePaused' : 'payment.qrIssueWaiting') }}</p></div>
       <div v-else-if="expired" class="inline-pay__result" key="expired"><Clock3 /><p>{{ t('payment.orderExpired') }}</p></div>
       <div v-else-if="isRedirect && payUrl" class="inline-pay__result" key="redirect"><ExternalLink /><p>{{ t('payment.redirectTip') }}</p><a :href="payUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.inlineOpenCashier') }} →</a></div>
-      <div v-else-if="qr" class="inline-pay__qr" key="qr"><img :src="qr" :alt="t('payment.inlineScan')" @load="emit('ready')" /><span>{{ t('payment.inlineWaiting') }}</span></div>
+      <div v-else-if="qr" class="inline-pay__qr" key="qr"><img @contextmenu.prevent="recordGesture" @dragstart.prevent="recordGesture" :src="qr" :alt="t('payment.inlineScan')" @load="emit('ready')" /><span>{{ t('payment.inlineWaiting') }}</span></div>
       <div v-else class="inline-pay__result" key="error"><AlertCircle /><p>{{ result.payment_error || t('payment.inlineUnavailable') }}</p></div>
     </Transition>
     <p v-if="isMock" class="inline-pay__mock">{{ t('payment.inlineMock') }}</p>
@@ -34,9 +35,8 @@ import GmInlineCashier from './GmInlineCashier.vue'
 import { embeddedGmCashierUrl } from '../../../utils/inlinePayment'
 import { resolvePaymentPresentationMode } from '../../../utils/paymentResumePolicy'
 import { inlinePayableAmount, shouldRefreshInlineOrder, inlineOrderItems } from '../../../utils/inlinePayment'
-import { reconcilePendingOrder } from '../../../utils/pendingOrders'
 import { CheckCircle2, Clock3, AlertCircle, ExternalLink } from 'lucide-vue-next'
-import { guestOrderAPI, userOrderAPI } from '../../../api'
+import { guestOrderAPI, userOrderAPI, paymentAPI } from '../../../api'
 import { useTheme } from '../../../utils/theme'
 import { useAppStore } from '../../../stores/app'
 import { useLocalized } from '../../../composables/useProduct'
@@ -48,6 +48,37 @@ const { formatPrice } = useLocalized()
 const appStore = useAppStore()
 const { theme } = useTheme()
 const payment = ref<any>(props.result.payment || props.result)
+const gestureCount = ref(0)
+const waitingForExpiry = ref(false)
+let rotating = false
+let nextCheck = 0
+const rotateWhenExpired = async () => {
+  if (!waitingForExpiry.value || rotating || disposed || paid.value || expired.value || gestureCount.value >= 3 || Date.now() < nextCheck) return
+  nextCheck = Date.now() + 15000
+  rotating = true
+  try {
+    const payload = { order_no: props.result.order_no, channel_id: currentChannelId.value, use_balance: Number(order.value?.wallet_paid_amount || 0) > 0 }
+    const response = props.guest ? await guestOrderAPI.createPayment({ ...payload, email: props.email, order_password: props.password }) : await paymentAPI.create(payload)
+    if (!disposed && response.data.data?.payment_id) {
+      payment.value = response.data.data
+      waitingForExpiry.value = false
+    }
+  } catch { /* The gateway may still accept the previous QR. */ }
+  finally { rotating = false }
+}
+let lastGestureAt = -Infinity
+const recordGesture = async (event: Event) => {
+  if (!event.isTrusted || performance.now() - lastGestureAt < 800) return
+  lastGestureAt = performance.now()
+  const data = { order_no: props.result.order_no, payment_id: payment.value.payment_id || payment.value.id || props.result.payment_id, event_id: crypto.randomUUID(), kind: event.type }
+  try {
+    const response = props.guest ? await guestOrderAPI.qrEvent(data, { email: props.email, order_password: props.password }) : await userOrderAPI.qrEvent(data)
+    if (isAlipay.value) {
+      gestureCount.value = Math.max(gestureCount.value, Number(response.data.data?.count || 0))
+      waitingForExpiry.value = gestureCount.value > 0
+    }
+  } catch { /* A failed report does not confirm an order-state change. */ }
+}
 const currentChannelId = ref(Number(payment.value.channel_id || props.initialChannelId || 0))
 const currentChannel = computed(() => props.channels.find(channel => Number(channel.id) === currentChannelId.value))
 const isAlipay = computed(() => String(currentChannel.value?.channel_type || payment.value.channel_type).includes('alipay'))
@@ -106,7 +137,7 @@ const refresh = async () => {
     const response = props.guest
       ? await guestOrderAPI.detail(props.result.order_no, { email: props.email, order_password: props.password }, { silentBusinessError: true })
       : await userOrderAPI.detail(props.result.order_no, { silentBusinessError: true })
-    if (!disposed) { order.value = response.data.data; reconcilePendingOrder(props.result.order_no, order.value); refreshError.value = false }
+    if (!disposed) { order.value = response.data.data; refreshError.value = false }
   } catch { if (!disposed) refreshError.value = true }
   finally { refreshing.value = false }
 }
@@ -123,7 +154,7 @@ onMounted(async () => {
   if (paid.value || expired.value || !payUrl.value && !payment.value.qr_code) emit('ready')
   await refresh()
   if (disposed) return
-  timer = setInterval(() => { now.value = Date.now(); if (shouldRefreshInlineOrder(order.value, isGpt.value, Boolean(deliveryCode.value), expired.value)) void refresh() }, 2000)
+  timer = setInterval(() => { now.value = Date.now(); void rotateWhenExpired(); if (shouldRefreshInlineOrder(order.value, isGpt.value, Boolean(deliveryCode.value), expired.value)) void refresh() }, 2000)
 })
 onBeforeUnmount(() => { disposed = true; clearInterval(timer) })
 </script>

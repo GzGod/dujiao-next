@@ -354,8 +354,8 @@ func TestMappingMarkupOverridesConnectionAndRepricesNow(t *testing.T) {
 	if !got.PriceAmount.Decimal.Equal(decimal.RequireFromString("130")) {
 		t.Fatalf("expected 130 after 30%% markup, got %s", got.PriceAmount.Decimal)
 	}
-	if !got.CostPriceAmount.Decimal.Equal(decimal.RequireFromString("100")) {
-		t.Fatalf("cost should be upstream price, got %s", got.CostPriceAmount.Decimal)
+	if !got.CostPriceAmount.Decimal.Equal(decimal.RequireFromString("101")) {
+		t.Fatalf("cost should be raw upstream quote plus 1 percent, got %s", got.CostPriceAmount.Decimal)
 	}
 
 	// 清空单品加价 → 回到连接统一的 10%
@@ -363,6 +363,9 @@ func TestMappingMarkupOverridesConnectionAndRepricesNow(t *testing.T) {
 		t.Fatalf("clear markup status %d", code)
 	}
 	db.First(&got, sku.ID)
+	if !got.CostPriceAmount.Decimal.Equal(decimal.RequireFromString("101")) {
+		t.Fatalf("cost buffer compounded: %s", got.CostPriceAmount.Decimal)
+	}
 	if !got.PriceAmount.Decimal.Equal(decimal.RequireFromString("110")) {
 		t.Fatalf("expected connection markup 110, got %s", got.PriceAmount.Decimal)
 	}

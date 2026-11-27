@@ -3,6 +3,7 @@ package producthttp
 import (
 	"errors"
 	"github.com/dujiao-next/internal/shared/productguide"
+	"github.com/shopspring/decimal"
 	"strings"
 
 	promotiondomain "github.com/dujiao-next/internal/modules/promotion/domain"
@@ -167,9 +168,12 @@ func (h *PublicHandler) decoratePublicProduct(product *productdomain.Product, pr
 	}
 
 	// 附加会员等级价格
-	var memberLevelID uint
+	var memberLevelID, userID uint
 	if len(userMemberLevelID) > 0 {
 		memberLevelID = userMemberLevelID[0]
+		if len(userMemberLevelID) > 1 {
+			userID = userMemberLevelID[1]
+		}
 	}
 	if memberLevelID > 0 && h.memberLevels != nil {
 		levelPrices, _ := h.memberLevels.GetLevelPricesByProduct(product.ID)
@@ -198,8 +202,13 @@ func (h *PublicHandler) decoratePublicProduct(product *productdomain.Product, pr
 		sv := publicSKUView{ProductSKU: sku}
 
 		// 计算当前用户的会员价
-		if memberLevelID > 0 && h.memberLevels != nil && sku.IsActive {
+		if (memberLevelID > 0 || userID > 0) && h.memberLevels != nil && sku.IsActive {
 			memberPrice, _ := h.memberLevels.ResolveMemberPrice(memberLevelID, product.ID, sku.ID, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal)
+			if resolver, ok := h.memberLevels.(interface {
+				ResolveUserPrice(uint, uint, uint, uint, decimal.Decimal, decimal.Decimal) (decimal.Decimal, decimal.Decimal)
+			}); ok && userID > 0 {
+				memberPrice, _ = resolver.ResolveUserPrice(userID, memberLevelID, product.ID, sku.ID, sku.PriceAmount.Decimal, sku.CostPriceAmount.Decimal)
+			}
 			if memberPrice.LessThan(sku.PriceAmount.Decimal) {
 				mp := money.FromDecimal(memberPrice)
 				sv.MemberPriceAmount = &mp

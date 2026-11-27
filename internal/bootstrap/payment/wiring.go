@@ -1,10 +1,16 @@
 package paymentbootstrap
 
 import (
+	"context"
 	"github.com/dujiao-next/internal/app/container"
+	"github.com/dujiao-next/internal/modules/fulfillment/contract"
+	"github.com/dujiao-next/internal/modules/fulfillment/infrastructure/telegramapi"
 	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/gmcashier"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
 	paymentcallbacktransport "github.com/dujiao-next/internal/modules/payment/transport/http/callback"
+	"github.com/dujiao-next/internal/shared/jsonmap"
+	"os"
+	"strings"
 )
 
 // Handlers is the complete payment HTTP entrypoint set assembled at the
@@ -26,6 +32,20 @@ func New(c *container.Container) Handlers {
 	alerter := exceptionAlerterAdapter{notifications: c.NotificationService}
 
 	latest := paymenttransport.NewLatestHandler(guestOrders, userOrders, pendingLookupAdapter{payments: c.PaymentStore})
+	if recorder, ok := c.PaymentStore.(interface {
+		RecordQRSave(context.Context, uint, uint, string, string) (int, bool, string, error)
+	}); ok {
+		latest.RecordQR = recorder.RecordQRSave
+	}
+	latest.QRAlert = alerter.EnqueuePaymentExceptionAlert
+	if token, chat := strings.TrimSpace(os.Getenv("DELIVERY_TELEGRAM_BOT_TOKEN")), strings.TrimSpace(os.Getenv("DELIVERY_TELEGRAM_ADMIN_ID")); token != "" && chat != "" {
+		bot := &telegramapi.Client{Token: token}
+		latest.QRAlert = func(_, _, _ string, data jsonmap.JSON) error {
+			message, _ := data["message"].(string)
+			_, err := bot.SendDelivery(context.Background(), contract.TelegramMessage{ChatID: chat, Text: "付款码风控提醒\n" + message})
+			return err
+		}
+	}
 	latest.Cashier = gmcashier.Client{}
 	return Handlers{
 		Latest: latest,

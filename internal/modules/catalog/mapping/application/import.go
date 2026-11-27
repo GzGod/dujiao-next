@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/dujiao-next/internal/shared/tradepricing"
 	"regexp"
 	"strings"
 	"time"
@@ -173,7 +174,7 @@ func (s *Service) importUpstreamProduct(connectionID uint, upstreamProductID uin
 		ContentJSON:          localContent,
 		ManualFormSchemaJSON: upProduct.ManualFormSchema,
 		PriceAmount:          money.FromDecimal(priceAmount.Round(2)),
-		CostPriceAmount:      money.FromDecimal(costPriceAmount.Round(2)),
+		CostPriceAmount:      money.FromDecimal(tradepricing.PricingCost(costPriceAmount)),
 		WholesalePrices:      productdomain.WholesalePriceTiers{},
 		Images:               jsonslice.Strings(localImages),
 		Tags:                 jsonslice.Strings(upProduct.Tags),
@@ -211,7 +212,7 @@ func (s *Service) importUpstreamProduct(connectionID uint, upstreamProductID uin
 				SKUCode:         upSKU.SKUCode,
 				SpecValuesJSON:  upSKU.SpecValues,
 				PriceAmount:     money.FromDecimal(localPrice.Round(2)),
-				CostPriceAmount: money.FromDecimal(convertCurrency(skuPrice, exchangeRate).Round(2)), // 成本价 = 上游价格 × 汇率（本地币种）
+				CostPriceAmount: money.FromDecimal(tradepricing.PricingCost(convertCurrency(skuPrice, exchangeRate))), // 成本价 = 上游价格 × 汇率（本地币种）
 				IsActive:        upSKU.IsActive,
 				SortOrder:       0,
 			}

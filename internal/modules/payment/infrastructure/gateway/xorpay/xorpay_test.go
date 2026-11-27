@@ -137,3 +137,21 @@ func TestVerifyCallback(t *testing.T) {
 		t.Fatalf("pay_time should be parsed as UTC+8, got %v", paidAt)
 	}
 }
+
+func TestConfirmExpiredRequiresExplicitProviderExpiry(t *testing.T) {
+	for _, status := range []string{"expire", "new", "payed", "success", "not_exist", "fee_error", "unknown"} {
+		t.Run(status, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "GET" || r.URL.Path != "/api/query/test-aoid" {
+					t.Error("incorrect issuance lookup")
+				}
+				_, _ = w.Write([]byte(`{"status":"` + status + `"}`))
+			}))
+			defer server.Close()
+			expired, err := ConfirmExpired(context.Background(), &Config{APIBaseURL: server.URL, AID: "test", AppSecret: "test", NotifyURL: "https://example.test/notify"}, "test-aoid")
+			if expired != (status == "expire") || expired && err != nil {
+				t.Fatalf("expired=%v err=%v", expired, err)
+			}
+		})
+	}
+}

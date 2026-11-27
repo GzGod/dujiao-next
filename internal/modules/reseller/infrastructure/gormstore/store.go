@@ -10,7 +10,8 @@ import (
 
 // Store is the single GORM implementation of all reseller persistence ports.
 type Store struct {
-	db *gorm.DB
+	db                     *gorm.DB
+	ProfilePricingEnricher func(*gorm.DB, *resellerdomain.Profile) error
 }
 
 func New(db *gorm.DB) *Store {
@@ -56,7 +57,9 @@ func (s *Store) BindTx(tx *gorm.DB) *Store {
 	if tx == nil {
 		return s
 	}
-	return New(tx)
+	bound := New(tx)
+	bound.ProfilePricingEnricher = s.ProfilePricingEnricher
+	return bound
 }
 
 func (s *Store) transaction(run func(*Store) error) error {
@@ -64,7 +67,7 @@ func (s *Store) transaction(run func(*Store) error) error {
 		return nil
 	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		return run(New(tx))
+		return run(s.BindTx(tx))
 	})
 }
 

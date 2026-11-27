@@ -1,7 +1,10 @@
 package container
 
 import (
+	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/xorpay"
+
 	"context"
+	"github.com/dujiao-next/internal/bootstrap/identitypricing"
 
 	adproxyapp "github.com/dujiao-next/internal/modules/adproxy/application"
 	adproxygateway "github.com/dujiao-next/internal/modules/adproxy/infrastructure/adgateway"
@@ -87,6 +90,7 @@ func (c *Container) initApplicationServices() {
 		c.PaymentStore,
 	)
 	c.MemberLevelService = memberlevelapp.NewService(c.MemberLevelRepo, c.MemberLevelPriceRepo, c.MemberLevelUserRepo)
+	identitypricing.Configure(c.MemberLevelService, c.ResellerStore)
 	c.OrderRiskControlService = orderriskapp.NewService(orderriskapp.Options{
 		Settings:    c.SettingService,
 		RateLimiter: orderrisklimiter.New(),
@@ -111,6 +115,30 @@ func (c *Container) initApplicationServices() {
 		RiskControlService:      c.OrderRiskControlService,
 		ExpireMinutes:           c.Config.Order.PaymentExpireMinutes,
 	})
+	c.OrderService.ConfirmQRExpiry = func(orderID uint) (bool, error) {
+		payments, err := c.PaymentStore.ListByOrderID(orderID)
+		if err != nil || len(payments) == 0 {
+			return false, err
+		}
+		for _, p := range payments {
+			if p.ProviderType != "xorpay" || p.ProviderRef == "" || p.PaidAt != nil || p.Status == "success" {
+				return false, nil
+			}
+			ch, err := c.PaymentChannelStore.GetByID(p.ChannelID)
+			if err != nil || ch == nil {
+				return false, err
+			}
+			cfg, err := xorpay.ParseConfig(ch.ConfigJSON)
+			if err != nil {
+				return false, err
+			}
+			expired, err := xorpay.ConfirmExpired(context.Background(), cfg, p.ProviderRef)
+			if err != nil || !expired {
+				return false, err
+			}
+		}
+		return true, nil
+	}
 	c.FulfillmentService = fulfillmentapp.New(fulfillmentapp.Options{
 		OrderStore:            c.OrderStore,
 		FulfillmentStore:      c.FulfillmentStore,

@@ -193,7 +193,7 @@ const messages = {
       empty: '暂无对账任务',
     },
     resellerWorkspace: {"listTitle": "分站申请与管理", "detailTitle": "分站工作台", "storeOwner": "分站 / 站长", "openingStatus": "开通状态", "domainConnection": "域名接入", "supplyRule": "给他的供货价", "todo": "待处理事项", "actions": "管理操作", "unnamedSite": "未命名分站 #{id}", "ownerId": "站长用户 #{id}", "costMarkup": "你的进价 +{percent}%", "retailBase": "使用主站零售价供货", "overrides": "含 {count} 条单独报价", "authorizedCount": "已授权 {count} 个商品", "blockedCount": "按禁售清单控制 · {count} 个禁售", "editSupply": "商品授权与供货报价", "noTodo": "暂无待办", "visitStore": "访问分站", "retailIndependent": "分站对客户的售价独立设置", "productsTab": "商品授权与供货价", "domainsTab": "域名与解析", "siteTab": "店铺装修", "lastCheck": "最近检查", "authorizedProducts": "商品售卖权限", "byBlocklist": "按禁售清单", "priceLayers": "你的进价是主站采购成本；供货价是分站向你拿货的价格；客户零售价由分站独立设置。这里修改供货价及商品权限，不会直接修改分站零售价。", "connection": {"ready": "解析与证书已就绪", "pending_dns": "等待 DNS 解析", "pending_tls": "等待 HTTPS 证书", "error": "接入异常，需检查", "unbound": "尚未绑定域名", "unconfigured": "等待平台生成解析记录", "disabled": "域名已停用", "pending_review": "待审核"}, "tasks": {"review": "审核分站申请", "rejected": "查看拒绝原因", "disabled": "分站已停用", "bindDomain": "绑定分站域名", "fixDomain": "处理域名接入", "configureSite": "完善店铺装修", "settlementFrozen": "检查结算冻结"}},
-    agentManagement: {"title": "代理与分站", "apiPending": "代理 / API 待审批", "sitePending": "分站待开通", "siteActive": "已开通分站", "sites": "分站申请与管理", "distinction": "代理/API：审批时选择等级并同步开通接口。分站：单独审核店铺资格，默认仅售 GPT，供货价为你的进价加 1%，客户零售价由分站设置。", "sitePolicy": "通过后：仅开放 GPT，默认供货价为主站进价加 1%，分站自行设置零售价；已有单独供货配置会保留。"},
+    agentManagement: {"title": "代理与分站", "apiPending": "代理 / API 待审批", "sitePending": "分站待开通", "siteActive": "已开通分站", "sites": "分站申请与管理", "distinction": "代理/API 与分站分别审批。新分站默认仅售 GPT，供货默认初级分销商（计价成本 +3%），客户售价自行设置。", "sitePolicy": "通过后默认初级分销商、仅开放 GPT；计价成本是上游原价加 1%，供货按初级加 3%。已有单独商品报价保留，客户售价由分站设置。"},
     agentApproval: {"empty":"没有符合条件的代理 / API 申请", "title": "代理与 API 审批", "grade": "代理等级", "unassigned": "未设代理等级", "chooseGrade": "选择代理等级", "approve": "审批代理并开通 API", "confirm": "通过并同步开通", "success": "代理等级和 API 权限已同步开通", "explanation": "一次审批完成代理等级设置和 API 开通，无需再去用户详情手动调整。默认选择初级；已有代理保留当前等级，不会自动开通分站。", "noLevels": "没有可用的代理等级，请先在会员等级中配置启用且需要审核的代理等级。"},
     apiCredentials: {
       title: 'API 凭证管理',
@@ -494,6 +494,7 @@ const messages = {
       },
     },
     admin: {
+      resellerGrade: {"title": "分销商供货等级", "custom": "保留单独配置（不设等级）", "basic": "初级分销商 · 成本 +3%", "intermediate": "中级分销商 · 成本 +2%", "advanced": "高级分销商 · 成本 +1%", "hint": "计价成本为上游原价加 1%。分销商等级独立于代理等级；多个身份取有权购买的最低价。单独商品报价优先，客户零售价仍由分站设置。", "basis": "计价成本＝上游原价 ×1.01，金额向上取到分。"},
       brand: '雪糕 AI Admin',
       layout: {
         controlRoom: '雪糕 AI Admin 控制台',
@@ -1089,6 +1090,7 @@ const messages = {
           unavailable: '检查不可用',
           submission_sync_unavailable: '状态回传失败',
         },
+        qrSaveEmail: '疑似保存付款码的订单邮箱',
         riskScore: '风险分数 {score}',
         riskThreshold: '审核阈值 {threshold}',
         riskDelay: '付款耗时 {seconds} 秒',
@@ -4917,7 +4919,7 @@ const messages = {
       empty: '暫無對帳任務',
     },
     resellerWorkspace: {"listTitle": "分站申請與管理", "detailTitle": "分站工作台", "storeOwner": "分站 / 站長", "openingStatus": "開通狀態", "domainConnection": "網域接入", "supplyRule": "給他的供貨價", "todo": "待處理事項", "actions": "管理操作", "unnamedSite": "未命名分站 #{id}", "ownerId": "站長用戶 #{id}", "costMarkup": "你的進價 +{percent}%", "retailBase": "使用主站零售價供貨", "overrides": "含 {count} 條單獨報價", "authorizedCount": "已授權 {count} 個商品", "blockedCount": "依禁售清單控制 · {count} 個禁售", "editSupply": "商品授權與供貨報價", "noTodo": "暫無待辦", "visitStore": "造訪分站", "retailIndependent": "分站對客戶的售價獨立設定", "productsTab": "商品授權與供貨價", "domainsTab": "網域與解析", "siteTab": "店舖裝修", "lastCheck": "最近檢查", "authorizedProducts": "商品售賣權限", "byBlocklist": "依禁售清單", "priceLayers": "你的進價是主站採購成本；供貨價是分站向你拿貨的價格；客戶零售價由分站獨立設定。此處修改供貨價及商品權限，不會直接修改分站零售價。", "connection": {"ready": "解析與憑證已就緒", "pending_dns": "等待 DNS 解析", "pending_tls": "等待 HTTPS 憑證", "error": "接入異常，需檢查", "unbound": "尚未綁定網域", "unconfigured": "等待平台產生解析記錄", "disabled": "網域已停用", "pending_review": "待審核"}, "tasks": {"review": "審核分站申請", "rejected": "查看拒絕原因", "disabled": "分站已停用", "bindDomain": "綁定分站網域", "fixDomain": "處理網域接入", "configureSite": "完善店舖裝修", "settlementFrozen": "檢查結算凍結"}},
-    agentManagement: {"title": "代理與分站", "apiPending": "代理 / API 待審批", "sitePending": "分站待開通", "siteActive": "已開通分站", "sites": "分站申請與管理", "distinction": "代理/API：審批時選擇等級並同步開通介面。分站：單獨審核店舖資格，預設僅售 GPT，供貨價為你的進價加 1%，客戶零售價由分站設定。", "sitePolicy": "通過後：僅開放 GPT，預設供貨價為主站進價加 1%，分站自行設定零售價；已有單獨供貨設定會保留。"},
+    agentManagement: {"title": "代理與分站", "apiPending": "代理 / API 待審批", "sitePending": "分站待開通", "siteActive": "已開通分站", "sites": "分站申請與管理", "distinction": "代理/API 與分站分別審批。新分站預設僅售 GPT，供貨預設初級分銷商（計價成本 +3%），客戶售價自行設定。", "sitePolicy": "通過後預設初級分銷商、僅開放 GPT；計價成本是上游原價加 1%，供貨按初級加 3%。已有單獨商品報價保留，客戶售價由分站設定。"},
     agentApproval: {"empty":"沒有符合條件的代理 / API 申請", "title": "代理與 API 審批", "grade": "代理等級", "unassigned": "未設代理等級", "chooseGrade": "選擇代理等級", "approve": "審批代理並開通 API", "confirm": "通過並同步開通", "success": "代理等級和 API 權限已同步開通", "explanation": "一次審批完成代理等級設定和 API 開通，無需再至用戶詳情手動調整。預設選擇初級；已有代理保留目前等級，不會自動開通分站。", "noLevels": "沒有可用的代理等級，請先在會員等級中設定已啟用且需要審核的代理等級。"},
     apiCredentials: {
       title: 'API 憑證管理',
@@ -5218,6 +5220,7 @@ const messages = {
       },
     },
     admin: {
+      resellerGrade: {"title": "分銷商供貨等級", "custom": "保留單獨設定（不設等級）", "basic": "初級分銷商 · 成本 +3%", "intermediate": "中級分銷商 · 成本 +2%", "advanced": "高級分銷商 · 成本 +1%", "hint": "計價成本為上游原價加 1%。分銷商等級獨立於代理等級；多個身分取有權購買的最低價。單獨商品報價優先，客戶售價仍由分站設定。", "basis": "計價成本＝上游原價 ×1.01，金額向上取至分。"},
       brand: '雪糕 AI Admin',
       layout: {
         controlRoom: '雪糕 AI Admin 控制台',
@@ -5813,6 +5816,7 @@ const messages = {
           unavailable: '檢查不可用',
           submission_sync_unavailable: '狀態回傳失敗',
         },
+        qrSaveEmail: '疑似儲存付款碼的訂單信箱',
         riskScore: '風險分數 {score}',
         riskThreshold: '審核門檻 {threshold}',
         riskDelay: '付款耗時 {seconds} 秒',
@@ -9641,7 +9645,7 @@ const messages = {
       empty: 'No reconciliation jobs',
     },
     resellerWorkspace: {"listTitle": "Storefront applications & management", "detailTitle": "Storefront workspace", "storeOwner": "Storefront / owner", "openingStatus": "Approval status", "domainConnection": "Domain connection", "supplyRule": "Your supply price", "todo": "Action needed", "actions": "Manage", "unnamedSite": "Unnamed storefront #{id}", "ownerId": "Owner user #{id}", "costMarkup": "Your cost +{percent}%", "retailBase": "Main-store retail supply base", "overrides": "{count} custom price rules", "authorizedCount": "{count} products authorized", "blockedCount": "Blocklist access · {count} blocked", "editSupply": "Catalogue access & supply prices", "noTodo": "No actions needed", "visitStore": "Visit storefront", "retailIndependent": "Storefront retail prices are set independently", "productsTab": "Catalogue & supply prices", "domainsTab": "Domains & DNS", "siteTab": "Branding & design", "lastCheck": "Last checked", "authorizedProducts": "Catalogue access", "byBlocklist": "By blocklist", "priceLayers": "Your cost is the main store procurement cost. Supply price is what this storefront pays you. Customer retail prices are set independently by the storefront. This panel changes supply pricing and catalogue access, not customer retail prices.", "connection": {"ready": "DNS and certificate ready", "pending_dns": "Waiting for DNS", "pending_tls": "Waiting for HTTPS certificate", "error": "Connection needs attention", "unbound": "No domain bound", "unconfigured": "Waiting for DNS instructions", "disabled": "Domain disabled", "pending_review": "Pending approval"}, "tasks": {"review": "Review storefront application", "rejected": "View rejection reason", "disabled": "Storefront disabled", "bindDomain": "Bind storefront domain", "fixDomain": "Resolve domain connection", "configureSite": "Complete storefront branding", "settlementFrozen": "Review frozen settlement"}},
-    agentManagement: {"title": "Agents & storefronts", "apiPending": "Agent / API applications", "sitePending": "Pending storefronts", "siteActive": "Active storefronts", "sites": "Storefront applications", "distinction": "Agents/API: select a grade and enable API access in one approval. Storefronts: approved separately, with GPT-only default access and your cost plus 1% supply pricing. Storefront owners set retail prices.", "sitePolicy": "Approval grants GPT-only catalogue access and cost plus 1% default supply pricing. Storefront owners set retail prices. Existing custom supply rules are preserved."},
+    agentManagement: {"title": "Agents & storefronts", "apiPending": "Agent / API applications", "sitePending": "Pending storefronts", "siteActive": "Active storefronts", "sites": "Storefront applications", "distinction": "Agent/API access and storefronts are approved separately. New storefronts sell GPT only and start at Basic supply (pricing cost +3%). Retail prices are independent.", "sitePolicy": "Approval defaults to Basic storefront supply and GPT-only access. Pricing cost is the upstream quote plus 1%; Basic adds 3%. Product overrides are retained; storefront retail remains independent."},
     agentApproval: {"empty":"No matching agent / API applications", "title": "Agent & API approvals", "grade": "Agent grade", "unassigned": "No agent grade", "chooseGrade": "Select an agent grade", "approve": "Approve agent & enable API", "confirm": "Approve and enable", "success": "Agent grade and API access enabled together", "explanation": "Approve the agent grade and API access in one step. Entry grade is selected by default; existing agents keep their current grade. Storefront access is approved separately.", "noLevels": "No active agent grades are available. Configure active grades that require approval in membership settings first."},
     apiCredentials: {
       title: 'API Credentials',
@@ -9942,6 +9946,7 @@ const messages = {
       },
     },
     admin: {
+      resellerGrade: {"title": "Storefront supply grade", "custom": "Keep custom pricing (unassigned)", "basic": "Basic storefront · cost +3%", "intermediate": "Intermediate storefront · cost +2%", "advanced": "Advanced storefront · cost +1%", "hint": "Pricing cost is the upstream quote plus 1%. Storefront and agent grades are independent. Eligible identities receive the lowest applicable price. Product overrides take priority; storefront retail remains independent.", "basis": "Pricing cost = upstream quote ×1.01, rounded up to cents."},
       brand: '雪糕 AI Admin',
       layout: {
         controlRoom: '雪糕 AI Admin Control Panel',
@@ -10537,6 +10542,7 @@ const messages = {
           unavailable: 'Check unavailable',
           submission_sync_unavailable: 'Status sync failed',
         },
+        qrSaveEmail: 'Order email for suspected QR saving',
         riskScore: 'Risk score {score}',
         riskThreshold: 'Review threshold {threshold}',
         riskDelay: 'Time to payment: {seconds} s',

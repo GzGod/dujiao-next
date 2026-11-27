@@ -68,6 +68,7 @@ func AutoMigrate() error {
 		&cartdomain.Item{},
 		&paymentdomain.PaymentChannel{},
 		&paymentdomain.Payment{},
+		&paymentdomain.QRSaveEvent{},
 		&cardsecretdomain.Secret{},
 		&cardsecretdomain.Batch{},
 		&giftcarddomain.GiftCard{},

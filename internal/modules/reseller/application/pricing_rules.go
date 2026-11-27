@@ -2,6 +2,7 @@ package application
 
 import (
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
+	"github.com/dujiao-next/internal/shared/tradepricing"
 	"strings"
 
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
@@ -102,8 +103,11 @@ func ValidateUnitAmount(profile *resellerdomain.Profile, sku *productdomain.Prod
 // order snapshots. A configured price that falls below current cost fails closed.
 func ResolveSupplyUnitAmount(profile *resellerdomain.Profile, productID, skuID uint, retail, cost decimal.Decimal) (decimal.Decimal, error) {
 	base := retail.Round(2)
-	if profile == nil || profile.SupplyPricing == nil {
+	if profile == nil {
 		return base, nil
+	}
+	if profile.SupplyPricing == nil {
+		return decimal.Min(base, tradepricing.Resolve(profile.AgentPricing, productID, skuID, retail, cost)), nil
 	}
 	config := profile.SupplyPricing
 	var selected *resellerdomain.SupplyPriceRule
@@ -131,17 +135,24 @@ func ResolveSupplyUnitAmount(profile *resellerdomain.Profile, productID, skuID u
 			if !cost.GreaterThan(decimal.Zero) {
 				return decimal.Zero, resellercontract.ErrPriceBelowBase
 			}
-			base = ApplyMarkupPercent(cost, value)
+			base = cost.Mul(decimal.NewFromInt(100).Add(value)).Div(decimal.NewFromInt(100)).RoundCeil(2)
 		default:
 			return decimal.Zero, resellercontract.ErrPricingModeInvalid
 		}
+	} else if config.Grade != "" && cost.IsPositive() {
+		pct := map[string]int64{"basic": 3, "intermediate": 2, "advanced": 1}[config.Grade]
+		if pct == 0 {
+			return decimal.Zero, resellercontract.ErrPricingModeInvalid
+		}
+		base = cost.Mul(decimal.NewFromInt(100 + pct)).Div(decimal.NewFromInt(100)).RoundCeil(2)
 	} else if config.DefaultMarkupPercent != nil && cost.GreaterThan(decimal.Zero) {
 		value, err := decimal.NewFromString(*config.DefaultMarkupPercent)
 		if err != nil || value.IsNegative() {
 			return decimal.Zero, resellercontract.ErrPriceBelowBase
 		}
-		base = ApplyMarkupPercent(cost, value)
+		base = cost.Mul(decimal.NewFromInt(100).Add(value)).Div(decimal.NewFromInt(100)).RoundCeil(2)
 	}
+	base = decimal.Min(base, tradepricing.Resolve(profile.AgentPricing, productID, skuID, retail, cost))
 	if base.LessThanOrEqual(decimal.Zero) || (cost.GreaterThan(decimal.Zero) && base.LessThan(cost.Round(2))) {
 		return decimal.Zero, resellercontract.ErrPriceBelowBase
 	}
@@ -151,6 +162,9 @@ func ResolveSupplyUnitAmount(profile *resellerdomain.Profile, productID, skuID u
 func validateSupplyPricing(config *resellerdomain.SupplyPricing) error {
 	if config == nil {
 		return nil
+	}
+	if config.Grade != "" && config.Grade != "basic" && config.Grade != "intermediate" && config.Grade != "advanced" {
+		return resellercontract.ErrPricingModeInvalid
 	}
 	if len(config.BlockedProductIDs) > 1000 {
 		return resellercontract.ErrPricingModeInvalid

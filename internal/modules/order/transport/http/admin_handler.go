@@ -130,6 +130,7 @@ type AdminOrderPaymentItem struct {
 
 // AdminOrderDetail 管理端订单详情返回
 type AdminOrderDetail struct {
+	QRSaveEmail            string                 `json:"qr_save_email,omitempty"`
 	RiskReviewListKinds    []string               `json:"risk_review_list_kinds,omitempty"`
 	PaymentRiskEvaluatedAt *time.Time             `json:"payment_risk_evaluated_at,omitempty"`
 	RiskHoldStatus         string                 `json:"risk_hold_status,omitempty"`
@@ -379,6 +380,7 @@ func (h *AdminHandler) AdminGetOrder(c *gin.Context) {
 		Payments:        paymentItems,
 	}
 	if ginutil.IsSuperAdmin(c) {
+		detail.QRSaveEmail = order.QRSaveEmail
 		detail.RiskHoldStatus = order.RiskHoldStatus
 		detail.PaymentRiskDecision = order.PaymentRiskDecision
 		detail.PaymentRiskEvaluatedAt = order.PaymentRiskEvaluatedAt

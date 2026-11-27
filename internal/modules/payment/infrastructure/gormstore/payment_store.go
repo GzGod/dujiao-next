@@ -1,6 +1,7 @@
 package gormstore
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -302,4 +303,65 @@ func (r *Store) GetByIDForUpdate(id uint) (*paymentdomain.Payment, error) {
 		return nil, err
 	}
 	return &payment, nil
+}
+
+func (r *Store) RecordQRSave(ctx context.Context, orderID, paymentID uint, eventID, kind string) (int, bool, string, error) {
+	var email string
+	var count int
+	var alert bool
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var o struct {
+			ID, UserID         uint
+			GuestEmail, Status string
+			QRAlipaySaveCount  int
+		}
+		if err := tx.Table("orders").Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", orderID).Take(&o).Error; err != nil {
+			return err
+		}
+		if o.Status != constants.OrderStatusPendingPayment {
+			return errors.New("order no longer payable")
+		}
+		var p paymentdomain.Payment
+		if err := tx.Where("order_id = ? AND superseded_at IS NULL AND deleted_at IS NULL", orderID).Order("id DESC").First(&p).Error; err != nil {
+			return err
+		}
+		if p.ID != paymentID || p.Status != constants.PaymentStatusPending {
+			return errors.New("inactive payment")
+		}
+		alipay := p.ProviderType == constants.PaymentProviderXorpay && p.ChannelType == "alipay"
+		if !alipay && p.ProviderType != constants.PaymentProviderEpusdt && p.ProviderType != constants.PaymentProviderBepusdt {
+			return errors.New("unsupported payment")
+		}
+		email = o.GuestEmail
+		if o.UserID != 0 {
+			if err := tx.Table("users").Select("email").Where("id = ?", o.UserID).Scan(&email).Error; err != nil {
+				return err
+			}
+		}
+		count = o.QRAlipaySaveCount
+		result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&paymentdomain.QRSaveEvent{OrderID: orderID, PaymentID: p.ID, EventID: eventID, Kind: kind, Provider: p.ProviderType, OrderEmail: email})
+		if result.Error != nil || result.RowsAffected == 0 {
+			return result.Error
+		}
+		if err := tx.Table("orders").Where("id = ?", orderID).Update("qr_save_email", email).Error; err != nil {
+			return err
+		}
+		if alipay {
+			count++
+			alert = count == 3
+			updates := map[string]any{"qr_alipay_save_count": count, "qr_wait_payment_id": p.ID}
+			if alert {
+				updates["expires_at"] = time.Now()
+			}
+			return tx.Table("orders").Where("id = ?", orderID).Updates(updates).Error
+		}
+		var total int64
+		if err := tx.Model(&paymentdomain.QRSaveEvent{}).Where("order_id = ? AND provider = ?", orderID, p.ProviderType).Count(&total).Error; err != nil {
+			return err
+		}
+		count = int(total)
+		alert = count == 3
+		return nil
+	})
+	return count, alert, email, err
 }

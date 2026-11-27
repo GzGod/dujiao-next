@@ -341,10 +341,10 @@ func TestResolveMemberPriceUsesLevelCostMarkup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 成本 621.20 → 627.41，与售价无关
+	// 成本 621.20 → 627.42，与售价无关
 	got, _ := svc.ResolveMemberPrice(level.ID, 20, 0, decimal.RequireFromString("660"), decimal.RequireFromString("621.20"))
-	if !got.Equal(decimal.RequireFromString("627.41")) {
-		t.Fatalf("expected cost × 1.01 = 627.41, got %s", got)
+	if !got.Equal(decimal.RequireFromString("627.42")) {
+		t.Fatalf("expected cost × 1.01 = 627.42, got %s", got)
 	}
 	// 成本未知时回落到折扣率
 	got, _ = svc.ResolveMemberPrice(level.ID, 20, 0, decimal.RequireFromString("100"), decimal.Zero)
