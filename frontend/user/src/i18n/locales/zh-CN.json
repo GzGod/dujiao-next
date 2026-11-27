@@ -1226,7 +1226,7 @@
     "ipDeliveryHint": "付款成功。请联系 Telegram 客服，提供订单号领取美国家宽 IP。",
     "inlineGmCashier": "GMwallet 选链与代币收银台",
     "gptRedeemHint": "核销码已发放。复制后前往核销，按提示提交账号资料。核销完成后再确认充值结果。",
-    "gptDeliveryPending": "付款已确认，正在准备核销码，请稍后刷新交付状态。",
+    "gptDeliveryPending": "付款已确认，正在准备核销码。发码后会自动显示。",
     "gptCopyCode": "复制核销码",
     "gptCodeCopied": "已复制核销码",
     "gptRedeemOpen": "前往核销",

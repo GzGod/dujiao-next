@@ -1279,7 +1279,7 @@
     "ipDeliveryHint": "付款成功。請聯絡 Telegram 客服，提供訂單號領取美國家寬 IP。",
     "inlineGmCashier": "GMwallet 選鏈與代幣收銀台",
     "gptRedeemHint": "核銷碼已發放。複製後前往核銷，依提示提交帳號資料。核銷完成後再確認充值結果。",
-    "gptDeliveryPending": "付款已確認，正在準備核銷碼，請稍後重新整理交付狀態。",
+    "gptDeliveryPending": "付款已確認，正在準備核銷碼。發碼後會自動顯示。",
     "gptCopyCode": "複製核銷碼",
     "gptCodeCopied": "已複製核銷碼",
     "gptRedeemOpen": "前往核銷",

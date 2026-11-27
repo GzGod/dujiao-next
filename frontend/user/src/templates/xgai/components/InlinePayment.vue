@@ -7,7 +7,7 @@
     <strong>{{ formatPrice(payable.amount, payable.currency) }}</strong>
     <GmInlineCashier v-if="embeddedCashier && !paid && !expired" :order-no="result.order_no" :guest="guest" :email="email" :password="password" @ready="emit('ready')" />
     <Transition v-if="!embeddedCashier || paid || expired" name="qr-reveal" appear mode="out-in">
-      <div v-if="paid" class="inline-pay__result" key="paid"><CheckCircle2 /><p>{{ t(isIp ? 'payment.ipDeliveryHint' : isClaude ? 'payment.claudeBotHint' : isGpt ? (deliveryCode ? 'payment.gptRedeemHint' : 'payment.gptDeliveryPending') : 'payment.inlineSuccessHint') }}</p><template v-if="isGpt && deliveryCode"><code class="inline-pay__code">{{ deliveryCode }}</code><button type="button" class="x-btn x-btn--ghost" @click="copyCode">{{ t(codeCopied ? 'payment.gptCodeCopied' : 'payment.gptCopyCode') }}</button><a :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.gptRedeemOpen') }} →</a></template><a v-if="isIp" href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('floatingSupport.title') }} →</a><a v-if="isClaude && botUrl" :href="botUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.claudeBotOpen') }} →</a><button v-else-if="isClaude" type="button" class="x-btn x-btn--primary" :disabled="botLoading" @click="loadBot">{{ t(botLoading ? 'common.loading' : 'payment.claudeBotRetry') }}</button></div>
+      <div v-if="paid" class="inline-pay__result" key="paid"><CheckCircle2 /><p>{{ t(isIp ? 'payment.ipDeliveryHint' : isClaude ? 'payment.claudeBotHint' : isGpt ? (deliveryCode ? 'payment.gptRedeemHint' : 'payment.gptDeliveryPending') : 'payment.inlineSuccessHint') }}</p><template v-if="isGpt && deliveryCode"><code class="inline-pay__code">{{ deliveryCode }}</code><button type="button" class="x-btn x-btn--ghost" @click="copyCode">{{ t(codeCopied ? 'payment.gptCodeCopied' : 'payment.gptCopyCode') }}</button></template><a v-if="isGpt" :href="appStore.redemptionUrl()" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.gptRedeemOpen') }} →</a><a v-if="isIp" href="https://t.me/xuegaozhanshen" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('floatingSupport.title') }} →</a><a v-if="isClaude && botUrl" :href="botUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.claudeBotOpen') }} →</a><button v-else-if="isClaude" type="button" class="x-btn x-btn--primary" :disabled="botLoading" @click="loadBot">{{ t(botLoading ? 'common.loading' : 'payment.claudeBotRetry') }}</button></div>
       <div v-else-if="expired" class="inline-pay__result" key="expired"><Clock3 /><p>{{ t('payment.orderExpired') }}</p></div>
       <div v-else-if="isRedirect && payUrl" class="inline-pay__result" key="redirect"><ExternalLink /><p>{{ t('payment.redirectTip') }}</p><a :href="payUrl" target="_blank" rel="noopener noreferrer" class="x-btn x-btn--primary">{{ t('payment.inlineOpenCashier') }} →</a></div>
       <div v-else-if="qr" class="inline-pay__qr" key="qr"><img :src="qr" :alt="t('payment.inlineScan')" @load="emit('ready')" /><span>{{ t('payment.inlineWaiting') }}</span></div>
@@ -32,7 +32,7 @@ import QRCode from 'qrcode'
 import GmInlineCashier from './GmInlineCashier.vue'
 import { embeddedGmCashierUrl } from '../../../utils/inlinePayment'
 import { resolvePaymentPresentationMode } from '../../../utils/paymentResumePolicy'
-import { inlinePayableAmount, shouldRefreshInlineOrder } from '../../../utils/inlinePayment'
+import { inlinePayableAmount, shouldRefreshInlineOrder, inlineOrderItems } from '../../../utils/inlinePayment'
 import { reconcilePendingOrder } from '../../../utils/pendingOrders'
 import { CheckCircle2, Clock3, AlertCircle, ExternalLink } from 'lucide-vue-next'
 import { guestOrderAPI, userOrderAPI } from '../../../api'
@@ -52,10 +52,10 @@ const currentChannel = computed(() => props.channels.find(channel => Number(chan
 const isAlipay = computed(() => String(currentChannel.value?.channel_type || payment.value.channel_type).includes('alipay'))
 const isRedirect = computed(() => resolvePaymentPresentationMode(payment.value.interaction_mode || currentChannel.value?.interaction_mode) === 'redirect')
 const order = ref(props.result.order)
-const payable = computed(() => inlinePayableAmount(payment.value, order.value))
-const isIp = computed(() => (order.value?.items || []).some((item: any) => item.slug === 'us-residential-ip-monthly' || /家宽|家寬|residential IP/i.test(JSON.stringify(item.title || item.product_title || ''))))
-const isClaude = computed(() => (order.value?.items || props.result.order?.items || []).some((item: any) => { const title = JSON.stringify(item.title || item.product_title || ''); return /claude/i.test(title) && /pro|max|成品|account/i.test(title) && !/门户|門戶|portal/i.test(title) }))
-const isGpt = computed(() => (order.value?.items || []).some((item: any) => /gpt|openai/i.test(JSON.stringify(item.title || item.product_title || ''))))
+const payable = computed(() => paid.value ? { amount: String(order.value?.total_amount || props.result.order?.total_amount || '0'), currency: order.value?.currency || 'CNY' } : inlinePayableAmount(payment.value, order.value))
+const isIp = computed(() => inlineOrderItems(order.value).some((item: any) => item.slug === 'us-residential-ip-monthly' || /家宽|家寬|residential IP/i.test(JSON.stringify(item.title || item.product_title || ''))))
+const isClaude = computed(() => inlineOrderItems(order.value || props.result.order).some((item: any) => { const title = JSON.stringify(item.title || item.product_title || ''); return /claude/i.test(title) && /pro|max|成品|account/i.test(title) && !/门户|門戶|portal/i.test(title) }))
+const isGpt = computed(() => inlineOrderItems(order.value).some((item: any) => /gpt|openai/i.test(JSON.stringify(item.title || item.product_title || ''))))
 const deliveryCode = computed(() => {
   const deliveries = [order.value?.fulfillment, ...(order.value?.children || []).map((child: any) => child.fulfillment)]
   return deliveries.map(item => typeof item?.payload === 'string' ? item.payload : typeof item?.payload?.content === 'string' ? item.payload.content : '').filter(Boolean).join('\n')
@@ -120,7 +120,8 @@ watch(() => [paid.value, isClaude.value], async () => { if (paid.value) { await 
 onMounted(async () => {
   if (paid.value || expired.value || !payUrl.value && !payment.value.qr_code) emit('ready')
   await refresh()
-  timer = setInterval(() => { now.value = Date.now(); if (shouldRefreshInlineOrder(order.value, isGpt.value, Boolean(deliveryCode.value), expired.value)) void refresh() }, 3000)
+  if (disposed) return
+  timer = setInterval(() => { now.value = Date.now(); if (shouldRefreshInlineOrder(order.value, isGpt.value, Boolean(deliveryCode.value), expired.value)) void refresh() }, 2000)
 })
 onBeforeUnmount(() => { disposed = true; clearInterval(timer) })
 </script>

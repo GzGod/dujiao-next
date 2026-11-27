@@ -13,7 +13,7 @@ export function inlinePayableAmount(payment: any, order: any): { amount: string;
 export function shouldRefreshInlineOrder(order: any, gpt: boolean, hasCode: boolean, expired: boolean): boolean {
   if (order?.status === 'pending_payment') return !expired
   // Paid GPT orders may still be waiting for asynchronous upstream fulfillment.
-  return gpt && !hasCode && ['paid', 'processing', 'fulfilling', 'partially_delivered'].includes(order?.status)
+  return gpt && !hasCode && ['paid', 'processing', 'fulfilling', 'partially_delivered', 'delivered', 'completed'].includes(order?.status)
 }
 
 /** Embed only our cashier origin; a third-party payment URL remains an explicit link. */
@@ -23,4 +23,9 @@ export function embeddedGmCashierUrl(raw: string, dev = false): string {
     const trusted = url.origin === 'https://pay.xuegaogx.cc' || (dev && url.origin === 'http://127.0.0.1:4189')
     return trusted && !url.username && !url.password && /^\/(?:cashier|pay\/checkout-counter)\/[A-Za-z0-9_-]+\/?$/.test(url.pathname) ? url.href : ''
   } catch { return '' }
+}
+
+export function inlineOrderItems(order: any): any[] {
+  if (!order) return []
+  return [...(Array.isArray(order.items) ? order.items : []), ...(order.children || []).flatMap(inlineOrderItems)]
 }

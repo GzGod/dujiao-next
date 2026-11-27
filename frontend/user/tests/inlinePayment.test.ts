@@ -16,7 +16,7 @@ test('keeps watching delayed GPT delivery after payment, but stops at code deliv
     assert.equal(shouldRefreshInlineOrder({ status }, true, false, true), true)
     assert.equal(shouldRefreshInlineOrder({ status }, true, true, false), false)
   }
-  for (const status of ['completed', 'delivered', 'refunded', 'canceled', 'expired']) assert.equal(shouldRefreshInlineOrder({ status }, true, false, false), false)
+  for (const status of ['refunded', 'canceled', 'expired']) assert.equal(shouldRefreshInlineOrder({ status }, true, false, false), false)
   assert.equal(shouldRefreshInlineOrder({ status: 'pending_payment' }, true, false, false), true)
   assert.equal(shouldRefreshInlineOrder({ status: 'pending_payment' }, true, false, true), false)
   assert.equal(shouldRefreshInlineOrder({ status: 'paid' }, false, false, false), false)
@@ -35,4 +35,11 @@ test('embeds only the owned GM cashier and never arbitrary URLs or production fi
   assert.equal(embeddedGmCashierUrl('https://pay.xuegaogx.cc.evil.test/cashier/id'), '')
   assert.equal(embeddedGmCashierUrl('http://127.0.0.1:4189/cashier/candidate-select'), '')
   assert.equal(embeddedGmCashierUrl('http://127.0.0.1:4189/cashier/candidate-select', true), 'http://127.0.0.1:4189/cashier/candidate-select')
+})
+
+test('parent order detects GPT items from children and keeps checking delivered snapshots missing a code', async () => {
+  const { inlineOrderItems } = await import('../src/utils/inlinePayment.ts')
+  assert.equal(inlineOrderItems({items: [], children: [{items: [{title:'GPT Pro 200'}]}]})[0].title, 'GPT Pro 200')
+  assert.equal(shouldRefreshInlineOrder({status:'delivered'}, true, false, false), true)
+  assert.equal(shouldRefreshInlineOrder({status:'delivered'}, true, true, false), false)
 })
